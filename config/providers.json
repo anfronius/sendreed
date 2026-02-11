@@ -1,0 +1,26 @@
+{
+  "outlook_free": {
+    "label": "Outlook.com (Free)",
+    "host": "smtp-mail.outlook.com",
+    "port": 587,
+    "secure": false,
+    "dailyLimit": 300,
+    "defaultDelay": 2000
+  },
+  "microsoft365": {
+    "label": "Microsoft 365",
+    "host": "smtp.office365.com",
+    "port": 587,
+    "secure": false,
+    "dailyLimit": 10000,
+    "defaultDelay": 2000
+  },
+  "yahoo_free": {
+    "label": "Yahoo Mail (Free)",
+    "host": "smtp.mail.yahoo.com",
+    "port": 465,
+    "secure": true,
+    "dailyLimit": 100,
+    "defaultDelay": 3000
+  }
+}

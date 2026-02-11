@@ -1,0 +1,25 @@
+{
+  "name": "sendreed",
+  "version": "1.0.0",
+  "description": "Unified outreach platform for email and SMS campaigns",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "private": true,
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.0.0",
+    "connect-sqlite3": "^0.9.15",
+    "ejs": "^3.1.10",
+    "express": "^4.21.0",
+    "express-session": "^1.18.0",
+    "node-cron": "^3.0.3",
+    "nodemailer": "^6.9.0",
+    "papaparse": "^5.4.0"
+  }
+}

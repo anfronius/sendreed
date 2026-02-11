@@ -1,0 +1,28 @@
+<%- include('layout-header', { title: 'Dashboard' }) %>
+
+<h1>Dashboard</h1>
+<p>Welcome, <strong><%= user.name %></strong>.</p>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-number"><%= contactCount %></div>
+    <div class="stat-label">Contacts</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number"><%= templateCount %></div>
+    <div class="stat-label">Templates</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number"><%= campaignCount %></div>
+    <div class="stat-label">Campaigns</div>
+  </div>
+</div>
+
+<% if (user.role === 'admin') { %>
+  <h2>Admin Quick Links</h2>
+  <div class="action-links">
+    <a href="/admin/users" class="btn btn-secondary">Manage Users</a>
+  </div>
+<% } %>
+
+<%- include('layout-footer', { scripts: [] }) %>

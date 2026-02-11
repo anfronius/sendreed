@@ -1,0 +1,50 @@
+<%- include('../layout-header', { title: 'SMTP Config — ' + targetUser.name }) %>
+
+<h1>SMTP Config: <%= targetUser.name %></h1>
+<p>Role: <strong><%= targetUser.role %></strong> | Email: <strong><%= targetUser.email %></strong></p>
+
+<form method="POST" action="/admin/users/<%= targetUser.id %>/smtp" class="form-card" id="smtp-form">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+  <div class="form-group">
+    <label for="smtp_provider">Email Provider</label>
+    <select id="smtp_provider" name="smtp_provider">
+      <option value="">— Select provider —</option>
+      <% Object.entries(providers).forEach(function([key, p]) { %>
+        <option value="<%= key %>" <%= targetUser.smtp_provider === key ? 'selected' : '' %>><%= p.label %></option>
+      <% }); %>
+    </select>
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label for="smtp_host">SMTP Host</label>
+      <input type="text" id="smtp_host" name="smtp_host" value="<%= targetUser.smtp_host || '' %>">
+    </div>
+    <div class="form-group">
+      <label for="smtp_port">SMTP Port</label>
+      <input type="number" id="smtp_port" name="smtp_port" value="<%= targetUser.smtp_port || '' %>">
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="smtp_email">SMTP Email (login)</label>
+    <input type="email" id="smtp_email" name="smtp_email" value="<%= targetUser.smtp_email || '' %>">
+  </div>
+
+  <div class="form-group">
+    <label for="smtp_password">App Password</label>
+    <input type="password" id="smtp_password" name="smtp_password" placeholder="<%= targetUser.smtp_password_encrypted ? '(saved — leave blank to keep)' : 'Enter app password' %>">
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save SMTP Settings</button>
+    <button type="button" class="btn btn-secondary" id="test-btn">Test Connection</button>
+  </div>
+
+  <div id="test-result" class="test-result" style="display:none"></div>
+</form>
+
+<a href="/admin/users" class="btn btn-link">Back to Users</a>
+
+<%- include('../layout-footer', { scripts: ['/js/admin.js'] }) %>

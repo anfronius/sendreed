@@ -1,0 +1,24 @@
+<%- include('../layout-header', { title: 'Admin' }) %>
+
+<h1>Admin Dashboard</h1>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-number"><%= userCount %></div>
+    <div class="stat-label">Total Users</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number"><%= contactCount %></div>
+    <div class="stat-label">Total Contacts</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number"><%= campaignCount %></div>
+    <div class="stat-label">Total Campaigns</div>
+  </div>
+</div>
+
+<div class="action-links">
+  <a href="/admin/users" class="btn btn-secondary">Manage Users</a>
+</div>
+
+<%- include('../layout-footer', { scripts: [] }) %>

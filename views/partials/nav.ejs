@@ -1,0 +1,16 @@
+<nav class="navbar">
+  <div class="nav-brand">
+    <a href="/dashboard">SendReed</a>
+  </div>
+  <% if (user) { %>
+  <div class="nav-links">
+    <a href="/dashboard">Dashboard</a>
+    <% if (user.role === 'admin') { %>
+      <a href="/admin">Admin</a>
+      <a href="/admin/users">Users</a>
+    <% } %>
+    <span class="nav-user"><%= user.name %> (<%= user.role %>)</span>
+    <a href="/auth/logout" class="nav-logout">Logout</a>
+  </div>
+  <% } %>
+</nav>

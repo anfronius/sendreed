@@ -1,0 +1,69 @@
+<%- include('../layout-header', { title: 'Manage Users' }) %>
+
+<h1>Manage Users</h1>
+
+<h2>Create User</h2>
+<form method="POST" action="/admin/users" class="form-card">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="form-row">
+    <div class="form-group">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" required>
+    </div>
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required minlength="8">
+    </div>
+    <div class="form-group">
+      <label for="role">Role</label>
+      <select id="role" name="role" required>
+        <option value="nonprofit">Nonprofit</option>
+        <option value="realestate">Real Estate</option>
+        <option value="admin">Admin</option>
+      </select>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Create User</button>
+</form>
+
+<h2>Existing Users</h2>
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Role</th>
+      <th>SMTP</th>
+      <th>Created</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% users.forEach(function(u) { %>
+    <tr>
+      <td><%= u.name %></td>
+      <td><%= u.email %></td>
+      <td><%= u.role %></td>
+      <td><%= u.smtp_provider ? u.smtp_provider : 'Not configured' %></td>
+      <td><%= u.created_at %></td>
+      <td>
+        <a href="/admin/users/<%= u.id %>/smtp" class="btn btn-sm btn-secondary">SMTP Config</a>
+        <% if (u.id !== user.id) { %>
+          <form method="POST" action="/admin/users/<%= u.id %>/delete" style="display:inline">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this user?')">Delete</button>
+          </form>
+        <% } %>
+      </td>
+    </tr>
+    <% }); %>
+  </tbody>
+</table>
+
+<%- include('../layout-footer', { scripts: [] }) %>
