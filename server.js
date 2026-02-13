@@ -9,6 +9,9 @@ const { trimBody } = require('./middleware/validate');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust reverse proxy (Render, Caddy) so secure cookies work behind SSL termination
+app.set('trust proxy', 1);
+
 const { recoverStaleCampaigns } = require('./services/email');
 const { startCronJobs } = require('./services/cron');
 
