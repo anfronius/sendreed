@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { requireAuth, setFlash } = require('../middleware/auth');
+const { verifyCsrf } = require('../middleware/csrf');
 const { getDb } = require('../db/init');
 const csv = require('../services/csv');
 
@@ -88,7 +89,7 @@ router.get('/import', (req, res) => {
 });
 
 // POST /contacts/import/upload — parse CSV, store in session
-router.post('/import/upload', upload.single('csvfile'), (req, res) => {
+router.post('/import/upload', upload.single('csvfile'), verifyCsrf, (req, res) => {
   try {
     if (!req.file) {
       setFlash(req, 'error', 'Please select a CSV file.');

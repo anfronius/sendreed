@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { requireRole, setFlash } = require('../middleware/auth');
+const { verifyCsrf } = require('../middleware/csrf');
 const { getDb } = require('../db/init');
 const csv = require('../services/csv');
 const vcard = require('../services/vcard');
@@ -64,7 +65,7 @@ router.get('/import', (req, res) => {
 });
 
 // POST /realestate/import/upload — parse CSV, store in session
-router.post('/import/upload', upload.single('csvfile'), (req, res) => {
+router.post('/import/upload', upload.single('csvfile'), verifyCsrf, (req, res) => {
   try {
     if (!req.file) {
       setFlash(req, 'error', 'Please select a CSV file.');
@@ -290,7 +291,7 @@ router.get('/import-vcard', (req, res) => {
 });
 
 // POST /realestate/import-vcard/upload — parse VCF, store in DB, run matching
-router.post('/import-vcard/upload', vcfUpload.single('vcffile'), (req, res) => {
+router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (req, res) => {
   try {
     if (!req.file) {
       setFlash(req, 'error', 'Please select a vCard (.vcf) file.');
