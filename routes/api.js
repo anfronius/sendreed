@@ -360,4 +360,75 @@ router.get('/campaign/:id/status', requireAuth, (req, res) => {
   }
 });
 
+// ========== REALIST LOOKUP API ==========
+
+// PUT /api/realist-lookup/:id — save owner name (auto-save)
+router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const propId = parseInt(req.params.id);
+    const { owner_name } = req.body;
+
+    if (!owner_name || !owner_name.trim()) {
+      return res.status(400).json({ error: 'Owner name is required.' });
+    }
+
+    const prop = db.prepare('SELECT * FROM crmls_properties WHERE id = ?').get(propId);
+    if (!prop) {
+      return res.status(404).json({ error: 'Property not found.' });
+    }
+
+    db.prepare(
+      `UPDATE crmls_properties
+       SET realist_owner_name = ?, realist_lookup_status = 'found', looked_up_at = datetime('now')
+       WHERE id = ?`
+    ).run(owner_name.trim(), propId);
+
+    const counts = db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
+        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+      FROM crmls_properties
+    `).get();
+
+    res.json({ success: true, counts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/realist-lookup/:id/not-found — mark property as not found
+router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const propId = parseInt(req.params.id);
+
+    const prop = db.prepare('SELECT * FROM crmls_properties WHERE id = ?').get(propId);
+    if (!prop) {
+      return res.status(404).json({ error: 'Property not found.' });
+    }
+
+    db.prepare(
+      `UPDATE crmls_properties
+       SET realist_lookup_status = 'not_found', realist_owner_name = NULL, looked_up_at = datetime('now')
+       WHERE id = ?`
+    ).run(propId);
+
+    const counts = db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
+        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+      FROM crmls_properties
+    `).get();
+
+    res.json({ success: true, counts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

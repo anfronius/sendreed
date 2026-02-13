@@ -1,0 +1,65 @@
+<%- include('../layout-header', { title: 'Import CRMLS' }) %>
+
+<h1>Import CRMLS Properties</h1>
+
+<% if (step === 'upload') { %>
+<div class="form-card">
+  <p>Upload a CRMLS CSV file to import property data. The first row should contain column headers.</p>
+  <form method="POST" action="/realestate/import/upload" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="form-group">
+      <label for="csvfile">CSV File</label>
+      <input type="file" id="csvfile" name="csvfile" accept=".csv" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Upload & Parse</button>
+  </form>
+</div>
+<% } else if (step === 'map') { %>
+<div class="form-card">
+  <p>Map your CSV columns to property fields. Found <strong><%= rowCount %></strong> rows.</p>
+  <form method="POST" action="/realestate/import/map">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>CSV Column</th>
+          <th>Map To</th>
+          <% if (sampleRows.length > 0) { %><th>Sample Data</th><% } %>
+        </tr>
+      </thead>
+      <tbody>
+        <% headers.forEach(function(header) { %>
+        <tr>
+          <td><strong><%= header %></strong></td>
+          <td>
+            <select name="mapping_<%= header %>" class="filter-select">
+              <option value="skip">-- Skip --</option>
+              <% crmlsFields.forEach(function(field) { %>
+                <option value="<%= field %>" <%= suggestions[header] === field ? 'selected' : '' %>><%= field %></option>
+              <% }); %>
+            </select>
+          </td>
+          <% if (sampleRows.length > 0) { %>
+          <td class="sample-data">
+            <% sampleRows.slice(0, 2).forEach(function(row, i) { %>
+              <%= row[header] || '(empty)' %><%= i < 1 ? ', ' : '' %>
+            <% }); %>
+          </td>
+          <% } %>
+        </tr>
+        <% }); %>
+      </tbody>
+    </table>
+
+    <div class="form-actions" style="margin-top: 1rem;">
+      <button type="submit" class="btn btn-primary">Import Properties</button>
+      <a href="/realestate/import" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+<% } %>
+
+<a href="/realestate" class="btn btn-link">Back to Real Estate</a>
+
+<%- include('../layout-footer', { scripts: [] }) %>

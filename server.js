@@ -71,6 +71,7 @@ app.use('/admin', require('./routes/admin'));
 app.use('/contacts', require('./routes/contacts'));
 app.use('/campaign', require('./routes/campaign'));
 app.use('/api', require('./routes/api'));
+app.use('/realestate', require('./routes/realestate'));
 
 // Root redirect
 app.get('/', (req, res) => {

@@ -1,0 +1,119 @@
+<%- include('../layout-header', { title: 'Realist Lookup' }) %>
+
+<div class="page-header">
+  <h1>Realist Lookup <span class="count-badge"><%= totalCount %> properties</span></h1>
+  <div class="page-actions">
+    <% if (counts.found > 0) { %>
+      <form method="POST" action="/realestate/lookup/finalize" style="display:inline;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="btn btn-primary"
+          onclick="return confirm('Create <%= counts.found %> contact(s) from found properties?')">
+          Finalize Lookup (<%= counts.found %>)
+        </button>
+      </form>
+    <% } %>
+  </div>
+</div>
+
+<!-- Progress bar -->
+<div class="progress-container">
+  <div class="progress-bar-wrapper">
+    <div class="progress-bar" id="lookup-progress"
+      style="width: <%= counts.total > 0 ? Math.round(((counts.found + counts.not_found) / counts.total) * 100) : 0 %>%">
+    </div>
+  </div>
+  <div class="progress-stats">
+    <span class="stat-total">Total: <strong><%= counts.total %></strong></span>
+    <span class="stat-sent">Found: <strong id="count-found"><%= counts.found %></strong></span>
+    <span style="color: #94a3b8;">Pending: <strong id="count-pending"><%= counts.pending %></strong></span>
+    <span class="stat-failed">Not Found: <strong id="count-not-found"><%= counts.not_found %></strong></span>
+  </div>
+</div>
+
+<!-- Status filter tabs -->
+<div class="filter-bar">
+  <a href="/realestate/lookup?status=all"
+    class="btn btn-sm <%= statusFilter === 'all' ? 'btn-primary' : 'btn-secondary' %>">All (<%= counts.total %>)</a>
+  <a href="/realestate/lookup?status=pending"
+    class="btn btn-sm <%= statusFilter === 'pending' ? 'btn-primary' : 'btn-secondary' %>">Pending (<%= counts.pending %>)</a>
+  <a href="/realestate/lookup?status=found"
+    class="btn btn-sm <%= statusFilter === 'found' ? 'btn-primary' : 'btn-secondary' %>">Found (<%= counts.found %>)</a>
+  <a href="/realestate/lookup?status=not_found"
+    class="btn btn-sm <%= statusFilter === 'not_found' ? 'btn-primary' : 'btn-secondary' %>">Not Found (<%= counts.not_found %>)</a>
+  <span style="margin-left: auto; font-size: 0.8rem; color: #94a3b8; font-style: italic;">
+    Tip: Tab from name field copies next address
+  </span>
+</div>
+
+<% if (properties.length === 0) { %>
+  <div class="empty-state">
+    <p>No properties found. <a href="/realestate/import">Import a CRMLS CSV</a> to get started.</p>
+  </div>
+<% } else { %>
+<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+<div class="table-responsive">
+  <table class="data-table" id="lookup-table">
+    <thead>
+      <tr>
+        <th>Address</th>
+        <th>City / State / Zip</th>
+        <th>Sale Date</th>
+        <th>Sale Price</th>
+        <th>Owner Name</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% properties.forEach(function(p) { %>
+      <tr data-property-id="<%= p.id %>" data-status="<%= p.realist_lookup_status %>"
+          data-address="<%= p.property_address %>">
+        <td class="property-address"><%= p.property_address %></td>
+        <td><%= [p.city, p.state, p.zip].filter(Boolean).join(', ') %></td>
+        <td><%= p.sale_date || '' %></td>
+        <td><%= p.sale_price ? '$' + Number(p.sale_price).toLocaleString() : '' %></td>
+        <td>
+          <input type="text" class="owner-name-input"
+            data-id="<%= p.id %>"
+            value="<%= p.realist_owner_name || '' %>"
+            placeholder="Enter owner name..."
+            <%= p.realist_lookup_status === 'not_found' ? 'disabled' : '' %>>
+        </td>
+        <td>
+          <span class="badge lookup-status-<%= p.realist_lookup_status %>">
+            <%= p.realist_lookup_status %>
+          </span>
+        </td>
+        <td class="lookup-actions">
+          <button class="btn btn-sm btn-secondary copy-address-btn" data-address="<%= p.property_address %>">
+            Copy
+          </button>
+          <% if (p.realist_lookup_status !== 'not_found') { %>
+            <button class="btn btn-sm btn-danger not-found-btn" data-id="<%= p.id %>">
+              Not Found
+            </button>
+          <% } %>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<% if (totalPages > 1) { %>
+<div class="pagination">
+  <% if (currentPage > 1) { %>
+    <a href="/realestate/lookup?status=<%= statusFilter %>&page=<%= currentPage - 1 %>" class="btn btn-sm btn-secondary">&laquo; Prev</a>
+  <% } %>
+  <span class="pagination-info">Page <%= currentPage %> of <%= totalPages %></span>
+  <% if (currentPage < totalPages) { %>
+    <a href="/realestate/lookup?status=<%= statusFilter %>&page=<%= currentPage + 1 %>" class="btn btn-sm btn-secondary">Next &raquo;</a>
+  <% } %>
+</div>
+<% } %>
+
+<% } %>
+
+<a href="/realestate" class="btn btn-link">Back to Real Estate</a>
+
+<%- include('../layout-footer', { scripts: ['/js/realist.js'] }) %>

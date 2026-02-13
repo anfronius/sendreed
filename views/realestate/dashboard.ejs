@@ -1,0 +1,32 @@
+<%- include('../layout-header', { title: 'Real Estate' }) %>
+
+<h1>Real Estate</h1>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-number"><%= stats.total %></div>
+    <div class="stat-label">Total Properties</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number"><%= stats.pending %></div>
+    <div class="stat-label">Pending Lookup</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number" style="color: #166534;"><%= stats.found %></div>
+    <div class="stat-label">Found</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number" style="color: #991b1b;"><%= stats.not_found %></div>
+    <div class="stat-label">Not Found</div>
+  </div>
+</div>
+
+<h2>Quick Actions</h2>
+<div class="action-links">
+  <a href="/realestate/import" class="btn btn-primary">Import CRMLS CSV</a>
+  <% if (stats.total > 0) { %>
+    <a href="/realestate/lookup" class="btn btn-secondary">Realist Lookup</a>
+  <% } %>
+</div>
+
+<%- include('../layout-footer', { scripts: [] }) %>

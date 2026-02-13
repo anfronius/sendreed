@@ -194,6 +194,18 @@ a:hover { text-decoration: underline; }
 /* Loading text */
 .loading { color: #94a3b8; font-style: italic; }
 
+/* Realist Lookup */
+.lookup-status-pending { background: #f1f5f9; color: #475569; }
+.lookup-status-found { background: #dcfce7; color: #166534; }
+.lookup-status-not_found { background: #fee2e2; color: #991b1b; }
+.copy-address-btn { min-width: 55px; }
+.copy-success { background: #22c55e !important; color: #fff !important; }
+.owner-name-input { padding: 0.3rem 0.5rem; border: 1px solid #d1d5db; border-radius: 4px; font-size: 0.85rem; width: 100%; min-width: 150px; transition: border-color 0.2s; }
+.owner-name-input:focus { border-color: #2563eb; outline: none; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+.owner-name-input:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+.lookup-actions { white-space: nowrap; }
+.lookup-actions .btn { margin-right: 0.25rem; }
+
 /* Responsive */
 @media (max-width: 640px) {
   .form-row { grid-template-columns: 1fr; }

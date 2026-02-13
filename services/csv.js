@@ -229,4 +229,35 @@ function importCrmlsProperties(rows, mapping, ownerId) {
   return { inserted, skipped, errors, uploadId: uploadResult.lastInsertRowid };
 }
 
-module.exports = { parseFile, suggestMapping, importContacts, importCrmlsProperties, CONTACT_FIELDS };
+const CRMLS_COLUMN_ALIASES = {
+  propertyaddress: 'property_address',
+  property_address: 'property_address',
+  address: 'property_address',
+  streetaddress: 'property_address',
+  saledate: 'sale_date',
+  sale_date: 'sale_date',
+  closedate: 'sale_date',
+  closingdate: 'sale_date',
+  saleprice: 'sale_price',
+  sale_price: 'sale_price',
+  closeprice: 'sale_price',
+  price: 'sale_price',
+  city: 'city',
+  state: 'state',
+  zip: 'zip',
+  zipcode: 'zip',
+  zip_code: 'zip',
+};
+
+function suggestCrmlsMapping(headers) {
+  const suggestions = {};
+  for (const header of headers) {
+    const normalized = normalizeHeader(header);
+    if (CRMLS_COLUMN_ALIASES[normalized]) {
+      suggestions[header] = CRMLS_COLUMN_ALIASES[normalized];
+    }
+  }
+  return suggestions;
+}
+
+module.exports = { parseFile, suggestMapping, suggestCrmlsMapping, importContacts, importCrmlsProperties, CONTACT_FIELDS };
