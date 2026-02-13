@@ -206,6 +206,62 @@ a:hover { text-decoration: underline; }
 .lookup-actions { white-space: nowrap; }
 .lookup-actions .btn { margin-right: 0.25rem; }
 
+/* Phone/Email Matching */
+.match-section { margin-bottom: 1.5rem; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; border-left: 4px solid #e2e8f0; }
+.match-section-green { border-left-color: #22c55e; }
+.match-section-yellow { border-left-color: #f59e0b; }
+.match-section-red { border-left-color: #ef4444; }
+.match-section h2 { margin-bottom: 0.25rem; font-size: 1.1rem; }
+.match-section-desc { font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem; }
+.match-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.match-card { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; flex-wrap: wrap; }
+.match-card-confirmed { background: #f0fdf4; border-color: #bbf7d0; }
+.match-card-applied { opacity: 0.7; }
+.match-card-left { min-width: 180px; }
+.match-card-right { min-width: 180px; }
+.match-card-arrow { font-size: 1.25rem; color: #94a3b8; font-weight: 700; }
+.match-card-actions { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.match-imported-name { font-weight: 600; }
+.match-imported-details { font-size: 0.8rem; color: #64748b; display: flex; gap: 0.75rem; }
+.match-contact-name { font-weight: 500; }
+.match-contact-detail { font-size: 0.8rem; color: #64748b; }
+.confidence-badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+.confidence-high { background: #dcfce7; color: #166534; }
+.confidence-medium { background: #fef3c7; color: #92400e; }
+.confidence-low { background: #fee2e2; color: #991b1b; }
+.manual-match-form { display: flex; flex-direction: column; gap: 0.25rem; width: 100%; }
+.contact-search-input { padding: 0.4rem 0.75rem; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.85rem; width: 100%; }
+.contact-search-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+.contact-search-results { max-height: 200px; overflow-y: auto; }
+.search-result-item { padding: 0.4rem 0.75rem; cursor: pointer; font-size: 0.85rem; border-bottom: 1px solid #f1f5f9; }
+.search-result-item:hover { background: #eff6ff; }
+.search-result-detail { color: #64748b; font-size: 0.8rem; }
+.search-no-results { padding: 0.4rem 0.75rem; color: #94a3b8; font-size: 0.85rem; font-style: italic; }
+
+/* Dashboard notification badges */
+.notification-badges { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.notification-badge { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1.25rem; border-radius: 8px; background: #fff; border: 1px solid #e2e8f0; text-decoration: none; color: #333; transition: border-color 0.15s, box-shadow 0.15s; }
+.notification-badge:hover { border-color: #2563eb; box-shadow: 0 1px 4px rgba(37,99,235,0.1); text-decoration: none; }
+.notification-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.75rem; height: 1.75rem; border-radius: 50%; font-weight: 700; font-size: 0.9rem; color: #fff; }
+.notification-badge-anniversary .notification-count { background: #2563eb; }
+.notification-badge-holiday .notification-count { background: #7c3aed; }
+
+/* Anniversary cards */
+.anniversary-section { margin-bottom: 1.5rem; }
+.anniversary-section h2 { margin-bottom: 0.75rem; }
+.anniversary-section-today { border-left: 4px solid #2563eb; padding-left: 1rem; }
+.anniversary-section-week { border-left: 4px solid #f59e0b; padding-left: 1rem; }
+.anniversary-section-done { border-left: 4px solid #94a3b8; padding-left: 1rem; }
+.anniversary-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.anniversary-card { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 1rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; flex-wrap: wrap; }
+.anniversary-card-done { opacity: 0.7; }
+.anniversary-name { font-weight: 600; }
+.anniversary-detail { font-size: 0.85rem; color: #475569; }
+.anniversary-contact-info { font-size: 0.8rem; color: #64748b; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.anniversary-warning { color: #dc2626; font-style: italic; }
+.anniversary-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.anniversary-empty { color: #94a3b8; font-style: italic; }
+
 /* Responsive */
 @media (max-width: 640px) {
   .form-row { grid-template-columns: 1fr; }

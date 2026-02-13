@@ -22,7 +22,20 @@ router.get('/', requireAuth, (req, res) => {
       ? db.prepare('SELECT COUNT(*) as c FROM campaigns').get().c
       : db.prepare('SELECT COUNT(*) as c FROM campaigns WHERE owner_id = ?').get(userId).c;
 
-    res.render('dashboard', { title: 'Dashboard', contactCount, templateCount, campaignCount });
+    // Anniversary and holiday counts for realestate/admin users
+    let anniversaryCount = 0;
+    let holidayCount = 0;
+    const role = req.session.user.role;
+    if (role === 'realestate' || role === 'admin') {
+      anniversaryCount = db.prepare(
+        "SELECT COUNT(*) as c FROM anniversary_log WHERE status = 'pending' AND anniversary_date BETWEEN date('now') AND date('now', '+7 days')"
+      ).get().c;
+      holidayCount = db.prepare(
+        "SELECT COUNT(*) as c FROM holidays WHERE date BETWEEN date('now') AND date('now', '+7 days')"
+      ).get().c;
+    }
+
+    res.render('dashboard', { title: 'Dashboard', contactCount, templateCount, campaignCount, anniversaryCount, holidayCount });
   } catch (err) {
     console.error('Dashboard error:', err);
     res.status(500).render('error', { status: 500, message: 'Failed to load dashboard.' });

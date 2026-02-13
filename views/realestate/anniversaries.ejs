@@ -1,0 +1,100 @@
+<%- include('../layout-header', { title: 'Anniversaries' }) %>
+
+<h1>Purchase Anniversaries</h1>
+
+<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+<!-- Today's Anniversaries -->
+<div class="anniversary-section anniversary-section-today">
+  <h2>Today <span class="count-badge"><%= today.length %></span></h2>
+  <% if (today.length === 0) { %>
+    <p class="anniversary-empty">No anniversaries today.</p>
+  <% } else { %>
+  <div class="anniversary-list">
+    <% today.forEach(function(a) { %>
+    <div class="anniversary-card" data-id="<%= a.id %>">
+      <div class="anniversary-info">
+        <div class="anniversary-name"><%= [a.first_name, a.last_name].filter(Boolean).join(' ') %></div>
+        <div class="anniversary-detail">
+          <strong><%= a.years %> year(s)</strong> at <%= a.property_address || 'N/A' %>
+        </div>
+        <div class="anniversary-contact-info">
+          <% if (a.phone) { %><span>Phone: <%= a.phone %></span><% } %>
+          <% if (a.email) { %><span>Email: <%= a.email %></span><% } %>
+          <% if (!a.phone && !a.email) { %><span class="anniversary-warning">No phone or email</span><% } %>
+        </div>
+      </div>
+      <div class="anniversary-actions">
+        <% if (a.email) { %>
+          <a href="/campaign/create?contact_id=<%= a.cid %>&channel=email" class="btn btn-sm btn-primary">Send Email</a>
+        <% } %>
+        <% if (a.phone) { %>
+          <a href="/campaign/create?contact_id=<%= a.cid %>&channel=sms" class="btn btn-sm btn-secondary">Send Text</a>
+        <% } %>
+        <button class="btn btn-sm btn-danger skip-anniversary-btn" data-id="<%= a.id %>">Skip</button>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+  <% } %>
+</div>
+
+<!-- This Week -->
+<div class="anniversary-section anniversary-section-week">
+  <h2>This Week <span class="count-badge"><%= thisWeek.length %></span></h2>
+  <% if (thisWeek.length === 0) { %>
+    <p class="anniversary-empty">No upcoming anniversaries this week.</p>
+  <% } else { %>
+  <div class="anniversary-list">
+    <% thisWeek.forEach(function(a) { %>
+    <div class="anniversary-card" data-id="<%= a.id %>">
+      <div class="anniversary-info">
+        <div class="anniversary-name"><%= [a.first_name, a.last_name].filter(Boolean).join(' ') %></div>
+        <div class="anniversary-detail">
+          <strong><%= a.years %> year(s)</strong> at <%= a.property_address || 'N/A' %> — <em><%= a.anniversary_date %></em>
+        </div>
+        <div class="anniversary-contact-info">
+          <% if (a.phone) { %><span>Phone: <%= a.phone %></span><% } %>
+          <% if (a.email) { %><span>Email: <%= a.email %></span><% } %>
+        </div>
+      </div>
+      <div class="anniversary-actions">
+        <% if (a.email) { %>
+          <a href="/campaign/create?contact_id=<%= a.cid %>&channel=email" class="btn btn-sm btn-primary">Send Email</a>
+        <% } %>
+        <% if (a.phone) { %>
+          <a href="/campaign/create?contact_id=<%= a.cid %>&channel=sms" class="btn btn-sm btn-secondary">Send Text</a>
+        <% } %>
+        <button class="btn btn-sm btn-danger skip-anniversary-btn" data-id="<%= a.id %>">Skip</button>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+  <% } %>
+</div>
+
+<!-- Completed -->
+<% if (completed.length > 0) { %>
+<div class="anniversary-section anniversary-section-done">
+  <h2>Recently Completed <span class="count-badge"><%= completed.length %></span></h2>
+  <div class="anniversary-list">
+    <% completed.forEach(function(a) { %>
+    <div class="anniversary-card anniversary-card-done">
+      <div class="anniversary-info">
+        <div class="anniversary-name"><%= [a.first_name, a.last_name].filter(Boolean).join(' ') %></div>
+        <div class="anniversary-detail">
+          <%= a.years %> year(s) at <%= a.property_address || 'N/A' %> — <%= a.anniversary_date %>
+        </div>
+      </div>
+      <div class="anniversary-actions">
+        <span class="badge badge-status-<%= a.status %>"><%= a.status %></span>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+</div>
+<% } %>
+
+<a href="/realestate" class="btn btn-link" style="margin-top: 1rem; display: inline-block;">Back to Real Estate</a>
+
+<%- include('../layout-footer', { scripts: ['/js/anniversaries.js'] }) %>

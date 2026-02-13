@@ -18,6 +18,23 @@
   </div>
 </div>
 
+<% if ((user.role === 'realestate' || user.role === 'admin') && (anniversaryCount > 0 || holidayCount > 0)) { %>
+<div class="notification-badges">
+  <% if (anniversaryCount > 0) { %>
+    <a href="/realestate/anniversaries" class="notification-badge notification-badge-anniversary">
+      <span class="notification-count"><%= anniversaryCount %></span>
+      <span>Upcoming Anniversaries</span>
+    </a>
+  <% } %>
+  <% if (holidayCount > 0) { %>
+    <a href="/realestate/holidays" class="notification-badge notification-badge-holiday">
+      <span class="notification-count"><%= holidayCount %></span>
+      <span>Upcoming Holidays</span>
+    </a>
+  <% } %>
+</div>
+<% } %>
+
 <h2>Quick Actions</h2>
 <div class="action-links">
   <a href="/campaign/create" class="btn btn-primary">New Campaign</a>

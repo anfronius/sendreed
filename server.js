@@ -10,6 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const { recoverStaleCampaigns } = require('./services/email');
+const { startCronJobs } = require('./services/cron');
 
 // Ensure data directory exists
 const dataDir = process.env.DATA_DIR || __dirname;
@@ -22,6 +23,9 @@ getDb();
 
 // Recover any campaigns stuck in 'sending' state from a previous crash
 recoverStaleCampaigns();
+
+// Start cron jobs (daily anniversary/holiday checks + morning digest)
+startCronJobs();
 
 // View engine
 app.set('view engine', 'ejs');

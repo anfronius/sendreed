@@ -1,0 +1,169 @@
+<%- include('../layout-header', { title: 'Phone & Email Matching' }) %>
+
+<div class="page-header">
+  <h1>Phone & Email Matching</h1>
+  <div class="page-actions">
+    <% if (counts.autoConfirmed + counts.confirmed > 0) { %>
+      <form method="POST" action="/realestate/matching/apply" style="display:inline;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="btn btn-primary"
+          onclick="return confirm('Apply all confirmed matches to your contacts?')">
+          Apply All Confirmed (<%= counts.autoConfirmed + counts.confirmed %>)
+        </button>
+      </form>
+    <% } %>
+    <a href="/realestate/import-vcard" class="btn btn-secondary">Import Another vCard</a>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-number"><%= counts.total %></div>
+    <div class="stat-label">Total Imported</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number" style="color: #166534;"><%= counts.confirmed + counts.autoConfirmed %></div>
+    <div class="stat-label">Confirmed</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number" style="color: #92400e;"><%= counts.review %></div>
+    <div class="stat-label">Needs Review</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-number" style="color: #991b1b;"><%= counts.unmatched %></div>
+    <div class="stat-label">Unmatched</div>
+  </div>
+</div>
+
+<input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+<% if (counts.total === 0) { %>
+  <div class="empty-state">
+    <p>No imported contacts found. <a href="/realestate/import-vcard">Import a vCard file</a> to get started.</p>
+  </div>
+<% } else { %>
+
+<!-- Section 1: Auto-Confirmed (high confidence, not yet user-confirmed) -->
+<% if (autoConfirmed.length > 0) { %>
+<div class="match-section match-section-green" id="section-confirmed">
+  <h2>Auto-Matched <span class="count-badge"><%= autoConfirmed.length %></span></h2>
+  <p class="match-section-desc">High-confidence matches (score >= 70). These will be applied when you click "Apply All Confirmed".</p>
+  <div class="match-list">
+    <% autoConfirmed.forEach(function(m) { %>
+    <div class="match-card" data-match-id="<%= m.match_id %>" data-imported-id="<%= m.id %>">
+      <div class="match-card-left">
+        <div class="match-imported-name"><%= m.full_name || [m.first_name, m.last_name].filter(Boolean).join(' ') %></div>
+        <div class="match-imported-details">
+          <% if (m.phone) { %><span>Phone: <%= m.phone %></span><% } %>
+          <% if (m.email) { %><span>Email: <%= m.email %></span><% } %>
+        </div>
+      </div>
+      <div class="match-card-arrow">→</div>
+      <div class="match-card-right">
+        <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
+        <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
+      </div>
+      <div class="match-card-actions">
+        <span class="confidence-badge confidence-high"><%= m.confidence_score %>%</span>
+        <button class="btn btn-sm btn-danger skip-match-btn" data-match-id="<%= m.match_id %>">Remove</button>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+</div>
+<% } %>
+
+<!-- Section 1b: Already confirmed and applied -->
+<% if (confirmed.length > 0) { %>
+<div class="match-section match-section-green">
+  <h2>Applied <span class="count-badge"><%= confirmed.length %></span></h2>
+  <div class="match-list">
+    <% confirmed.forEach(function(m) { %>
+    <div class="match-card match-card-applied">
+      <div class="match-card-left">
+        <div class="match-imported-name"><%= m.full_name || [m.first_name, m.last_name].filter(Boolean).join(' ') %></div>
+        <div class="match-imported-details">
+          <% if (m.phone) { %><span>Phone: <%= m.phone %></span><% } %>
+          <% if (m.email) { %><span>Email: <%= m.email %></span><% } %>
+        </div>
+      </div>
+      <div class="match-card-arrow">→</div>
+      <div class="match-card-right">
+        <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
+        <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
+      </div>
+      <div class="match-card-actions">
+        <span class="confidence-badge confidence-high"><%= m.confidence_score %>%</span>
+        <span class="badge badge-status-sent">Applied</span>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+</div>
+<% } %>
+
+<!-- Section 2: Needs Review (low confidence) -->
+<% if (needsReview.length > 0) { %>
+<div class="match-section match-section-yellow" id="section-review">
+  <h2>Needs Review <span class="count-badge"><%= needsReview.length %></span></h2>
+  <p class="match-section-desc">Lower confidence matches. Review and confirm or skip each one.</p>
+  <div class="match-list">
+    <% needsReview.forEach(function(m) { %>
+    <div class="match-card" data-match-id="<%= m.match_id %>" data-imported-id="<%= m.id %>">
+      <div class="match-card-left">
+        <div class="match-imported-name"><%= m.full_name || [m.first_name, m.last_name].filter(Boolean).join(' ') %></div>
+        <div class="match-imported-details">
+          <% if (m.phone) { %><span>Phone: <%= m.phone %></span><% } %>
+          <% if (m.email) { %><span>Email: <%= m.email %></span><% } %>
+        </div>
+      </div>
+      <div class="match-card-arrow">?</div>
+      <div class="match-card-right">
+        <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
+        <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
+      </div>
+      <div class="match-card-actions">
+        <span class="confidence-badge confidence-low"><%= m.confidence_score %>%</span>
+        <button class="btn btn-sm btn-primary confirm-match-btn" data-match-id="<%= m.match_id %>">Confirm</button>
+        <button class="btn btn-sm btn-danger skip-match-btn" data-match-id="<%= m.match_id %>">Skip</button>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+</div>
+<% } %>
+
+<!-- Section 3: Unmatched -->
+<% if (unmatched.length > 0) { %>
+<div class="match-section match-section-red" id="section-unmatched">
+  <h2>Unmatched <span class="count-badge"><%= unmatched.length %></span></h2>
+  <p class="match-section-desc">No automatic match found. Search for a contact to assign manually, or skip.</p>
+  <div class="match-list">
+    <% unmatched.forEach(function(m) { %>
+    <div class="match-card" data-imported-id="<%= m.id %>">
+      <div class="match-card-left">
+        <div class="match-imported-name"><%= m.full_name || [m.first_name, m.last_name].filter(Boolean).join(' ') %></div>
+        <div class="match-imported-details">
+          <% if (m.phone) { %><span>Phone: <%= m.phone %></span><% } %>
+          <% if (m.email) { %><span>Email: <%= m.email %></span><% } %>
+        </div>
+      </div>
+      <div class="match-card-right" style="flex: 1;">
+        <div class="manual-match-form">
+          <input type="text" class="contact-search-input" placeholder="Search contacts by name..."
+            data-imported-id="<%= m.id %>">
+          <div class="contact-search-results" data-imported-id="<%= m.id %>"></div>
+        </div>
+      </div>
+    </div>
+    <% }); %>
+  </div>
+</div>
+<% } %>
+
+<% } %>
+
+<a href="/realestate" class="btn btn-link" style="margin-top: 1rem; display: inline-block;">Back to Real Estate</a>
+
+<%- include('../layout-footer', { scripts: ['/js/matching.js'] }) %>

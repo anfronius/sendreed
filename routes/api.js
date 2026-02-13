@@ -431,4 +431,143 @@ router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'),
   }
 });
 
+// ========== PHONE/EMAIL MATCHING API ==========
+
+// POST /api/match/:id/confirm — confirm a match
+router.post('/match/:id/confirm', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const matchId = parseInt(req.params.id);
+    const userId = req.session.user.id;
+
+    const match = db.prepare('SELECT * FROM phone_matches WHERE id = ?').get(matchId);
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found.' });
+    }
+
+    db.prepare(
+      "UPDATE phone_matches SET confirmed_at = datetime('now'), confirmed_by = ? WHERE id = ?"
+    ).run(userId, matchId);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/match/:id/skip — delete a match (skip it)
+router.post('/match/:id/skip', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const matchId = parseInt(req.params.id);
+
+    const match = db.prepare('SELECT * FROM phone_matches WHERE id = ?').get(matchId);
+    if (!match) {
+      return res.status(404).json({ error: 'Match not found.' });
+    }
+
+    db.prepare('DELETE FROM phone_matches WHERE id = ?').run(matchId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/match/:importedId/manual — manually assign imported contact to a contact
+router.post('/match/:importedId/manual', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const importedId = parseInt(req.params.importedId);
+    const { contact_id } = req.body;
+    const userId = req.session.user.id;
+
+    if (!contact_id) {
+      return res.status(400).json({ error: 'contact_id is required.' });
+    }
+
+    const imported = db.prepare('SELECT * FROM imported_contacts WHERE id = ?').get(importedId);
+    if (!imported) {
+      return res.status(404).json({ error: 'Imported contact not found.' });
+    }
+
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(parseInt(contact_id));
+    if (!contact) {
+      return res.status(404).json({ error: 'Contact not found.' });
+    }
+
+    // Remove any existing match for this imported contact
+    db.prepare('DELETE FROM phone_matches WHERE imported_contact_id = ?').run(importedId);
+
+    // Insert manual match as confirmed
+    db.prepare(
+      "INSERT INTO phone_matches (contact_id, imported_contact_id, match_type, confidence_score, confirmed_by, confirmed_at) VALUES (?, ?, 'manual', 100, ?, datetime('now'))"
+    ).run(parseInt(contact_id), importedId, userId);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== HOLIDAYS API ==========
+
+// DELETE /api/holidays/:id — delete a custom holiday
+router.delete('/holidays/:id', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const holidayId = parseInt(req.params.id);
+
+    const holiday = db.prepare('SELECT * FROM holidays WHERE id = ?').get(holidayId);
+    if (!holiday) {
+      return res.status(404).json({ error: 'Holiday not found.' });
+    }
+    if (holiday.is_preset) {
+      return res.status(400).json({ error: 'Cannot delete preset holidays.' });
+    }
+
+    db.prepare('DELETE FROM holidays WHERE id = ?').run(holidayId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== ANNIVERSARY API ==========
+
+// POST /api/anniversary/:id/skip — mark as skipped
+router.post('/anniversary/:id/skip', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const logId = parseInt(req.params.id);
+
+    const entry = db.prepare('SELECT * FROM anniversary_log WHERE id = ?').get(logId);
+    if (!entry) {
+      return res.status(404).json({ error: 'Anniversary entry not found.' });
+    }
+
+    db.prepare("UPDATE anniversary_log SET status = 'skipped' WHERE id = ?").run(logId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/anniversary/:id/sent — mark as sent
+router.post('/anniversary/:id/sent', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const logId = parseInt(req.params.id);
+
+    const entry = db.prepare('SELECT * FROM anniversary_log WHERE id = ?').get(logId);
+    if (!entry) {
+      return res.status(404).json({ error: 'Anniversary entry not found.' });
+    }
+
+    db.prepare("UPDATE anniversary_log SET status = 'sent' WHERE id = ?").run(logId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
