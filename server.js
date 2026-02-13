@@ -9,12 +9,19 @@ const { trimBody } = require('./middleware/validate');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+const { recoverStaleCampaigns } = require('./services/email');
+
 // Ensure data directory exists
 const dataDir = process.env.DATA_DIR || __dirname;
-require('fs').mkdirSync(dataDir, { recursive: true });
+const fs = require('fs');
+fs.mkdirSync(dataDir, { recursive: true });
+fs.mkdirSync(path.join(dataDir, 'uploads'), { recursive: true });
 
 // Initialize database
 getDb();
+
+// Recover any campaigns stuck in 'sending' state from a previous crash
+recoverStaleCampaigns();
 
 // View engine
 app.set('view engine', 'ejs');
@@ -61,6 +68,8 @@ app.get('/health', (req, res) => {
 app.use('/auth', require('./routes/auth'));
 app.use('/dashboard', require('./routes/dashboard'));
 app.use('/admin', require('./routes/admin'));
+app.use('/contacts', require('./routes/contacts'));
+app.use('/campaign', require('./routes/campaign'));
 app.use('/api', require('./routes/api'));
 
 // Root redirect

@@ -1,0 +1,11 @@
+<% if (totalPages > 1) { %>
+<div class="pagination">
+  <% if (currentPage > 1) { %>
+    <a href="<%= baseUrl %>?page=<%= currentPage - 1 %><%= typeof search !== 'undefined' && search ? '&search=' + encodeURIComponent(search) : '' %><%= typeof filter !== 'undefined' && filter && filter !== 'all' ? '&filter=' + filter : '' %>" class="btn btn-sm btn-secondary">&laquo; Prev</a>
+  <% } %>
+  <span class="pagination-info">Page <%= currentPage %> of <%= totalPages %></span>
+  <% if (currentPage < totalPages) { %>
+    <a href="<%= baseUrl %>?page=<%= currentPage + 1 %><%= typeof search !== 'undefined' && search ? '&search=' + encodeURIComponent(search) : '' %><%= typeof filter !== 'undefined' && filter && filter !== 'all' ? '&filter=' + filter : '' %>" class="btn btn-sm btn-secondary">Next &raquo;</a>
+  <% } %>
+</div>
+<% } %>

@@ -1,0 +1,63 @@
+<%- include('../layout-header', { title: 'Review Campaign' }) %>
+
+<h1>Review Campaign #<%= campaign.id %></h1>
+<p>Channel: <span class="badge badge-<%= campaign.channel %>"><%= campaign.channel %></span> | Recipients: <strong><%= totalCount %></strong></p>
+
+<div class="review-list">
+  <% recipients.forEach(function(r) { %>
+  <div class="review-card <%= r.status === 'excluded' ? 'excluded' : '' %>" data-recipient-id="<%= r.id %>">
+    <div class="review-header">
+      <strong><%= r.first_name %> <%= r.last_name %></strong>
+      <span class="review-contact"><%= campaign.channel === 'email' ? r.email : r.phone %></span>
+      <% if (r.status === 'excluded') { %>
+        <button type="button" class="btn btn-sm btn-secondary include-btn" data-rid="<%= r.id %>">Include</button>
+      <% } else { %>
+        <button type="button" class="btn btn-sm btn-danger exclude-btn" data-rid="<%= r.id %>">Exclude</button>
+      <% } %>
+    </div>
+    <% if (campaign.channel === 'email' && r.rendered_subject) { %>
+      <div class="review-subject">Subject: <%= r.rendered_subject %></div>
+    <% } %>
+    <div class="review-body"><%= r.rendered_body %></div>
+  </div>
+  <% }); %>
+</div>
+
+<%- include('../partials/pagination', { currentPage, totalPages, baseUrl }) %>
+
+<div class="form-actions" style="margin-top: 1rem;">
+  <form method="POST" action="/campaign/<%= campaign.id %>/send">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit" class="btn btn-primary"><%= campaign.channel === 'email' ? 'Send Emails' : 'Generate Text Links' %></button>
+  </form>
+  <a href="/campaign" class="btn btn-secondary">Cancel</a>
+</div>
+
+<script>
+  window.CSRF_TOKEN = '<%= csrfToken %>';
+  window.CAMPAIGN_ID = <%= campaign.id %>;
+
+  document.querySelectorAll('.exclude-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var rid = this.dataset.rid;
+      fetch('/api/campaign/' + CAMPAIGN_ID + '/exclude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        body: JSON.stringify({ recipient_id: rid })
+      }).then(function() { location.reload(); });
+    });
+  });
+
+  document.querySelectorAll('.include-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var rid = this.dataset.rid;
+      fetch('/api/campaign/' + CAMPAIGN_ID + '/include', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+        body: JSON.stringify({ recipient_id: rid })
+      }).then(function() { location.reload(); });
+    });
+  });
+</script>
+
+<%- include('../layout-footer', { scripts: [] }) %>

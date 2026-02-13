@@ -18,8 +18,15 @@
   </div>
 </div>
 
+<h2>Quick Actions</h2>
+<div class="action-links">
+  <a href="/campaign/create" class="btn btn-primary">New Campaign</a>
+  <a href="/contacts" class="btn btn-secondary">View Contacts</a>
+  <a href="/contacts/import" class="btn btn-secondary">Import CSV</a>
+</div>
+
 <% if (user.role === 'admin') { %>
-  <h2>Admin Quick Links</h2>
+  <h2>Admin</h2>
   <div class="action-links">
     <a href="/admin/users" class="btn btn-secondary">Manage Users</a>
   </div>

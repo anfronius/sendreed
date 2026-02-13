@@ -1,0 +1,54 @@
+<%- include('../layout-header', { title: 'Send Texts' }) %>
+
+<h1>Send Texts — Campaign #<%= campaign.id %></h1>
+<p><%= batchData.length %> recipient(s). Tap each "Send Text" button to open your Messages app.</p>
+
+<div class="sms-batch">
+  <% if (batchData.length === 0) { %>
+    <div class="empty-state"><p>No eligible recipients with valid phone numbers.</p></div>
+  <% } else { %>
+    <% batchData.forEach(function(item) { %>
+    <div class="sms-card">
+      <div class="sms-card-header">
+        <strong><%= item.name %></strong>
+        <span class="sms-phone"><%= item.displayPhone %></span>
+      </div>
+      <div class="sms-card-body">
+        <p class="sms-preview"><%= item.body %></p>
+      </div>
+      <div class="sms-card-actions">
+        <a href="<%= item.deepLink %>" class="btn btn-primary btn-sms-send">Send Text</a>
+        <button type="button" class="btn btn-secondary btn-sms-copy" data-body="<%= item.body %>">Copy Message</button>
+      </div>
+    </div>
+    <% }); %>
+  <% } %>
+</div>
+
+<div style="margin-top: 1rem;">
+  <a href="/campaign" class="btn btn-secondary">Back to Campaigns</a>
+</div>
+
+<script>
+  document.querySelectorAll('.btn-sms-copy').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var body = this.dataset.body;
+      navigator.clipboard.writeText(body).then(function() {
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy Message'; }, 2000);
+      }).catch(function() {
+        // Fallback
+        var ta = document.createElement('textarea');
+        ta.value = body;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = 'Copy Message'; }, 2000);
+      });
+    });
+  });
+</script>
+
+<%- include('../layout-footer', { scripts: [] }) %>

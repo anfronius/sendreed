@@ -1,0 +1,36 @@
+<%- include('../layout-header', { title: 'Sending Campaign' }) %>
+
+<h1>Sending Campaign #<%= campaign.id %></h1>
+
+<div class="progress-container">
+  <div class="progress-bar-wrapper">
+    <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+  </div>
+  <div class="progress-stats">
+    <span class="stat-sent" id="stat-sent">0</span> sent
+    <span class="stat-failed" id="stat-failed">0</span> failed
+    <span class="stat-total">of <span id="stat-total"><%= campaign.total_count %></span></span>
+  </div>
+  <div id="rate-warning" class="flash flash-info" style="display:none">
+    Approaching daily send limit. Campaign may pause automatically.
+  </div>
+  <div id="rate-limit-hit" class="flash flash-error" style="display:none">
+    Daily send limit reached. Campaign will resume tomorrow.
+  </div>
+</div>
+
+<div class="progress-log" id="progress-log">
+  <h3>Send Log</h3>
+  <div id="log-entries"></div>
+</div>
+
+<div id="done-actions" style="display:none; margin-top:1rem;">
+  <a href="/campaign" class="btn btn-primary">Back to Campaigns</a>
+  <a href="/campaign/<%= campaign.id %>/review" class="btn btn-secondary">View Details</a>
+</div>
+
+<script>
+  window.CAMPAIGN_ID = <%= campaign.id %>;
+</script>
+
+<%- include('../layout-footer', { scripts: ['/js/progress.js'] }) %>

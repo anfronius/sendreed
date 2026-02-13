@@ -1,0 +1,103 @@
+<%- include('../layout-header', { title: 'New Campaign' }) %>
+
+<h1>New Campaign</h1>
+
+<div class="wizard" id="campaign-wizard">
+  <!-- Step indicators -->
+  <div class="wizard-steps">
+    <div class="wizard-step active" data-step="1"><span class="step-num">1</span> Channel</div>
+    <div class="wizard-step" data-step="2"><span class="step-num">2</span> Template</div>
+    <div class="wizard-step" data-step="3"><span class="step-num">3</span> Contacts</div>
+    <div class="wizard-step" data-step="4"><span class="step-num">4</span> Preview</div>
+  </div>
+
+  <!-- Step 1: Channel -->
+  <div class="wizard-panel active" id="step-1">
+    <h2>Choose Channel</h2>
+    <div class="channel-options">
+      <button type="button" class="channel-btn" data-channel="email">
+        <span class="channel-icon">&#9993;</span>
+        <span>Email</span>
+      </button>
+      <button type="button" class="channel-btn" data-channel="sms">
+        <span class="channel-icon">&#9993;</span>
+        <span>Text Message</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 2: Template -->
+  <div class="wizard-panel" id="step-2">
+    <h2>Select Template</h2>
+    <div id="templates-list" class="templates-list">
+      <p class="loading">Loading templates...</p>
+    </div>
+    <div class="template-divider">
+      <span>or create a new template</span>
+    </div>
+    <div class="form-card" id="new-template-form">
+      <div class="form-group">
+        <label for="tmpl-name">Template Name</label>
+        <input type="text" id="tmpl-name" placeholder="e.g. Holiday Greeting">
+      </div>
+      <div id="subject-group" class="form-group">
+        <label for="tmpl-subject">Subject Line</label>
+        <input type="text" id="tmpl-subject" placeholder="Email subject with {{variables}}">
+      </div>
+      <div class="form-group">
+        <label for="tmpl-body">Message Body</label>
+        <div class="variable-toolbar" id="variable-toolbar">
+          <span class="toolbar-label">Insert:</span>
+          <% variables.forEach(function(v) { %>
+            <button type="button" class="var-btn" data-var="<%= v %>">{{<%= v %>}}</button>
+          <% }); %>
+        </div>
+        <textarea id="tmpl-body" rows="8" placeholder="Message body with {{variables}}"></textarea>
+      </div>
+      <button type="button" class="btn btn-secondary" id="save-template-btn">Save Template</button>
+    </div>
+    <div class="wizard-nav">
+      <button type="button" class="btn btn-secondary wizard-back">Back</button>
+      <button type="button" class="btn btn-primary wizard-next" id="step2-next" disabled>Next</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Contacts -->
+  <div class="wizard-panel" id="step-3">
+    <h2>Select Contacts</h2>
+    <div class="contact-select-bar">
+      <input type="text" id="contact-search" placeholder="Search contacts..." class="filter-input">
+      <button type="button" class="btn btn-sm btn-secondary" id="select-all-btn">Select All Eligible</button>
+      <span id="selected-count">0 selected</span>
+    </div>
+    <div id="contacts-list" class="contacts-checklist">
+      <p class="loading">Loading contacts...</p>
+    </div>
+    <div class="wizard-nav">
+      <button type="button" class="btn btn-secondary wizard-back">Back</button>
+      <button type="button" class="btn btn-primary wizard-next" id="step3-next" disabled>Next</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Preview & Send -->
+  <div class="wizard-panel" id="step-4">
+    <h2>Preview</h2>
+    <div id="preview-list" class="preview-list"></div>
+    <div class="wizard-nav">
+      <button type="button" class="btn btn-secondary wizard-back">Back</button>
+      <form method="POST" id="campaign-form" style="display:inline">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="channel" id="form-channel">
+        <input type="hidden" name="template_id" id="form-template-id">
+        <input type="hidden" name="contact_ids" id="form-contact-ids">
+        <button type="submit" class="btn btn-primary" id="send-btn">Create & Send</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.CSRF_TOKEN = '<%= csrfToken %>';
+</script>
+
+<%- include('../layout-footer', { scripts: ['/js/campaign.js'] }) %>
