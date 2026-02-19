@@ -7,6 +7,108 @@ document.addEventListener('DOMContentLoaded', function() {
     return el ? el.value : '';
   }
 
+  // ---- Checkbox selection + bulk actions ----
+  var selectAll = document.getElementById('select-all-lookup');
+  var bulkNotFoundBtn = document.getElementById('bulk-not-found-btn');
+  var bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+  var bulkNfCount = document.getElementById('bulk-nf-count');
+  var bulkDelCount = document.getElementById('bulk-del-count');
+
+  function getCheckedIds() {
+    var checked = table.querySelectorAll('.lookup-checkbox:checked');
+    return Array.from(checked).map(function(cb) { return parseInt(cb.value); });
+  }
+
+  function updateBulkState() {
+    var ids = getCheckedIds();
+    var count = ids.length;
+    if (bulkNotFoundBtn) {
+      bulkNotFoundBtn.style.display = count > 0 ? 'inline-block' : 'none';
+      bulkNfCount.textContent = count;
+    }
+    if (bulkDeleteBtn) {
+      bulkDeleteBtn.style.display = count > 0 ? 'inline-block' : 'none';
+      bulkDelCount.textContent = count;
+    }
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function() {
+      table.querySelectorAll('.lookup-checkbox').forEach(function(cb) { cb.checked = selectAll.checked; });
+      updateBulkState();
+    });
+  }
+
+  table.addEventListener('change', function(e) {
+    if (e.target.classList.contains('lookup-checkbox')) {
+      updateBulkState();
+      if (selectAll && !e.target.checked) selectAll.checked = false;
+    }
+  });
+
+  if (bulkNotFoundBtn) {
+    bulkNotFoundBtn.addEventListener('click', function() {
+      var ids = getCheckedIds();
+      if (ids.length === 0) return;
+      if (!confirm('Mark ' + ids.length + ' property/properties as Not Found?')) return;
+
+      fetch('/api/realist-lookup/bulk-not-found', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrf() },
+        body: JSON.stringify({ ids: ids }),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          ids.forEach(function(id) {
+            var row = table.querySelector('tr[data-property-id="' + id + '"]');
+            if (row) {
+              var badge = row.querySelector('.badge');
+              badge.textContent = 'not_found';
+              badge.className = 'badge lookup-status-not_found';
+              row.dataset.status = 'not_found';
+              var nameInput = row.querySelector('.owner-name-input');
+              nameInput.disabled = true;
+              nameInput.value = '';
+              var nfBtn = row.querySelector('.not-found-btn');
+              if (nfBtn) nfBtn.remove();
+              row.querySelector('.lookup-checkbox').checked = false;
+            }
+          });
+          updateBulkState();
+          if (selectAll) selectAll.checked = false;
+          if (data.counts) updateProgress(data.counts);
+        }
+      });
+    });
+  }
+
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.addEventListener('click', function() {
+      var ids = getCheckedIds();
+      if (ids.length === 0) return;
+      if (!confirm('Delete ' + ids.length + ' property/properties? This cannot be undone.')) return;
+
+      fetch('/api/realist-lookup/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrf() },
+        body: JSON.stringify({ ids: ids }),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          ids.forEach(function(id) {
+            var row = table.querySelector('tr[data-property-id="' + id + '"]');
+            if (row) row.remove();
+          });
+          updateBulkState();
+          if (selectAll) selectAll.checked = false;
+          if (data.counts) updateProgress(data.counts);
+        }
+      });
+    });
+  }
+
   // ---- Copy Address to Clipboard ----
   table.addEventListener('click', function(e) {
     var btn = e.target.closest('.copy-address-btn');
@@ -124,7 +226,6 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // ---- Custom Tab Key Behavior ----
-  // Tab from a name input: save current, copy NEXT row's address, focus NEXT name input
   table.addEventListener('keydown', function(e) {
     if (e.key !== 'Tab' || e.shiftKey) return;
 
@@ -132,17 +233,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!input) return;
 
     e.preventDefault();
-
-    // Trigger save on current input
     input.blur();
 
-    // Find next enabled name input
     var allInputs = Array.from(table.querySelectorAll('.owner-name-input:not(:disabled)'));
     var currentIndex = allInputs.indexOf(input);
     var nextInput = allInputs[currentIndex + 1];
 
     if (nextInput) {
-      // Copy next row's address
       var nextRow = nextInput.closest('tr');
       var nextAddress = nextRow.dataset.address;
       navigator.clipboard.writeText(nextAddress).then(function() {
@@ -157,7 +254,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       }).catch(function() {});
 
-      // Small delay to let blur/save fire first
       setTimeout(function() {
         nextInput.focus();
         nextInput.select();

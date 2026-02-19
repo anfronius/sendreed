@@ -8,7 +8,6 @@ const { getDb } = require('../db/init');
 const csv = require('../services/csv');
 const vcard = require('../services/vcard');
 const matcher = require('../services/matcher');
-const { seedHolidays } = require('../scripts/seed-holidays');
 const { checkAnniversaries } = require('../services/cron');
 
 const router = express.Router();
@@ -30,7 +29,7 @@ const upload = multer({
   },
 });
 
-const CRMLS_FIELDS = ['property_address', 'city', 'state', 'zip', 'sale_date', 'sale_price'];
+const CRMLS_FIELDS = ['property_address', 'street_number', 'street_name', 'city', 'state', 'zip', 'sale_date', 'sale_price'];
 
 // GET /realestate — dashboard
 router.get('/', (req, res) => {
@@ -546,64 +545,6 @@ router.post('/matching/apply', (req, res) => {
     console.error('Apply matches error:', err);
     setFlash(req, 'error', 'Failed to apply matches: ' + err.message);
     res.redirect('/realestate/matching');
-  }
-});
-
-// ========== Holidays ==========
-
-// GET /realestate/holidays — holiday management UI
-router.get('/holidays', (req, res) => {
-  try {
-    const db = getDb();
-    const holidays = db.prepare(
-      'SELECT * FROM holidays ORDER BY date'
-    ).all();
-
-    res.render('realestate/holidays', {
-      title: 'Holidays',
-      holidays,
-    });
-  } catch (err) {
-    console.error('Holidays error:', err);
-    res.status(500).render('error', { status: 500, message: 'Failed to load holidays.' });
-  }
-});
-
-// POST /realestate/holidays — create custom holiday
-router.post('/holidays', (req, res) => {
-  try {
-    const db = getDb();
-    const { name, date } = req.body;
-    const userId = req.session.user.id;
-
-    if (!name || !date) {
-      setFlash(req, 'error', 'Name and date are required.');
-      return res.redirect('/realestate/holidays');
-    }
-
-    db.prepare(
-      'INSERT INTO holidays (name, date, is_preset, owner_id) VALUES (?, ?, 0, ?)'
-    ).run(name.trim(), date, userId);
-
-    setFlash(req, 'success', `Holiday "${name}" added.`);
-    res.redirect('/realestate/holidays');
-  } catch (err) {
-    console.error('Create holiday error:', err);
-    setFlash(req, 'error', 'Failed to create holiday: ' + err.message);
-    res.redirect('/realestate/holidays');
-  }
-});
-
-// POST /realestate/holidays/seed — seed preset holidays
-router.post('/holidays/seed', (req, res) => {
-  try {
-    seedHolidays();
-    setFlash(req, 'success', 'Preset US holidays seeded successfully.');
-    res.redirect('/realestate/holidays');
-  } catch (err) {
-    console.error('Seed holidays error:', err);
-    setFlash(req, 'error', 'Failed to seed holidays: ' + err.message);
-    res.redirect('/realestate/holidays');
   }
 });
 

@@ -26,6 +26,14 @@ const upload = multer({
   },
 });
 
+// Valid sort options
+const SORT_OPTIONS = {
+  'name': 'last_name, first_name',
+  'city': 'city, last_name, first_name',
+  'state': 'state, last_name, first_name',
+  'address': 'property_address, last_name, first_name',
+};
+
 // GET /contacts — paginated list
 router.get('/', (req, res) => {
   try {
@@ -37,14 +45,27 @@ router.get('/', (req, res) => {
     const offset = (page - 1) * perPage;
     const search = req.query.search || '';
     const filter = req.query.filter || 'all';
+    const sort = req.query.sort || 'name';
+    const selectedUserId = isAdmin && req.query.user_id ? parseInt(req.query.user_id) : null;
 
-    let where = isAdmin ? '1=1' : 'owner_id = ?';
-    const params = isAdmin ? [] : [userId];
+    // Admin: filter by selected user, or show all
+    let where;
+    let params;
+    if (isAdmin && selectedUserId) {
+      where = 'owner_id = ?';
+      params = [selectedUserId];
+    } else if (isAdmin) {
+      where = '1=1';
+      params = [];
+    } else {
+      where = 'owner_id = ?';
+      params = [userId];
+    }
 
     if (search) {
-      where += " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ? OR organization LIKE ?)";
+      where += " AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR phone LIKE ? OR organization LIKE ? OR city LIKE ? OR state LIKE ? OR zip LIKE ? OR property_address LIKE ? OR title LIKE ? OR district LIKE ?)";
       const s = `%${search}%`;
-      params.push(s, s, s, s, s);
+      params.push(s, s, s, s, s, s, s, s, s, s, s);
     }
 
     if (filter === 'missing-email') {
@@ -56,9 +77,16 @@ router.get('/', (req, res) => {
     const totalCount = db.prepare(`SELECT COUNT(*) as c FROM contacts WHERE ${where}`).get(...params).c;
     const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
 
+    const orderBy = SORT_OPTIONS[sort] || SORT_OPTIONS['name'];
     const contacts = db.prepare(
-      `SELECT * FROM contacts WHERE ${where} ORDER BY last_name, first_name LIMIT ? OFFSET ?`
+      `SELECT * FROM contacts WHERE ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
     ).all(...params, perPage, offset);
+
+    // Get all users for admin dropdown
+    let users = [];
+    if (isAdmin) {
+      users = db.prepare('SELECT id, name, role FROM users ORDER BY name').all();
+    }
 
     res.render('contacts/list', {
       title: 'Contacts',
@@ -68,7 +96,10 @@ router.get('/', (req, res) => {
       totalCount,
       search,
       filter,
+      sort,
       baseUrl: '/contacts',
+      users,
+      selectedUserId,
     });
   } catch (err) {
     console.error('Contacts list error:', err);

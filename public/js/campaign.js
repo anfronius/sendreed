@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     templateBody: null,
     contactIds: [],
     contacts: [],
+    editingTemplateId: null, // Track if editing an existing template
   };
 
   var steps = wizard.querySelectorAll('.wizard-step');
@@ -66,16 +67,22 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       var html = '';
       data.templates.forEach(function(t) {
-        html += '<div class="template-option" data-id="' + t.id + '" data-subject="' + escapeAttr(t.subject_template || '') + '" data-body="' + escapeAttr(t.body_template) + '">';
+        html += '<div class="template-option" data-id="' + t.id + '" data-subject="' + escapeAttr(t.subject_template || '') + '" data-body="' + escapeAttr(t.body_template) + '" data-name="' + escapeAttr(t.name) + '">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
         html += '<strong>' + escapeHtml(t.name) + '</strong>';
-        if (t.subject_template) html += '<br><small>Subject: ' + escapeHtml(t.subject_template) + '</small>';
-        html += '<br><small>' + escapeHtml(t.body_template.substring(0, 100)) + (t.body_template.length > 100 ? '...' : '') + '</small>';
+        html += '<button type="button" class="btn btn-sm btn-secondary edit-template-btn" data-id="' + t.id + '">Edit</button>';
+        html += '</div>';
+        if (t.subject_template) html += '<small>Subject: ' + escapeHtml(t.subject_template) + '</small><br>';
+        html += '<small>' + escapeHtml(t.body_template.substring(0, 100)) + (t.body_template.length > 100 ? '...' : '') + '</small>';
         html += '</div>';
       });
       container.innerHTML = html;
 
+      // Select template
       container.querySelectorAll('.template-option').forEach(function(opt) {
-        opt.addEventListener('click', function() {
+        opt.addEventListener('click', function(e) {
+          // Don't select if clicking the edit button
+          if (e.target.closest('.edit-template-btn')) return;
           container.querySelectorAll('.template-option').forEach(function(o) { o.classList.remove('selected'); });
           this.classList.add('selected');
           state.templateId = parseInt(this.dataset.id);
@@ -84,10 +91,24 @@ document.addEventListener('DOMContentLoaded', function() {
           document.getElementById('step2-next').disabled = false;
         });
       });
+
+      // Edit template buttons
+      container.querySelectorAll('.edit-template-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var opt = this.closest('.template-option');
+          state.editingTemplateId = parseInt(opt.dataset.id);
+          document.getElementById('tmpl-name').value = opt.dataset.name;
+          document.getElementById('tmpl-subject').value = opt.dataset.subject || '';
+          document.getElementById('tmpl-body').value = opt.dataset.body;
+          document.getElementById('save-template-btn').textContent = 'Update Template';
+          document.getElementById('new-template-form').scrollIntoView({ behavior: 'smooth' });
+        });
+      });
     });
   }
 
-  // Save new template
+  // Save/update template
   document.getElementById('save-template-btn').addEventListener('click', function() {
     var name = document.getElementById('tmpl-name').value.trim();
     var subject = document.getElementById('tmpl-subject').value.trim();
@@ -103,12 +124,21 @@ document.addEventListener('DOMContentLoaded', function() {
       channel: state.channel,
       body_template: body,
     };
-    if (state.channel === 'email' && subject) {
-      payload.subject_template = subject;
+    if (state.channel === 'email') {
+      payload.subject_template = subject || '';
     }
 
-    fetch('/api/templates', {
-      method: 'POST',
+    var url, method;
+    if (state.editingTemplateId) {
+      url = '/api/templates/' + state.editingTemplateId;
+      method = 'PUT';
+    } else {
+      url = '/api/templates';
+      method = 'POST';
+    }
+
+    fetch(url, {
+      method: method,
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window.CSRF_TOKEN },
       body: JSON.stringify(payload),
     })
@@ -118,15 +148,18 @@ document.addEventListener('DOMContentLoaded', function() {
         alert(data.error);
         return;
       }
-      state.templateId = data.id;
+      var savedId = state.editingTemplateId || data.id;
+      state.templateId = savedId;
       state.templateSubject = payload.subject_template || '';
       state.templateBody = payload.body_template;
       document.getElementById('step2-next').disabled = false;
 
-      // Clear form and reload templates list
+      // Reset form
       document.getElementById('tmpl-name').value = '';
       document.getElementById('tmpl-subject').value = '';
       document.getElementById('tmpl-body').value = '';
+      state.editingTemplateId = null;
+      document.getElementById('save-template-btn').textContent = 'Save Template';
       loadTemplates();
     });
   });

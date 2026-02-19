@@ -1,11 +1,18 @@
 <% if (totalPages > 1) { %>
+<%
+  var qs = '';
+  if (typeof search !== 'undefined' && search) qs += '&search=' + encodeURIComponent(search);
+  if (typeof filter !== 'undefined' && filter && filter !== 'all') qs += '&filter=' + filter;
+  if (typeof sort !== 'undefined' && sort && sort !== 'name') qs += '&sort=' + sort;
+  if (typeof selectedUserId !== 'undefined' && selectedUserId) qs += '&user_id=' + selectedUserId;
+%>
 <div class="pagination">
   <% if (currentPage > 1) { %>
-    <a href="<%= baseUrl %>?page=<%= currentPage - 1 %><%= typeof search !== 'undefined' && search ? '&search=' + encodeURIComponent(search) : '' %><%= typeof filter !== 'undefined' && filter && filter !== 'all' ? '&filter=' + filter : '' %>" class="btn btn-sm btn-secondary">&laquo; Prev</a>
+    <a href="<%= baseUrl %>?page=<%= currentPage - 1 %><%= qs %>" class="btn btn-sm btn-secondary">&laquo; Prev</a>
   <% } %>
   <span class="pagination-info">Page <%= currentPage %> of <%= totalPages %></span>
   <% if (currentPage < totalPages) { %>
-    <a href="<%= baseUrl %>?page=<%= currentPage + 1 %><%= typeof search !== 'undefined' && search ? '&search=' + encodeURIComponent(search) : '' %><%= typeof filter !== 'undefined' && filter && filter !== 'all' ? '&filter=' + filter : '' %>" class="btn btn-sm btn-secondary">Next &raquo;</a>
+    <a href="<%= baseUrl %>?page=<%= currentPage + 1 %><%= qs %>" class="btn btn-sm btn-secondary">Next &raquo;</a>
   <% } %>
 </div>
 <% } %>

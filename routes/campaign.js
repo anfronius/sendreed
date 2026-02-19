@@ -17,9 +17,19 @@ router.get('/', (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const perPage = 25;
     const offset = (page - 1) * perPage;
+    const selectedUserId = isAdmin && req.query.user_id ? parseInt(req.query.user_id) : null;
 
-    const where = isAdmin ? '1=1' : 'c.owner_id = ?';
-    const params = isAdmin ? [] : [userId];
+    let where, params;
+    if (isAdmin && selectedUserId) {
+      where = 'c.owner_id = ?';
+      params = [selectedUserId];
+    } else if (isAdmin) {
+      where = '1=1';
+      params = [];
+    } else {
+      where = 'c.owner_id = ?';
+      params = [userId];
+    }
 
     const totalCount = db.prepare(
       `SELECT COUNT(*) as cnt FROM campaigns c WHERE ${where}`
@@ -32,13 +42,38 @@ router.get('/', (req, res) => {
        WHERE ${where} ORDER BY c.created_at DESC LIMIT ? OFFSET ?`
     ).all(...params, perPage, offset);
 
+    // Get templates for the templates list section
+    let templateWhere, templateParams;
+    if (isAdmin && selectedUserId) {
+      templateWhere = 'owner_id = ?';
+      templateParams = [selectedUserId];
+    } else if (isAdmin) {
+      templateWhere = '1=1';
+      templateParams = [];
+    } else {
+      templateWhere = 'owner_id = ?';
+      templateParams = [userId];
+    }
+    const templates = db.prepare(
+      `SELECT * FROM templates WHERE ${templateWhere} ORDER BY name`
+    ).all(...templateParams);
+
+    // Get users for admin dropdown
+    let users = [];
+    if (isAdmin) {
+      users = db.prepare('SELECT id, name, role FROM users ORDER BY name').all();
+    }
+
     res.render('campaign/history', {
       title: 'Campaigns',
       campaigns,
+      templates,
       currentPage: page,
       totalPages,
       totalCount,
       baseUrl: '/campaign',
+      users,
+      selectedUserId,
     });
   } catch (err) {
     console.error('Campaign history error:', err);

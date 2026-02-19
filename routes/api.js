@@ -169,6 +169,38 @@ router.delete('/contacts/:id', requireAuth, (req, res) => {
   }
 });
 
+// POST /api/contacts/bulk-delete — delete multiple contacts
+router.post('/contacts/bulk-delete', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const userId = req.session.user.id;
+    const isAdmin = req.session.user.role === 'admin';
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'No contact IDs provided.' });
+    }
+
+    const deleteMany = db.transaction(() => {
+      let deleted = 0;
+      for (const id of ids) {
+        const contactId = parseInt(id);
+        if (isNaN(contactId)) continue;
+        const contact = db.prepare('SELECT owner_id FROM contacts WHERE id = ?').get(contactId);
+        if (!contact || (!isAdmin && contact.owner_id !== userId)) continue;
+        db.prepare('DELETE FROM contacts WHERE id = ?').run(contactId);
+        deleted++;
+      }
+      return deleted;
+    });
+
+    const deleted = deleteMany();
+    res.json({ success: true, deleted });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ========== TEMPLATES API ==========
 
 // GET /api/templates — JSON templates (filterable by channel)
@@ -431,6 +463,70 @@ router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'),
   }
 });
 
+// POST /api/realist-lookup/bulk-not-found — mark multiple properties as not found
+router.post('/realist-lookup/bulk-not-found', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'No property IDs provided.' });
+    }
+
+    const updateStmt = db.prepare(
+      "UPDATE crmls_properties SET realist_lookup_status = 'not_found', realist_owner_name = NULL, looked_up_at = datetime('now') WHERE id = ?"
+    );
+    const bulkUpdate = db.transaction(() => {
+      for (const id of ids) {
+        updateStmt.run(parseInt(id));
+      }
+    });
+    bulkUpdate();
+
+    const counts = db.prepare(`
+      SELECT COUNT(*) as total,
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
+        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+      FROM crmls_properties
+    `).get();
+
+    res.json({ success: true, counts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/realist-lookup/bulk-delete — delete multiple properties
+router.post('/realist-lookup/bulk-delete', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'No property IDs provided.' });
+    }
+
+    const deleteStmt = db.prepare('DELETE FROM crmls_properties WHERE id = ?');
+    const bulkDelete = db.transaction(() => {
+      for (const id of ids) {
+        deleteStmt.run(parseInt(id));
+      }
+    });
+    bulkDelete();
+
+    const counts = db.prepare(`
+      SELECT COUNT(*) as total,
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
+        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+      FROM crmls_properties
+    `).get();
+
+    res.json({ success: true, counts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ========== PHONE/EMAIL MATCHING API ==========
 
 // POST /api/match/:id/confirm — confirm a match
@@ -503,29 +599,6 @@ router.post('/match/:importedId/manual', requireRole('realestate', 'admin'), (re
       "INSERT INTO phone_matches (contact_id, imported_contact_id, match_type, confidence_score, confirmed_by, confirmed_at) VALUES (?, ?, 'manual', 100, ?, datetime('now'))"
     ).run(parseInt(contact_id), importedId, userId);
 
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ========== HOLIDAYS API ==========
-
-// DELETE /api/holidays/:id — delete a custom holiday
-router.delete('/holidays/:id', requireRole('realestate', 'admin'), (req, res) => {
-  try {
-    const db = getDb();
-    const holidayId = parseInt(req.params.id);
-
-    const holiday = db.prepare('SELECT * FROM holidays WHERE id = ?').get(holidayId);
-    if (!holiday) {
-      return res.status(404).json({ error: 'Holiday not found.' });
-    }
-    if (holiday.is_preset) {
-      return res.status(400).json({ error: 'Cannot delete preset holidays.' });
-    }
-
-    db.prepare('DELETE FROM holidays WHERE id = ?').run(holidayId);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

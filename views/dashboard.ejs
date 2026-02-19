@@ -3,50 +3,75 @@
 <h1>Dashboard</h1>
 <p>Welcome, <strong><%= user.name %></strong>.</p>
 
-<div class="stats-grid">
-  <div class="stat-card">
-    <div class="stat-number"><%= contactCount %></div>
-    <div class="stat-label">Contacts</div>
+<% if (user.role === 'admin') { %>
+  <!-- Admin: Per-user stats table -->
+  <h2>Users Overview</h2>
+  <div class="table-responsive">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Role</th>
+          <th>Contacts</th>
+          <th>Templates</th>
+          <th>Campaigns</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% userStats.forEach(function(u) { %>
+        <tr>
+          <td><strong><%= u.name %></strong></td>
+          <td><%= u.role %></td>
+          <td><%= u.contacts %></td>
+          <td><%= u.templates %></td>
+          <td><%= u.campaigns %></td>
+        </tr>
+        <% }); %>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td><strong>Total</strong></td>
+          <td></td>
+          <td><strong><%= contactCount %></strong></td>
+          <td><strong><%= templateCount %></strong></td>
+          <td><strong><%= campaignCount %></strong></td>
+        </tr>
+      </tfoot>
+    </table>
   </div>
-  <div class="stat-card">
-    <div class="stat-number"><%= templateCount %></div>
-    <div class="stat-label">Templates</div>
+<% } else { %>
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-number"><%= contactCount %></div>
+      <div class="stat-label">Contacts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number"><%= templateCount %></div>
+      <div class="stat-label">Templates</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number"><%= campaignCount %></div>
+      <div class="stat-label">Campaigns</div>
+    </div>
   </div>
-  <div class="stat-card">
-    <div class="stat-number"><%= campaignCount %></div>
-    <div class="stat-label">Campaigns</div>
-  </div>
-</div>
+<% } %>
 
-<% if ((user.role === 'realestate' || user.role === 'admin') && (anniversaryCount > 0 || holidayCount > 0)) { %>
+<% if ((user.role === 'realestate' || user.role === 'admin') && anniversaryCount > 0) { %>
 <div class="notification-badges">
-  <% if (anniversaryCount > 0) { %>
-    <a href="/realestate/anniversaries" class="notification-badge notification-badge-anniversary">
-      <span class="notification-count"><%= anniversaryCount %></span>
-      <span>Upcoming Anniversaries</span>
-    </a>
-  <% } %>
-  <% if (holidayCount > 0) { %>
-    <a href="/realestate/holidays" class="notification-badge notification-badge-holiday">
-      <span class="notification-count"><%= holidayCount %></span>
-      <span>Upcoming Holidays</span>
-    </a>
-  <% } %>
+  <a href="/realestate/anniversaries" class="notification-badge notification-badge-anniversary">
+    <span class="notification-count"><%= anniversaryCount %></span>
+    <span>Upcoming Anniversaries</span>
+  </a>
 </div>
 <% } %>
 
+<% if (user.role !== 'admin') { %>
 <h2>Quick Actions</h2>
 <div class="action-links">
   <a href="/campaign/create" class="btn btn-primary">New Campaign</a>
   <a href="/contacts" class="btn btn-secondary">View Contacts</a>
   <a href="/contacts/import" class="btn btn-secondary">Import CSV</a>
 </div>
-
-<% if (user.role === 'admin') { %>
-  <h2>Admin</h2>
-  <div class="action-links">
-    <a href="/admin/users" class="btn btn-secondary">Manage Users</a>
-  </div>
 <% } %>
 
 <%- include('layout-footer', { scripts: [] }) %>

@@ -3,6 +3,8 @@
 <div class="page-header">
   <h1>Realist Lookup <span class="count-badge"><%= totalCount %> properties</span></h1>
   <div class="page-actions">
+    <button class="btn btn-danger btn-sm" id="bulk-not-found-btn" style="display:none;">Not Found (<span id="bulk-nf-count">0</span>)</button>
+    <button class="btn btn-danger btn-sm" id="bulk-delete-btn" style="display:none;">Delete (<span id="bulk-del-count">0</span>)</button>
     <% if (counts.found > 0) { %>
       <form method="POST" action="/realestate/lookup/finalize" style="display:inline;">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -55,10 +57,11 @@
   <table class="data-table" id="lookup-table">
     <thead>
       <tr>
+        <th style="width:30px"><input type="checkbox" id="select-all-lookup"></th>
         <th>Address</th>
         <th>City / State / Zip</th>
-        <th>Sale Date</th>
-        <th>Sale Price</th>
+        <th>Close Date</th>
+        <th>Close Price</th>
         <th>Owner Name</th>
         <th>Status</th>
         <th>Actions</th>
@@ -68,6 +71,7 @@
       <% properties.forEach(function(p) { %>
       <tr data-property-id="<%= p.id %>" data-status="<%= p.realist_lookup_status %>"
           data-address="<%= p.property_address %>">
+        <td><input type="checkbox" class="lookup-checkbox" value="<%= p.id %>"></td>
         <td class="property-address"><%= p.property_address %></td>
         <td><%= [p.city, p.state, p.zip].filter(Boolean).join(', ') %></td>
         <td><%= p.sale_date || '' %></td>

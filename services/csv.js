@@ -1,6 +1,7 @@
 const Papa = require('papaparse');
 const fs = require('fs');
 const { getDb } = require('../db/init');
+const { expandCity } = require('../config/ca-cities');
 
 // Alias map: normalized header name → contact field
 const COLUMN_ALIASES = {
@@ -171,20 +172,7 @@ function importCrmlsProperties(rows, mapping, ownerId) {
      VALUES (?, ?, ?, ?, ?, ?, ?)`
   );
 
-  const CRMLS_FIELDS = ['property_address', 'city', 'state', 'zip', 'sale_date', 'sale_price'];
-  const CRMLS_ALIASES = {
-    property_address: 'property_address',
-    address: 'property_address',
-    sale_date: 'sale_date',
-    saledate: 'sale_date',
-    closedate: 'sale_date',
-    sale_price: 'sale_price',
-    saleprice: 'sale_price',
-    price: 'sale_price',
-    city: 'city',
-    state: 'state',
-    zip: 'zip',
-  };
+  const CRMLS_FIELDS = ['property_address', 'street_number', 'street_name', 'city', 'state', 'zip', 'sale_date', 'sale_price'];
 
   const insertMany = db.transaction((rows) => {
     for (let i = 0; i < rows.length; i++) {
@@ -197,9 +185,19 @@ function importCrmlsProperties(rows, mapping, ownerId) {
           }
         }
 
+        // Concatenate street_number + street_name into property_address if needed
+        if (!prop.property_address && (prop.street_number || prop.street_name)) {
+          prop.property_address = [prop.street_number, prop.street_name].filter(Boolean).join(' ');
+        }
+
         if (!prop.property_address) {
           skipped++;
           continue;
+        }
+
+        // Expand city abbreviations
+        if (prop.city) {
+          prop.city = expandCity(prop.city);
         }
 
         if (prop.sale_price) {
@@ -234,13 +232,23 @@ const CRMLS_COLUMN_ALIASES = {
   property_address: 'property_address',
   address: 'property_address',
   streetaddress: 'property_address',
+  streetnumber: 'street_number',
+  street_number: 'street_number',
+  streetno: 'street_number',
+  houseno: 'street_number',
+  housenumber: 'street_number',
+  streetname: 'street_name',
+  street_name: 'street_name',
+  streetdir: 'street_name',
   saledate: 'sale_date',
   sale_date: 'sale_date',
   closedate: 'sale_date',
   closingdate: 'sale_date',
+  closeofescrow: 'sale_date',
   saleprice: 'sale_price',
   sale_price: 'sale_price',
   closeprice: 'sale_price',
+  closingprice: 'sale_price',
   price: 'sale_price',
   city: 'city',
   state: 'state',

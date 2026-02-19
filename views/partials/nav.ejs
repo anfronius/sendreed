@@ -11,7 +11,6 @@
       <a href="/realestate">Real Estate</a>
     <% } %>
     <% if (user.role === 'admin') { %>
-      <a href="/admin">Admin</a>
       <a href="/admin/users">Users</a>
     <% } %>
     <span class="nav-user"><%= user.name %> (<%= user.role %>)</span>

@@ -3,9 +3,20 @@
 <div class="page-header">
   <h1>Campaigns <span class="count-badge"><%= totalCount %></span></h1>
   <div class="page-actions">
-    <a href="/campaign/create" class="btn btn-primary">New Campaign</a>
+    <a href="/campaign/create<%= user.role === 'admin' && selectedUserId ? '?user_id=' + selectedUserId : '' %>" class="btn btn-primary">New Campaign</a>
   </div>
 </div>
+
+<% if (user.role === 'admin' && users.length > 0) { %>
+<form class="filter-bar" method="GET" action="/campaign">
+  <select name="user_id" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Users</option>
+    <% users.forEach(function(u) { %>
+      <option value="<%= u.id %>" <%= selectedUserId === u.id ? 'selected' : '' %>><%= u.name %> (<%= u.role %>)</option>
+    <% }); %>
+  </select>
+</form>
+<% } %>
 
 <% if (campaigns.length === 0) { %>
   <div class="empty-state">
@@ -59,7 +70,33 @@
   </table>
 </div>
 
-<%- include('../partials/pagination', { currentPage, totalPages, baseUrl }) %>
+<%- include('../partials/pagination', { currentPage, totalPages, baseUrl, selectedUserId }) %>
+<% } %>
+
+<% if (templates && templates.length > 0) { %>
+<h2 style="margin-top: 2rem;">Templates</h2>
+<div class="table-responsive">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Channel</th>
+        <th>Preview</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% templates.forEach(function(t) { %>
+      <tr>
+        <td><strong><%= t.name %></strong></td>
+        <td><span class="badge badge-<%= t.channel %>"><%= t.channel %></span></td>
+        <td style="max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; color: #64748b;">
+          <% if (t.subject_template) { %>Subject: <%= t.subject_template %> — <% } %><%= t.body_template.substring(0, 120) %><%= t.body_template.length > 120 ? '...' : '' %>
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
 <% } %>
 
 <%- include('../layout-footer', { scripts: [] }) %>

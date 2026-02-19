@@ -1,0 +1,118 @@
+/**
+ * California city abbreviation to full name mapping.
+ * Used during CRMLS import and display to expand abbreviated city names.
+ */
+const CA_CITY_MAP = {
+  'LA': 'Los Angeles',
+  'SF': 'San Francisco',
+  'SD': 'San Diego',
+  'SJ': 'San Jose',
+  'SAC': 'Sacramento',
+  'OAK': 'Oakland',
+  'LB': 'Long Beach',
+  'ANA': 'Anaheim',
+  'BAK': 'Bakersfield',
+  'SB': 'Santa Barbara',
+  'SC': 'Santa Cruz',
+  'SM': 'Santa Monica',
+  'SR': 'Santa Rosa',
+  'SAB': 'San Bernardino',
+  'RIV': 'Riverside',
+  'FRE': 'Fremont',
+  'IVR': 'Irvine',
+  'ONT': 'Ontario',
+  'FON': 'Fontana',
+  'MOR': 'Moreno Valley',
+  'GLD': 'Glendale',
+  'HUN': 'Huntington Beach',
+  'GAR': 'Garden Grove',
+  'OC': 'Oceanside',
+  'RAN': 'Rancho Cucamonga',
+  'PAL': 'Palmdale',
+  'LAN': 'Lancaster',
+  'COR': 'Corona',
+  'ELK': 'Elk Grove',
+  'SAL': 'Salinas',
+  'POM': 'Pomona',
+  'ESC': 'Escondido',
+  'TOR': 'Torrance',
+  'PAS': 'Pasadena',
+  'ORA': 'Orange',
+  'FUL': 'Fullerton',
+  'ROS': 'Roseville',
+  'VIS': 'Visalia',
+  'CON': 'Concord',
+  'SIM': 'Simi Valley',
+  'SC CL': 'Santa Clara',
+  'VIC': 'Victorville',
+  'VV': 'Victorville',
+  'CLR': 'Claremont',
+  'THO': 'Thousand Oaks',
+  'TO': 'Thousand Oaks',
+  'DAL': 'Daly City',
+  'BUR': 'Burbank',
+  'ELC': 'El Cajon',
+  'VN': 'Van Nuys',
+  'WH': 'West Hollywood',
+  'CC': 'Culver City',
+  'RC': 'Rancho Cucamonga',
+  'MB': 'Manhattan Beach',
+  'HB': 'Huntington Beach',
+  'NB': 'Newport Beach',
+  'RB': 'Redondo Beach',
+  'DB': 'Daytona Beach',
+  'CP': 'Canoga Park',
+  'WC': 'West Covina',
+  'TC': 'Temple City',
+  'AC': 'Arcadia',
+  'UP': 'Upland',
+  'CH': 'Chino Hills',
+  'CHS': 'Chino',
+  'MH': 'Monterey Hills',
+  'MP': 'Monterey Park',
+  'RP': 'Rowland Heights',
+  'WLN': 'Walnut',
+  'DM': 'Diamond Bar',
+  'LP': 'La Puente',
+  'LV': 'La Verne',
+  'GM': 'Glendora',
+  'AZ': 'Azusa',
+  'DT': 'Duarte',
+  'IRW': 'Irwindale',
+  'BW': 'Baldwin Park',
+  'EP': 'El Paso',
+  'CO': 'Colton',
+  'RED': 'Redlands',
+  'YUC': 'Yucaipa',
+  'CAL': 'Calimesa',
+  'BEA': 'Beaumont',
+  'BAN': 'Banning',
+  'HEM': 'Hemet',
+  'SJC': 'San Juan Capistrano',
+  'RSM': 'Rancho Santa Margarita',
+  'MV': 'Mission Viejo',
+  'LN': 'Lake Elsinore',
+  'MUR': 'Murrieta',
+  'TEM': 'Temecula',
+  'WSR': 'Winchester',
+  'PER': 'Perris',
+  'SUN': 'Sun City',
+  'MEN': 'Menifee',
+  'WIL': 'Wildomar',
+};
+
+/**
+ * Expand a city abbreviation to its full name.
+ * Returns the original value if no match found.
+ */
+function expandCity(city) {
+  if (!city) return city;
+  const trimmed = city.trim();
+  const upper = trimmed.toUpperCase();
+  if (CA_CITY_MAP[upper]) {
+    return CA_CITY_MAP[upper];
+  }
+  return trimmed;
+}
+
+module.exports = { CA_CITY_MAP, expandCity };

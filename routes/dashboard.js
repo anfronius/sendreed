@@ -10,32 +10,37 @@ router.get('/', requireAuth, (req, res) => {
     const userId = req.session.user.id;
     const isAdmin = req.session.user.role === 'admin';
 
-    const contactCount = isAdmin
-      ? db.prepare('SELECT COUNT(*) as c FROM contacts').get().c
-      : db.prepare('SELECT COUNT(*) as c FROM contacts WHERE owner_id = ?').get(userId).c;
+    let contactCount, templateCount, campaignCount;
+    let userStats = [];
 
-    const templateCount = isAdmin
-      ? db.prepare('SELECT COUNT(*) as c FROM templates').get().c
-      : db.prepare('SELECT COUNT(*) as c FROM templates WHERE owner_id = ?').get(userId).c;
+    if (isAdmin) {
+      // Per-user stats for admin dashboard
+      userStats = db.prepare(`
+        SELECT u.id, u.name, u.role,
+          (SELECT COUNT(*) FROM contacts WHERE owner_id = u.id) as contacts,
+          (SELECT COUNT(*) FROM templates WHERE owner_id = u.id) as templates,
+          (SELECT COUNT(*) FROM campaigns WHERE owner_id = u.id) as campaigns
+        FROM users u ORDER BY u.name
+      `).all();
+      contactCount = userStats.reduce((sum, u) => sum + u.contacts, 0);
+      templateCount = userStats.reduce((sum, u) => sum + u.templates, 0);
+      campaignCount = userStats.reduce((sum, u) => sum + u.campaigns, 0);
+    } else {
+      contactCount = db.prepare('SELECT COUNT(*) as c FROM contacts WHERE owner_id = ?').get(userId).c;
+      templateCount = db.prepare('SELECT COUNT(*) as c FROM templates WHERE owner_id = ?').get(userId).c;
+      campaignCount = db.prepare('SELECT COUNT(*) as c FROM campaigns WHERE owner_id = ?').get(userId).c;
+    }
 
-    const campaignCount = isAdmin
-      ? db.prepare('SELECT COUNT(*) as c FROM campaigns').get().c
-      : db.prepare('SELECT COUNT(*) as c FROM campaigns WHERE owner_id = ?').get(userId).c;
-
-    // Anniversary and holiday counts for realestate/admin users
+    // Anniversary count for realestate/admin users
     let anniversaryCount = 0;
-    let holidayCount = 0;
     const role = req.session.user.role;
     if (role === 'realestate' || role === 'admin') {
       anniversaryCount = db.prepare(
         "SELECT COUNT(*) as c FROM anniversary_log WHERE status = 'pending' AND anniversary_date BETWEEN date('now') AND date('now', '+7 days')"
       ).get().c;
-      holidayCount = db.prepare(
-        "SELECT COUNT(*) as c FROM holidays WHERE date BETWEEN date('now') AND date('now', '+7 days')"
-      ).get().c;
     }
 
-    res.render('dashboard', { title: 'Dashboard', contactCount, templateCount, campaignCount, anniversaryCount, holidayCount });
+    res.render('dashboard', { title: 'Dashboard', contactCount, templateCount, campaignCount, anniversaryCount, userStats });
   } catch (err) {
     console.error('Dashboard error:', err);
     res.status(500).render('error', { status: 500, message: 'Failed to load dashboard.' });
