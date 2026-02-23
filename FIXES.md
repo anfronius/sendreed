@@ -1,5 +1,7 @@
 # Fixes to Deploy after Original Formation
 
+## First Set of Fixes (FINISHED)
+
 ### Dashboard Page
 - *Admin View* Should show Users and their stats (like contacts, templates, campagisn, etc) instead of just the total amount of those stats from all users.
 - *Admin View* Remove the "Quick Actions' and 'Admin' tools sets, which include buttons for 'New Campaign', 'View Contacts', 'Import CSV', and 'Manage Users' as they are redundant and do not save much time at all. Note that I only want the 'Quick Actions' gone for Admins and not All Users.
@@ -31,3 +33,8 @@
 
 ### Users Page
 - *Admin View* For existing users, there should be more stats than just the 'Created' field and allow for for a separate 'Wipe Data' button that doesn't delete the User but removes all their associated data (the Delete button should do this too but also remove the User entirely).
+
+## Second Set of Fixes (INCOMPLETE)
+
+### Real Estate Page
+- *Real Estate and Admin View* Add a similar but not too expansive list of Anniversaries on the main Real Estate Page similar to the dedicated Anniversaries page that can be clicked on to get to the anniversaries page, but do not 
