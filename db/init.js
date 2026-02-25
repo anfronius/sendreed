@@ -196,7 +196,6 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_campaigns_owner ON campaigns(owner_id);
     CREATE INDEX IF NOT EXISTS idx_campaign_recipients_campaign ON campaign_recipients(campaign_id);
     CREATE INDEX IF NOT EXISTS idx_crmls_status ON crmls_properties(realist_lookup_status);
-    CREATE INDEX IF NOT EXISTS idx_crmls_owner ON crmls_properties(owner_id);
     CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
     CREATE INDEX IF NOT EXISTS idx_anniversary_status ON anniversary_log(status, anniversary_date);
     CREATE INDEX IF NOT EXISTS idx_city_mappings_raw ON city_mappings(raw_city);
@@ -212,6 +211,7 @@ function createTables() {
   if (!crmlsCols.includes('owner_id')) {
     db.exec('ALTER TABLE crmls_properties ADD COLUMN owner_id INTEGER REFERENCES users(id)');
   }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_crmls_owner ON crmls_properties(owner_id)');
 
   // Migrate existing data: set raw_city = city where raw_city is NULL
   db.prepare('UPDATE crmls_properties SET raw_city = city WHERE raw_city IS NULL').run();
