@@ -1,10 +1,9 @@
 <%- include('../layout-header', { title: 'Import vCard' }) %>
 
-<% var label = typeof contactLabel !== 'undefined' ? contactLabel.toLowerCase() : 'contacts'; %>
-<h1>Import vCard <%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></h1>
+<h1>Import vCard Contacts</h1>
 
 <div class="form-card">
-  <p>Upload a vCard (.vcf) file to import phone numbers and emails. <%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %> will be automatically matched against your existing <%= label %> by name.</p>
+  <p>Upload a vCard (.vcf) file to import phone numbers and emails. Contacts will be automatically matched against your existing contacts by name.</p>
   <form method="POST" action="/realestate/import-vcard/upload" enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="form-group">
@@ -12,7 +11,7 @@
       <input type="file" id="vcffile" name="vcffile" accept=".vcf,text/vcard,text/x-vcard" required>
     </div>
     <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem;">
-      The file will be parsed and matched against your <%= label %>. Mobile/cell phone numbers are preferred. You can review all matches before applying them.
+      The file will be parsed and matched against your contacts. Mobile/cell phone numbers are preferred. You can review all matches before applying them.
     </p>
     <p style="font-size: 0.85rem; color: #475569; margin-bottom: 1rem; padding: 0.5rem 0.75rem; background: #f8fafc; border-radius: 6px; border: 1px solid #e2e8f0;">
       <strong>On iPhone:</strong> Open Contacts &rarr; Select All &rarr; Share &rarr; Save to Files &rarr; then choose that file here.
