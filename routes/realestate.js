@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { requireRole, setFlash } = require('../middleware/auth');
+const { requireRole, setFlash, getEffectiveOwnerId } = require('../middleware/auth');
 const { verifyCsrf } = require('../middleware/csrf');
 const { getDb } = require('../db/init');
 const csv = require('../services/csv');
@@ -35,8 +35,10 @@ const CRMLS_FIELDS = ['property_address', 'street_number', 'street_name', 'city'
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
     const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    const crmlsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    const crmlsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
 
     const stats = db.prepare(`
       SELECT
@@ -45,7 +47,8 @@ router.get('/', (req, res) => {
         SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
         SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
       FROM crmls_properties
-    `).get();
+      WHERE ${crmlsWhere}
+    `).get(...crmlsParams);
 
     // Upcoming anniversaries (next 7 days)
     var todayStr = new Date().toISOString().slice(0, 10);
@@ -53,8 +56,8 @@ router.get('/', (req, res) => {
     futureDate.setDate(futureDate.getDate() + 7);
     var futureStr = futureDate.toISOString().slice(0, 10);
 
-    var ownerFilter = isAdmin ? '' : 'AND c.owner_id = ?';
-    var ownerParams = isAdmin ? [] : [userId];
+    var ownerFilter = (isAdmin && !effectiveOwnerId) ? '' : 'AND c.owner_id = ?';
+    var ownerParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
 
     var upcomingAnniversaries = db.prepare(`
       SELECT al.*, c.first_name, c.last_name, c.property_address, c.id as cid
@@ -149,7 +152,13 @@ router.post('/import/map', (req, res) => {
       return res.redirect('/realestate/import');
     }
 
-    const result = csv.importCrmlsProperties(crmlsImport.rows, mapping, req.session.user.id);
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    if (!effectiveOwnerId) {
+      setFlash(req, 'error', 'Please select a user to act as before importing.');
+      return res.redirect('/realestate/import');
+    }
+
+    const result = csv.importCrmlsProperties(crmlsImport.rows, mapping, effectiveOwnerId);
 
     // Clean up
     if (crmlsImport.filePath && fs.existsSync(crmlsImport.filePath)) {
@@ -174,6 +183,11 @@ router.post('/import/map', (req, res) => {
 router.get('/lookup', (req, res) => {
   try {
     const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    const ownerWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    const ownerParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+
     const statusFilter = req.query.status || 'all';
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const perPage = 50;
@@ -186,14 +200,16 @@ router.get('/lookup', (req, res) => {
         SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
         SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
       FROM crmls_properties
-    `).get();
+      WHERE ${ownerWhere}
+    `).get(...ownerParams);
 
-    let where = '1=1';
-    const params = [];
+    var conditions = [ownerWhere];
+    const params = [...ownerParams];
     if (['pending', 'found', 'not_found'].includes(statusFilter)) {
-      where = 'realist_lookup_status = ?';
+      conditions.push('realist_lookup_status = ?');
       params.push(statusFilter);
     }
+    const where = conditions.join(' AND ');
 
     const totalCount = db.prepare(
       `SELECT COUNT(*) as c FROM crmls_properties WHERE ${where}`
@@ -237,11 +253,15 @@ router.get('/lookup', (req, res) => {
 router.post('/lookup/finalize', (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    const ownerWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    const ownerParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+    const userId = effectiveOwnerId || req.session.user.id;
 
     const found = db.prepare(
-      "SELECT * FROM crmls_properties WHERE realist_lookup_status = 'found' AND realist_owner_name IS NOT NULL"
-    ).all();
+      `SELECT * FROM crmls_properties WHERE realist_lookup_status = 'found' AND realist_owner_name IS NOT NULL AND ${ownerWhere}`
+    ).all(...ownerParams);
 
     if (found.length === 0) {
       setFlash(req, 'info', 'No properties with found owners to finalize.');

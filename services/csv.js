@@ -167,8 +167,8 @@ function importCrmlsProperties(rows, mapping, ownerId) {
   ).run('crmls_import', 'crmls', rows.length, ownerId);
 
   const insertStmt = db.prepare(
-    `INSERT INTO crmls_properties (property_address, city, raw_city, state, zip, sale_date, sale_price, csv_upload_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO crmls_properties (property_address, city, raw_city, state, zip, sale_date, sale_price, csv_upload_id, owner_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   const CRMLS_FIELDS = ['property_address', 'street_number', 'street_name', 'city', 'state', 'zip', 'sale_date', 'sale_price'];
@@ -221,7 +221,8 @@ function importCrmlsProperties(rows, mapping, ownerId) {
           prop.zip || null,
           prop.sale_date || null,
           prop.sale_price || null,
-          uploadResult.lastInsertRowid
+          uploadResult.lastInsertRowid,
+          ownerId
         );
         inserted++;
       } catch (err) {
