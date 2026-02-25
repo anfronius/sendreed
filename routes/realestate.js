@@ -459,7 +459,7 @@ router.get('/matching', (req, res) => {
     let importFilter = '';
     const importParams = [];
     if (importId) {
-      importFilter = 'AND ci.import_id = ?';
+      importFilter = 'AND ic.import_id = ?';
       importParams.push(parseInt(importId));
     }
 
