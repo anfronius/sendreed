@@ -2,10 +2,11 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { requireAuth, setFlash, getEffectiveOwnerId } = require('../middleware/auth');
+const { requireAuth, setFlash, getEffectiveOwnerId, getEffectiveRole } = require('../middleware/auth');
 const { verifyCsrf } = require('../middleware/csrf');
 const { getDb } = require('../db/init');
 const csv = require('../services/csv');
+const fieldConfig = require('../config/field-config');
 
 const router = express.Router();
 router.use(requireAuth);
@@ -84,6 +85,11 @@ router.get('/', (req, res) => {
       `SELECT * FROM contacts WHERE ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
     ).all(...params, perPage, offset);
 
+    // Determine role-specific fields for the view
+    const effectiveRole = getEffectiveRole(req, res) || req.session.user.role;
+    const tableFields = fieldConfig.getTableFields(effectiveRole);
+    const visibleFields = fieldConfig.getVisibleFields(effectiveRole);
+
     res.render('contacts/list', {
       title: 'Contacts',
       contacts,
@@ -95,6 +101,10 @@ router.get('/', (req, res) => {
       sort,
       dir,
       baseUrl: '/contacts',
+      tableFields,
+      visibleFields,
+      fieldLabels: fieldConfig.LABEL_MAP,
+      fieldPlaceholders: fieldConfig.EMPTY_PLACEHOLDER,
     });
   } catch (err) {
     console.error('Contacts list error:', err);
@@ -104,13 +114,18 @@ router.get('/', (req, res) => {
 
 // GET /contacts/import — upload form
 router.get('/import', (req, res) => {
+  var effectiveRole = getEffectiveRole(req, res) || req.session.user.role;
+  var roleFields = fieldConfig.getVisibleFields(effectiveRole);
+  var filteredContactFields = csv.CONTACT_FIELDS.filter(function(f) {
+    return roleFields.includes(f);
+  });
   res.render('contacts/import-csv', {
     title: 'Import CSV',
     step: 'upload',
     headers: [],
     suggestions: {},
     sampleRows: [],
-    contactFields: csv.CONTACT_FIELDS,
+    contactFields: filteredContactFields,
   });
 });
 
@@ -140,13 +155,19 @@ router.post('/import/upload', upload.single('csvfile'), verifyCsrf, (req, res) =
       filename: req.file.originalname,
     };
 
+    var effectiveRole = getEffectiveRole(req, res) || req.session.user.role;
+    var roleFields = fieldConfig.getVisibleFields(effectiveRole);
+    var filteredContactFields = csv.CONTACT_FIELDS.filter(function(f) {
+      return roleFields.includes(f);
+    });
+
     res.render('contacts/import-csv', {
       title: 'Map Columns',
       step: 'map',
       headers: result.headers,
       suggestions,
       sampleRows: result.rows.slice(0, 3),
-      contactFields: csv.CONTACT_FIELDS,
+      contactFields: filteredContactFields,
       rowCount: result.rows.length,
     });
   } catch (err) {
