@@ -3,20 +3,9 @@
 <div class="page-header">
   <h1>Campaigns <span class="count-badge"><%= totalCount %></span></h1>
   <div class="page-actions">
-    <a href="/campaign/create<%= user.role === 'admin' && selectedUserId ? '?user_id=' + selectedUserId : '' %>" class="btn btn-primary">New Campaign</a>
+    <a href="/campaign/create" class="btn btn-primary">New Campaign</a>
   </div>
 </div>
-
-<% if (user.role === 'admin' && users.length > 0) { %>
-<form class="filter-bar" method="GET" action="/campaign">
-  <select name="user_id" class="filter-select" onchange="this.form.submit()">
-    <option value="">All Users</option>
-    <% users.forEach(function(u) { %>
-      <option value="<%= u.id %>" <%= selectedUserId === u.id ? 'selected' : '' %>><%= u.name %> (<%= u.role %>)</option>
-    <% }); %>
-  </select>
-</form>
-<% } %>
 
 <% if (campaigns.length === 0) { %>
   <div class="empty-state">
@@ -70,7 +59,7 @@
   </table>
 </div>
 
-<%- include('../partials/pagination', { currentPage, totalPages, baseUrl, selectedUserId }) %>
+<%- include('../partials/pagination', { currentPage, totalPages, baseUrl }) %>
 <% } %>
 
 <% if (templates && templates.length > 0) { %>

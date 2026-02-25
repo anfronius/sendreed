@@ -1,6 +1,6 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, getEffectiveOwnerId } = require('../middleware/auth');
 const { getDb } = require('../db/init');
 const { decrypt } = require('../services/crypto');
 const providers = require('../config/providers.json');
@@ -60,13 +60,22 @@ const CONTACT_EDITABLE_FIELDS = [
 router.get('/contacts', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
     const isAdmin = req.session.user.role === 'admin';
+    const effectiveId = getEffectiveOwnerId(req);
     const channel = req.query.channel;
     const search = req.query.search || '';
 
-    let where = isAdmin ? '1=1' : 'owner_id = ?';
-    const params = isAdmin ? [] : [userId];
+    let where, params;
+    if (isAdmin && effectiveId) {
+      where = 'owner_id = ?';
+      params = [effectiveId];
+    } else if (isAdmin) {
+      where = '1=1';
+      params = [];
+    } else {
+      where = 'owner_id = ?';
+      params = [effectiveId];
+    }
 
     if (channel === 'email') {
       where += " AND email IS NOT NULL AND email != ''";
@@ -94,7 +103,10 @@ router.get('/contacts', requireAuth, (req, res) => {
 router.post('/contacts', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const ownerId = getEffectiveOwnerId(req);
+    if (!ownerId) {
+      return res.status(400).json({ error: 'Admin must select a user to act on behalf of.' });
+    }
     const data = {};
     for (const field of CONTACT_EDITABLE_FIELDS) {
       if (req.body[field] !== undefined) {
@@ -108,7 +120,7 @@ router.post('/contacts', requireAuth, (req, res) => {
 
     const result = db.prepare(
       `INSERT INTO contacts (owner_id, ${fields.join(', ')}) VALUES (?, ${placeholders})`
-    ).run(userId, ...values);
+    ).run(ownerId, ...values);
 
     res.json({ id: result.lastInsertRowid });
   } catch (err) {
@@ -207,12 +219,21 @@ router.post('/contacts/bulk-delete', requireAuth, (req, res) => {
 router.get('/templates', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
     const isAdmin = req.session.user.role === 'admin';
+    const effectiveId = getEffectiveOwnerId(req);
     const channel = req.query.channel;
 
-    let where = isAdmin ? '1=1' : 'owner_id = ?';
-    const params = isAdmin ? [] : [userId];
+    let where, params;
+    if (isAdmin && effectiveId) {
+      where = 'owner_id = ?';
+      params = [effectiveId];
+    } else if (isAdmin) {
+      where = '1=1';
+      params = [];
+    } else {
+      where = 'owner_id = ?';
+      params = [effectiveId];
+    }
 
     if (channel) {
       where += ' AND channel = ?';
@@ -233,7 +254,10 @@ router.get('/templates', requireAuth, (req, res) => {
 router.post('/templates', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const ownerId = getEffectiveOwnerId(req);
+    if (!ownerId) {
+      return res.status(400).json({ error: 'Admin must select a user to act on behalf of.' });
+    }
     const { name, channel, subject_template, body_template } = req.body;
 
     if (!name || !channel || !body_template) {
@@ -245,7 +269,7 @@ router.post('/templates', requireAuth, (req, res) => {
 
     const result = db.prepare(
       'INSERT INTO templates (owner_id, name, channel, subject_template, body_template) VALUES (?, ?, ?, ?, ?)'
-    ).run(userId, name, channel, subject_template || null, body_template);
+    ).run(ownerId, name, channel, subject_template || null, body_template);
 
     res.json({ id: result.lastInsertRowid });
   } catch (err) {

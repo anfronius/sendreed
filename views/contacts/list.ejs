@@ -8,25 +8,7 @@
   </div>
 </div>
 
-<% if (user.role === 'admin' && users.length > 0) { %>
 <form class="filter-bar" method="GET" action="/contacts">
-  <select name="user_id" class="filter-select" onchange="this.form.submit()">
-    <option value="">All Users</option>
-    <% users.forEach(function(u) { %>
-      <option value="<%= u.id %>" <%= selectedUserId === u.id ? 'selected' : '' %>><%= u.name %> (<%= u.role %>)</option>
-    <% }); %>
-  </select>
-  <input type="hidden" name="search" value="<%= search %>">
-  <input type="hidden" name="filter" value="<%= filter %>">
-  <input type="hidden" name="sort" value="<%= sort %>">
-  <input type="hidden" name="dir" value="<%= dir %>">
-</form>
-<% } %>
-
-<form class="filter-bar" method="GET" action="/contacts">
-  <% if (user.role === 'admin' && selectedUserId) { %>
-    <input type="hidden" name="user_id" value="<%= selectedUserId %>">
-  <% } %>
   <input type="text" name="search" value="<%= search %>" placeholder="Search all fields..." class="filter-input">
   <select name="filter" class="filter-select">
     <option value="all" <%= filter === 'all' ? 'selected' : '' %>>All Contacts</option>
@@ -84,7 +66,7 @@
   </table>
 </div>
 
-<%- include('../partials/pagination', { currentPage, totalPages, baseUrl, search, filter, sort, dir, selectedUserId }) %>
+<%- include('../partials/pagination', { currentPage, totalPages, baseUrl, search, filter, sort, dir }) %>
 <% } %>
 
 <%- include('../layout-footer', { scripts: ['/js/contacts.js'] }) %>

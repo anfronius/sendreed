@@ -9,6 +9,35 @@ const router = express.Router();
 
 router.use(requireRole('admin'));
 
+// POST /admin/act-as — set the acting-as user context
+router.post('/act-as', (req, res) => {
+  try {
+    var targetId = parseInt(req.body.user_id);
+    if (!targetId) {
+      delete req.session.actingAsUserId;
+      return res.redirect(req.get('Referer') || '/dashboard');
+    }
+    var db = getDb();
+    var target = db.prepare("SELECT id, role FROM users WHERE id = ? AND role != 'admin'").get(targetId);
+    if (!target) {
+      setFlash(req, 'error', 'User not found or cannot act as another admin.');
+      return res.redirect(req.get('Referer') || '/dashboard');
+    }
+    req.session.actingAsUserId = targetId;
+    res.redirect(req.get('Referer') || '/dashboard');
+  } catch (err) {
+    console.error('Act-as error:', err);
+    setFlash(req, 'error', 'Failed to switch user context.');
+    res.redirect('/dashboard');
+  }
+});
+
+// POST /admin/act-as/clear — clear the acting-as user context
+router.post('/act-as/clear', (req, res) => {
+  delete req.session.actingAsUserId;
+  res.redirect(req.get('Referer') || '/dashboard');
+});
+
 // Redirect /admin to /admin/users
 router.get('/', (req, res) => {
   res.redirect('/admin/users');

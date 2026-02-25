@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { requireAuth, setFlash } = require('../middleware/auth');
+const { requireAuth, setFlash, getEffectiveOwnerId } = require('../middleware/auth');
 const { verifyCsrf } = require('../middleware/csrf');
 const { getDb } = require('../db/init');
 const csv = require('../services/csv');
@@ -38,8 +38,8 @@ const SORT_OPTIONS = {
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
     const isAdmin = req.session.user.role === 'admin';
+    const effectiveId = getEffectiveOwnerId(req);
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const perPage = 25;
     const offset = (page - 1) * perPage;
@@ -47,20 +47,19 @@ router.get('/', (req, res) => {
     const filter = req.query.filter || 'all';
     const sort = req.query.sort || 'name';
     const dir = req.query.dir === 'desc' ? 'desc' : 'asc';
-    const selectedUserId = isAdmin && req.query.user_id ? parseInt(req.query.user_id) : null;
 
-    // Admin: filter by selected user, or show all
+    // Admin: scope by acting-as user, or show all if none selected
     let where;
     let params;
-    if (isAdmin && selectedUserId) {
+    if (isAdmin && effectiveId) {
       where = 'owner_id = ?';
-      params = [selectedUserId];
+      params = [effectiveId];
     } else if (isAdmin) {
       where = '1=1';
       params = [];
     } else {
       where = 'owner_id = ?';
-      params = [userId];
+      params = [effectiveId];
     }
 
     if (search) {
@@ -85,12 +84,6 @@ router.get('/', (req, res) => {
       `SELECT * FROM contacts WHERE ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
     ).all(...params, perPage, offset);
 
-    // Get all users for admin dropdown
-    let users = [];
-    if (isAdmin) {
-      users = db.prepare('SELECT id, name, role FROM users ORDER BY name').all();
-    }
-
     res.render('contacts/list', {
       title: 'Contacts',
       contacts,
@@ -102,8 +95,6 @@ router.get('/', (req, res) => {
       sort,
       dir,
       baseUrl: '/contacts',
-      users,
-      selectedUserId,
     });
   } catch (err) {
     console.error('Contacts list error:', err);
@@ -189,8 +180,16 @@ router.post('/import/map', (req, res) => {
       return res.redirect('/contacts/import');
     }
 
-    const uploadType = req.session.user.role === 'realestate' ? 'crmls' : 'politicians';
-    const result = csv.importContacts(csvImport.rows, mapping, req.session.user.id, uploadType);
+    const ownerId = getEffectiveOwnerId(req);
+    if (!ownerId) {
+      setFlash(req, 'error', 'Admin must select a user to import contacts for.');
+      return res.redirect('/contacts/import');
+    }
+    // Determine upload type based on the effective owner's role
+    var db = getDb();
+    var ownerUser = db.prepare('SELECT role FROM users WHERE id = ?').get(ownerId);
+    const uploadType = (ownerUser && ownerUser.role === 'realestate') ? 'crmls' : 'politicians';
+    const result = csv.importContacts(csvImport.rows, mapping, ownerId, uploadType);
 
     // Clean up
     if (csvImport.filePath && fs.existsSync(csvImport.filePath)) {
