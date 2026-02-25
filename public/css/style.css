@@ -118,6 +118,15 @@ a:hover { text-decoration: underline; }
 @keyframes flash-green { 0% { background: #dcfce7; } 100% { background: transparent; } }
 @keyframes flash-red { 0% { background: #fee2e2; } 100% { background: transparent; } }
 
+/* Field Management */
+.field-mgmt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.field-list { display: flex; flex-direction: column; gap: 0.5rem; }
+.field-item { padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; }
+.field-toggle { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem; }
+.field-toggle input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+.field-name { font-weight: 500; }
+.field-key { color: #94a3b8; font-size: 0.8rem; }
+
 /* Empty state */
 .empty-state { text-align: center; padding: 2rem; color: #64748b; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; }
 

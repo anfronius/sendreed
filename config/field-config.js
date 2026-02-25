@@ -1,6 +1,7 @@
 /**
  * Role-specific field configuration for contacts.
  * Defines which DB columns are visible and how they're labeled per role.
+ * Checks field_visibility DB table for admin overrides.
  */
 
 var ALL_CONTACT_FIELDS = [
@@ -52,17 +53,23 @@ var EMPTY_PLACEHOLDER = {
   notes: 'Add notes',
 };
 
-// Fields shown as columns in the contacts table (excludes name fields which are combined)
-var TABLE_FIELDS = {
-  nonprofit: ['email', 'phone', 'organization', 'title', 'district', 'city', 'state'],
-  realestate: ['email', 'phone', 'property_address', 'purchase_date', 'purchase_price', 'city', 'state'],
-};
-
 /**
- * Get the visible contact fields for a role.
- * In Phase 3, this will check the field_visibility DB table for overrides.
+ * Get the visible contact fields for a role, checking DB for admin overrides.
+ * Falls back to hardcoded defaults if no DB entries exist.
  */
 function getVisibleFields(role) {
+  try {
+    var { getDb } = require('../db/init');
+    var db = getDb();
+    var rows = db.prepare(
+      'SELECT field_name FROM field_visibility WHERE role = ? AND visible = 1 ORDER BY display_order'
+    ).all(role);
+    if (rows.length > 0) {
+      return rows.map(function(r) { return r.field_name; });
+    }
+  } catch (e) {
+    // DB not initialized yet (e.g., during startup seeding); fall back to defaults
+  }
   return ROLE_FIELDS[role] ? ROLE_FIELDS[role].contacts : ALL_CONTACT_FIELDS;
 }
 
@@ -70,7 +77,10 @@ function getVisibleFields(role) {
  * Get the table column fields for a role (excludes first_name/last_name which are combined into "Name").
  */
 function getTableFields(role) {
-  return TABLE_FIELDS[role] || TABLE_FIELDS.realestate;
+  var visible = getVisibleFields(role);
+  return visible.filter(function(f) {
+    return f !== 'first_name' && f !== 'last_name';
+  });
 }
 
 function getLabel(field) {

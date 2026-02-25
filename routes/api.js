@@ -715,4 +715,62 @@ router.post('/anniversary/:id/sent', requireRole('realestate', 'admin'), (req, r
   }
 });
 
+// ========== FIELD VISIBILITY API ==========
+
+// GET /api/field-visibility — get field visibility config for all roles
+router.get('/field-visibility', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const rows = db.prepare(
+      'SELECT * FROM field_visibility ORDER BY role, display_order'
+    ).all();
+    res.json({ success: true, fields: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/field-visibility — update visibility for a role+field
+router.put('/field-visibility', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { role, field_name, visible } = req.body;
+    if (!role || !field_name || visible === undefined) {
+      return res.status(400).json({ error: 'role, field_name, and visible are required.' });
+    }
+    if (!['nonprofit', 'realestate'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role.' });
+    }
+    db.prepare(
+      'UPDATE field_visibility SET visible = ? WHERE role = ? AND field_name = ?'
+    ).run(visible ? 1 : 0, role, field_name);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/field-visibility/reorder — update display order for a role
+router.put('/field-visibility/reorder', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { role, fields } = req.body;
+    if (!role || !Array.isArray(fields)) {
+      return res.status(400).json({ error: 'role and fields array are required.' });
+    }
+    const update = db.prepare(
+      'UPDATE field_visibility SET display_order = ? WHERE role = ? AND field_name = ?'
+    );
+    const reorder = db.transaction(function() {
+      fields.forEach(function(field, idx) {
+        update.run(idx, role, field);
+      });
+    });
+    reorder();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

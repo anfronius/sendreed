@@ -171,6 +171,15 @@ function createTables() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS field_visibility (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      role TEXT NOT NULL CHECK (role IN ('nonprofit', 'realestate')),
+      field_name TEXT NOT NULL,
+      visible INTEGER NOT NULL DEFAULT 1,
+      display_order INTEGER DEFAULT 0,
+      UNIQUE(role, field_name)
+    );
+
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_contacts_owner ON contacts(owner_id);
     CREATE INDEX IF NOT EXISTS idx_contacts_purchase_date ON contacts(purchase_date);
@@ -190,6 +199,25 @@ function createTables() {
 
   // Migrate existing data: set raw_city = city where raw_city is NULL
   db.prepare('UPDATE crmls_properties SET raw_city = city WHERE raw_city IS NULL').run();
+
+  // Seed field_visibility defaults if the table is empty
+  var fieldCount = db.prepare('SELECT COUNT(*) as c FROM field_visibility').get().c;
+  if (fieldCount === 0) {
+    var fieldConfig = require('../config/field-config');
+    var insertField = db.prepare(
+      'INSERT INTO field_visibility (role, field_name, visible, display_order) VALUES (?, ?, ?, ?)'
+    );
+    var seedFields = db.transaction(function() {
+      ['nonprofit', 'realestate'].forEach(function(role) {
+        var allFields = fieldConfig.ALL_CONTACT_FIELDS;
+        var roleFields = fieldConfig.ROLE_FIELDS[role].contacts;
+        allFields.forEach(function(field, idx) {
+          insertField.run(role, field, roleFields.includes(field) ? 1 : 0, idx);
+        });
+      });
+    });
+    seedFields();
+  }
 }
 
 function seedAdmin() {

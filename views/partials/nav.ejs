@@ -12,6 +12,7 @@
     <% } %>
     <% if (user.role === 'admin') { %>
       <a href="/admin/users">Users</a>
+      <a href="/admin/fields">Fields</a>
     <% } %>
     <span class="nav-user"><%= user.name %> (<%= user.role %>)</span>
     <a href="/auth/logout" class="nav-logout">Logout</a>
