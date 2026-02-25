@@ -5,6 +5,7 @@
   if (typeof filter !== 'undefined' && filter && filter !== 'all') qs += '&filter=' + filter;
   if (typeof sort !== 'undefined' && sort && sort !== 'name') qs += '&sort=' + sort;
   if (typeof selectedUserId !== 'undefined' && selectedUserId) qs += '&user_id=' + selectedUserId;
+  if (typeof dir !== 'undefined' && dir && dir !== 'asc') qs += '&dir=' + dir;
 %>
 <div class="pagination">
   <% if (currentPage > 1) { %>

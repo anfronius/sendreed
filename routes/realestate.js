@@ -35,6 +35,9 @@ const CRMLS_FIELDS = ['property_address', 'street_number', 'street_name', 'city'
 router.get('/', (req, res) => {
   try {
     const db = getDb();
+    const userId = req.session.user.id;
+    const isAdmin = req.session.user.role === 'admin';
+
     const stats = db.prepare(`
       SELECT
         COUNT(*) as total,
@@ -44,7 +47,26 @@ router.get('/', (req, res) => {
       FROM crmls_properties
     `).get();
 
-    res.render('realestate/dashboard', { title: 'Real Estate', stats });
+    // Upcoming anniversaries (next 7 days)
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 7);
+    var futureStr = futureDate.toISOString().slice(0, 10);
+
+    var ownerFilter = isAdmin ? '' : 'AND c.owner_id = ?';
+    var ownerParams = isAdmin ? [] : [userId];
+
+    var upcomingAnniversaries = db.prepare(`
+      SELECT al.*, c.first_name, c.last_name, c.property_address, c.id as cid
+      FROM anniversary_log al
+      JOIN contacts c ON al.contact_id = c.id
+      WHERE al.anniversary_date >= ? AND al.anniversary_date <= ?
+        AND al.status = 'pending' ${ownerFilter}
+      ORDER BY al.anniversary_date
+      LIMIT 5
+    `).all(todayStr, futureStr, ...ownerParams);
+
+    res.render('realestate/dashboard', { title: 'Real Estate', stats, upcomingAnniversaries });
   } catch (err) {
     console.error('Real estate dashboard error:', err);
     res.status(500).render('error', { status: 500, message: 'Failed to load dashboard.' });

@@ -59,7 +59,7 @@
       <tr>
         <th style="width:30px"><input type="checkbox" id="select-all-lookup"></th>
         <th>Address</th>
-        <th>City / State / Zip
+        <th>City
           <% if (user.role === 'admin') { %>
             <button id="btn-city-mappings" class="btn-sm btn-secondary" style="margin-left:8px;">
               City Mappings<% if (unmappedCount > 0) { %>
@@ -78,10 +78,11 @@
     <tbody>
       <% properties.forEach(function(p) { %>
       <tr data-property-id="<%= p.id %>" data-status="<%= p.realist_lookup_status %>"
-          data-address="<%= p.property_address %>">
+          data-address="<%= p.property_address %>" data-city="<%= p.city || '' %>"
+          data-state="<%= p.state || 'CA' %>">
         <td><input type="checkbox" class="lookup-checkbox" value="<%= p.id %>"></td>
         <td class="property-address"><%= p.property_address %></td>
-        <td><%= [p.city, p.state, p.zip].filter(Boolean).join(', ') %></td>
+        <td><%= p.city || '' %></td>
         <td><%= p.sale_date || '' %></td>
         <td><%= p.sale_price ? '$' + Number(p.sale_price).toLocaleString() : '' %></td>
         <td>

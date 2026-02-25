@@ -109,13 +109,47 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // ---- Build full address string with city + state ----
+  function buildFullAddress(row) {
+    var address = (row.dataset.address || '').replace(/\s+/g, ' ').trim();
+    var city = row.dataset.city || '';
+    var state = row.dataset.state || 'CA';
+    if (city) address += ', ' + city;
+    address += ', ' + state;
+    return address;
+  }
+
+  function copyToClipboard(text, callback) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(callback).catch(function() {
+        fallbackCopy(text);
+        callback();
+      });
+    } else {
+      fallbackCopy(text);
+      callback();
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+
   // ---- Copy Address to Clipboard ----
   table.addEventListener('click', function(e) {
     var btn = e.target.closest('.copy-address-btn');
     if (!btn) return;
 
-    var address = btn.dataset.address;
-    navigator.clipboard.writeText(address).then(function() {
+    var row = btn.closest('tr');
+    var fullAddress = buildFullAddress(row);
+    copyToClipboard(fullAddress, function() {
       var original = btn.textContent;
       btn.textContent = 'Copied!';
       btn.classList.add('copy-success');
@@ -123,18 +157,6 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.textContent = original;
         btn.classList.remove('copy-success');
       }, 1500);
-    }).catch(function() {
-      // Fallback for non-HTTPS (dev)
-      var ta = document.createElement('textarea');
-      ta.value = address;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      btn.textContent = 'Copied!';
-      setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
     });
   });
 
@@ -241,8 +263,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (nextInput) {
       var nextRow = nextInput.closest('tr');
-      var nextAddress = nextRow.dataset.address;
-      navigator.clipboard.writeText(nextAddress).then(function() {
+      var fullAddr = buildFullAddress(nextRow);
+      copyToClipboard(fullAddr, function() {
         var copyBtn = nextRow.querySelector('.copy-address-btn');
         if (copyBtn) {
           copyBtn.textContent = 'Copied!';
@@ -252,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
             copyBtn.classList.remove('copy-success');
           }, 1500);
         }
-      }).catch(function() {});
+      });
 
       setTimeout(function() {
         nextInput.focus();

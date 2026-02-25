@@ -46,6 +46,7 @@ router.get('/', (req, res) => {
     const search = req.query.search || '';
     const filter = req.query.filter || 'all';
     const sort = req.query.sort || 'name';
+    const dir = req.query.dir === 'desc' ? 'desc' : 'asc';
     const selectedUserId = isAdmin && req.query.user_id ? parseInt(req.query.user_id) : null;
 
     // Admin: filter by selected user, or show all
@@ -77,7 +78,9 @@ router.get('/', (req, res) => {
     const totalCount = db.prepare(`SELECT COUNT(*) as c FROM contacts WHERE ${where}`).get(...params).c;
     const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
 
-    const orderBy = SORT_OPTIONS[sort] || SORT_OPTIONS['name'];
+    const sortBase = SORT_OPTIONS[sort] || SORT_OPTIONS['name'];
+    const sqlDir = dir === 'desc' ? 'DESC' : 'ASC';
+    const orderBy = sortBase.split(', ').map(function(col) { return col + ' ' + sqlDir; }).join(', ');
     const contacts = db.prepare(
       `SELECT * FROM contacts WHERE ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
     ).all(...params, perPage, offset);
@@ -97,6 +100,7 @@ router.get('/', (req, res) => {
       search,
       filter,
       sort,
+      dir,
       baseUrl: '/contacts',
       users,
       selectedUserId,
