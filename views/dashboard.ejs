@@ -12,7 +12,7 @@
         <tr>
           <th>Name</th>
           <th>Role</th>
-          <th>Contacts</th>
+          <th><%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></th>
           <th>Templates</th>
           <th>Campaigns</th>
         </tr>
@@ -43,7 +43,7 @@
   <div class="stats-grid">
     <div class="stat-card">
       <div class="stat-number"><%= contactCount %></div>
-      <div class="stat-label">Contacts</div>
+      <div class="stat-label"><%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></div>
     </div>
     <div class="stat-card">
       <div class="stat-number"><%= templateCount %></div>
@@ -69,7 +69,7 @@
 <h2>Quick Actions</h2>
 <div class="action-links">
   <a href="/campaign/create" class="btn btn-primary">New Campaign</a>
-  <a href="/contacts" class="btn btn-secondary">View Contacts</a>
+  <a href="/contacts" class="btn btn-secondary">View <%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></a>
   <% if (user.role === 'realestate') { %>
   <a href="/realestate" class="btn btn-secondary">Manage CRMLS Data</a>
   <% } else { %>

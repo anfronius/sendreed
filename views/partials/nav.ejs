@@ -5,7 +5,7 @@
   <% if (user) { %>
   <div class="nav-links">
     <a href="/dashboard">Dashboard</a>
-    <a href="/contacts">Contacts</a>
+    <a href="/contacts"><%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></a>
     <a href="/campaign">Campaigns</a>
     <% if (user.role === 'realestate' || user.role === 'admin') { %>
       <a href="/realestate">Real Estate</a>

@@ -76,8 +76,8 @@ router.get('/', (req, res) => {
   }
 });
 
-// GET /realestate/import — CRMLS CSV upload form
-router.get('/import', (req, res) => {
+// GET /realestate/import-crmls — CRMLS CSV upload form
+router.get('/import-crmls', (req, res) => {
   res.render('realestate/import-crmls', {
     title: 'Import CRMLS',
     step: 'upload',
@@ -88,12 +88,12 @@ router.get('/import', (req, res) => {
   });
 });
 
-// POST /realestate/import/upload — parse CSV, store in session
-router.post('/import/upload', upload.single('csvfile'), verifyCsrf, (req, res) => {
+// POST /realestate/import-crmls/upload — parse CSV, store in session
+router.post('/import-crmls/upload', upload.single('csvfile'), verifyCsrf, (req, res) => {
   try {
     if (!req.file) {
       setFlash(req, 'error', 'Please select a CSV file.');
-      return res.redirect('/realestate/import');
+      return res.redirect('/realestate/import-crmls');
     }
 
     const result = csv.parseFile(req.file.path);
@@ -101,7 +101,7 @@ router.post('/import/upload', upload.single('csvfile'), verifyCsrf, (req, res) =
     if (!result.rows || result.rows.length === 0) {
       setFlash(req, 'error', 'CSV file is empty or has no data rows.');
       fs.unlinkSync(req.file.path);
-      return res.redirect('/realestate/import');
+      return res.redirect('/realestate/import-crmls');
     }
 
     const suggestions = csv.suggestCrmlsMapping(result.headers);
@@ -126,17 +126,17 @@ router.post('/import/upload', upload.single('csvfile'), verifyCsrf, (req, res) =
     console.error('CRMLS upload error:', err);
     if (req.file) fs.unlinkSync(req.file.path);
     setFlash(req, 'error', 'Failed to parse CSV: ' + err.message);
-    res.redirect('/realestate/import');
+    res.redirect('/realestate/import-crmls');
   }
 });
 
-// POST /realestate/import/map — apply mapping, import to crmls_properties
-router.post('/import/map', (req, res) => {
+// POST /realestate/import-crmls/map — apply mapping, import to crmls_properties
+router.post('/import-crmls/map', (req, res) => {
   try {
     const crmlsImport = req.session.crmlsImport;
     if (!crmlsImport) {
       setFlash(req, 'error', 'No CSV data found. Please upload again.');
-      return res.redirect('/realestate/import');
+      return res.redirect('/realestate/import-crmls');
     }
 
     const mapping = {};
@@ -149,13 +149,13 @@ router.post('/import/map', (req, res) => {
 
     if (Object.keys(mapping).length === 0) {
       setFlash(req, 'error', 'Please map at least one column.');
-      return res.redirect('/realestate/import');
+      return res.redirect('/realestate/import-crmls');
     }
 
     const effectiveOwnerId = getEffectiveOwnerId(req);
     if (!effectiveOwnerId) {
       setFlash(req, 'error', 'Please select a user to act as before importing.');
-      return res.redirect('/realestate/import');
+      return res.redirect('/realestate/import-crmls');
     }
 
     const result = csv.importCrmlsProperties(crmlsImport.rows, mapping, effectiveOwnerId);
@@ -175,7 +175,7 @@ router.post('/import/map', (req, res) => {
   } catch (err) {
     console.error('CRMLS map error:', err);
     setFlash(req, 'error', 'Failed to import properties: ' + err.message);
-    res.redirect('/realestate/import');
+    res.redirect('/realestate/import-crmls');
   }
 });
 
@@ -352,7 +352,12 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
     }
 
     const db = getDb();
-    const userId = req.session.user.id;
+    const userId = getEffectiveOwnerId(req);
+    if (!userId) {
+      setFlash(req, 'error', 'Please select a user to act as before importing.');
+      fs.unlinkSync(req.file.path);
+      return res.redirect('/realestate/import-vcard');
+    }
     const result = vcard.parseFile(req.file.path);
 
     // Clean up uploaded file
@@ -452,7 +457,11 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
 router.get('/matching', (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const userId = getEffectiveOwnerId(req);
+    if (!userId) {
+      setFlash(req, 'error', 'Please select a user to act as before viewing matches.');
+      return res.redirect('/realestate');
+    }
     const importId = req.query.import_id;
 
     // Get the most recent import if no import_id specified
@@ -544,7 +553,11 @@ router.get('/matching', (req, res) => {
 router.post('/matching/apply', (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const userId = getEffectiveOwnerId(req);
+    if (!userId) {
+      setFlash(req, 'error', 'Please select a user to act as before applying matches.');
+      return res.redirect('/realestate/matching');
+    }
 
     // Get all confirmed matches (auto with confidence >= 70 OR manually confirmed)
     const matches = db.prepare(`

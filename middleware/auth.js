@@ -26,6 +26,16 @@ function flashMiddleware(req, res, next) {
     }
   }
 
+  // Set effective role for template use (Clients vs Contacts labeling)
+  if (req.session.user) {
+    var effRole = req.session.user.role;
+    if (req.session.user.role === 'admin' && res.locals.actingUser) {
+      effRole = res.locals.actingUser.role;
+    }
+    res.locals.effectiveRole = effRole;
+    res.locals.contactLabel = effRole === 'realestate' ? 'Clients' : 'Contacts';
+  }
+
   next();
 }
 

@@ -4,7 +4,7 @@
 
 <% if (step === 'upload') { %>
 <div class="form-card">
-  <p>Upload a CSV file to import contacts. The first row should contain column headers.</p>
+  <p>Upload a CSV file to import <%= typeof contactLabel !== 'undefined' ? contactLabel.toLowerCase() : 'contacts' %>. The first row should contain column headers.</p>
   <form method="POST" action="/contacts/import/upload" enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="form-group">
@@ -53,13 +53,13 @@
     </table>
 
     <div class="form-actions" style="margin-top: 1rem;">
-      <button type="submit" class="btn btn-primary">Import Contacts</button>
+      <button type="submit" class="btn btn-primary">Import <%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></button>
       <a href="/contacts/import" class="btn btn-secondary">Cancel</a>
     </div>
   </form>
 </div>
 <% } %>
 
-<a href="/contacts" class="btn btn-link">Back to Contacts</a>
+<a href="/contacts" class="btn btn-link">Back to <%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></a>
 
 <%- include('../layout-footer', { scripts: [] }) %>

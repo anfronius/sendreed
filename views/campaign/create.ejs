@@ -7,7 +7,7 @@
   <div class="wizard-steps">
     <div class="wizard-step active" data-step="1"><span class="step-num">1</span> Channel</div>
     <div class="wizard-step" data-step="2"><span class="step-num">2</span> Template</div>
-    <div class="wizard-step" data-step="3"><span class="step-num">3</span> Contacts</div>
+    <div class="wizard-step" data-step="3"><span class="step-num">3</span> <%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></div>
     <div class="wizard-step" data-step="4"><span class="step-num">4</span> Preview</div>
   </div>
 
@@ -64,7 +64,7 @@
 
   <!-- Step 3: Contacts -->
   <div class="wizard-panel" id="step-3">
-    <h2>Select Contacts</h2>
+    <h2>Select <%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></h2>
     <div class="contact-select-bar">
       <input type="text" id="contact-search" placeholder="Search contacts..." class="filter-input">
       <button type="button" class="btn btn-sm btn-secondary" id="select-all-btn">Select All Eligible</button>

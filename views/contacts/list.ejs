@@ -1,7 +1,8 @@
-<%- include('../layout-header', { title: 'Contacts' }) %>
+<% var label = typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts'; %>
+<%- include('../layout-header', { title: label }) %>
 
 <div class="page-header">
-  <h1>Contacts <span class="count-badge"><%= totalCount %></span></h1>
+  <h1><%= label %> <span class="count-badge"><%= totalCount %></span></h1>
   <div class="page-actions">
     <button class="btn btn-danger btn-sm" id="bulk-delete-btn" style="display:none;">Delete Selected (<span id="bulk-count">0</span>)</button>
     <a href="/contacts/import" class="btn btn-upload">Import CSV</a>
@@ -11,7 +12,7 @@
 <form class="filter-bar" method="GET" action="/contacts">
   <input type="text" name="search" value="<%= search %>" placeholder="Search all fields..." class="filter-input">
   <select name="filter" class="filter-select">
-    <option value="all" <%= filter === 'all' ? 'selected' : '' %>>All Contacts</option>
+    <option value="all" <%= filter === 'all' ? 'selected' : '' %>>All <%= label %></option>
     <option value="missing-email" <%= filter === 'missing-email' ? 'selected' : '' %>>Missing Email</option>
     <option value="missing-phone" <%= filter === 'missing-phone' ? 'selected' : '' %>>Missing Phone</option>
   </select>
