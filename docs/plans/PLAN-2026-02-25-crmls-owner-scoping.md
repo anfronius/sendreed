@@ -1,3 +1,5 @@
+**Status: Completed — 2026-02-25**
+
 # PLAN-2026-02-25-crmls-owner-scoping.md
 
 ## Goal
