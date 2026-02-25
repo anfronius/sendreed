@@ -101,24 +101,58 @@ function getTodaysAnniversaries() {
 
 /**
  * Send morning digest email to realestate users.
+ * Digest is sent FROM admin's SMTP account TO each RE user's login email.
+ * Per-user settings (enabled/disabled, lookahead days) are read from digest_settings table.
  */
 async function sendMorningDigest() {
   const db = getDb();
 
-  // Get realestate users with SMTP configured
-  const users = db.prepare(
-    "SELECT * FROM users WHERE role = 'realestate' AND smtp_email IS NOT NULL AND smtp_password_encrypted IS NOT NULL"
+  // Get admin user with SMTP configured (the sender)
+  const admin = db.prepare(
+    "SELECT * FROM users WHERE role = 'admin' AND smtp_email IS NOT NULL AND smtp_password_encrypted IS NOT NULL"
+  ).get();
+
+  if (!admin) {
+    console.log('[Cron] No admin with SMTP configured; skipping digest.');
+    return;
+  }
+
+  // Get realestate users
+  const reUsers = db.prepare(
+    "SELECT * FROM users WHERE role = 'realestate'"
   ).all();
 
-  if (users.length === 0) return;
+  if (reUsers.length === 0) return;
+
+  // Load per-user digest settings
+  const settingsRows = db.prepare('SELECT * FROM digest_settings').all();
+  const settingsMap = {};
+  settingsRows.forEach(function(s) { settingsMap[s.user_id] = s; });
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const holidays = getUpcomingHolidays(7);
   const todayHolidays = holidays.filter(h => h.date === todayStr);
   const upcomingHolidays = holidays.filter(h => h.date !== todayStr);
 
-  for (const user of users) {
-    // Get this user's pending anniversaries
+  let transport;
+  try {
+    transport = createTransport(admin);
+  } catch (err) {
+    console.error('[Cron] Failed to create admin SMTP transport:', err.message);
+    return;
+  }
+
+  for (const user of reUsers) {
+    // Check per-user settings (default: enabled, 7 days)
+    const settings = settingsMap[user.id];
+    const enabled = settings ? settings.enabled : 1;
+    const lookaheadDays = settings ? settings.lookahead_days : 7;
+
+    if (!enabled) {
+      continue;
+    }
+
+    // Get this user's pending anniversaries using their configured lookahead
     const todayAnniversaries = db.prepare(`
       SELECT al.*, c.first_name, c.last_name, c.property_address, c.email, c.phone
       FROM anniversary_log al
@@ -131,10 +165,10 @@ async function sendMorningDigest() {
       SELECT al.*, c.first_name, c.last_name, c.property_address
       FROM anniversary_log al
       JOIN contacts c ON al.contact_id = c.id
-      WHERE al.anniversary_date > ? AND al.anniversary_date <= date(?, '+7 days')
+      WHERE al.anniversary_date > ? AND al.anniversary_date <= date(?, '+' || ? || ' days')
         AND al.status = 'pending' AND c.owner_id = ?
       ORDER BY al.anniversary_date
-    `).all(todayStr, todayStr, user.id);
+    `).all(todayStr, todayStr, lookaheadDays, user.id);
 
     // Skip if nothing to report
     if (todayAnniversaries.length === 0 && weekAnniversaries.length === 0 &&
@@ -169,7 +203,7 @@ async function sendMorningDigest() {
     }
 
     if (weekAnniversaries.length > 0) {
-      body += '--- UPCOMING ANNIVERSARIES (this week) ---\n';
+      body += '--- UPCOMING ANNIVERSARIES ---\n';
       weekAnniversaries.forEach(a => {
         const name = [a.first_name, a.last_name].filter(Boolean).join(' ');
         body += `  * ${name} — ${a.years} year(s) on ${a.anniversary_date}\n`;
@@ -180,19 +214,19 @@ async function sendMorningDigest() {
     body += 'Log in to manage these at your SendReed dashboard.\n';
 
     try {
-      const transport = createTransport(user);
       await transport.sendMail({
-        from: user.smtp_email,
-        to: user.smtp_email,
+        from: admin.smtp_email,
+        to: user.email,
         subject: 'SendReed Daily Digest — ' + todayStr,
         text: body,
       });
-      transport.close();
       console.log(`[Cron] Morning digest sent to ${user.email}`);
     } catch (err) {
       console.error(`[Cron] Failed to send digest to ${user.email}:`, err.message);
     }
   }
+
+  try { transport.close(); } catch (e) { /* ignore */ }
 }
 
 /**

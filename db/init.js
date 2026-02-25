@@ -171,6 +171,15 @@ function createTables() {
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS digest_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      enabled INTEGER NOT NULL DEFAULT 1,
+      lookahead_days INTEGER NOT NULL DEFAULT 7,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id)
+    );
+
     CREATE TABLE IF NOT EXISTS field_visibility (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       role TEXT NOT NULL CHECK (role IN ('nonprofit', 'realestate')),

@@ -633,11 +633,33 @@ router.get('/anniversaries', (req, res) => {
       ORDER BY al.anniversary_date DESC
     `).all(thirtyDaysStr, ...ownerParams);
 
+    // Admin: load digest settings for all RE users
+    var digestSettings = [];
+    if (isAdmin) {
+      var reUsers = db.prepare(
+        "SELECT id, name, email FROM users WHERE role = 'realestate' ORDER BY name"
+      ).all();
+      var settings = db.prepare('SELECT * FROM digest_settings').all();
+      var settingsMap = {};
+      settings.forEach(function(s) { settingsMap[s.user_id] = s; });
+      digestSettings = reUsers.map(function(u) {
+        var s = settingsMap[u.id];
+        return {
+          user_id: u.id,
+          user_name: u.name,
+          user_email: u.email,
+          enabled: s ? s.enabled : 1,
+          lookahead_days: s ? s.lookahead_days : 7,
+        };
+      });
+    }
+
     res.render('realestate/anniversaries', {
       title: 'Anniversaries',
       today,
       thisWeek,
       completed,
+      digestSettings,
     });
   } catch (err) {
     console.error('Anniversaries error:', err);

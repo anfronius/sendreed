@@ -715,6 +715,59 @@ router.post('/anniversary/:id/sent', requireRole('realestate', 'admin'), (req, r
   }
 });
 
+// ========== DIGEST SETTINGS API ==========
+
+// GET /api/digest-settings — get all digest settings (admin only)
+router.get('/digest-settings', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const reUsers = db.prepare(
+      "SELECT u.id, u.name, u.email FROM users WHERE u.role = 'realestate' ORDER BY u.name"
+    ).all();
+    const settings = db.prepare('SELECT * FROM digest_settings').all();
+    var settingsMap = {};
+    settings.forEach(function(s) { settingsMap[s.user_id] = s; });
+
+    var result = reUsers.map(function(u) {
+      var s = settingsMap[u.id];
+      return {
+        user_id: u.id,
+        user_name: u.name,
+        user_email: u.email,
+        enabled: s ? s.enabled : 1,
+        lookahead_days: s ? s.lookahead_days : 7,
+      };
+    });
+    res.json({ success: true, settings: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/digest-settings/:userId — update digest settings for a user
+router.put('/digest-settings/:userId', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const userId = parseInt(req.params.userId);
+    const { enabled, lookahead_days } = req.body;
+
+    var user = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'realestate'").get(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Real estate user not found.' });
+    }
+
+    var days = Math.min(30, Math.max(1, parseInt(lookahead_days) || 7));
+    db.prepare(
+      'INSERT INTO digest_settings (user_id, enabled, lookahead_days, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ' +
+      'ON CONFLICT(user_id) DO UPDATE SET enabled = excluded.enabled, lookahead_days = excluded.lookahead_days, updated_at = CURRENT_TIMESTAMP'
+    ).run(userId, enabled ? 1 : 0, days);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ========== FIELD VISIBILITY API ==========
 
 // GET /api/field-visibility — get field visibility config for all roles

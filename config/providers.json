@@ -22,5 +22,13 @@
     "secure": true,
     "dailyLimit": 100,
     "defaultDelay": 3000
+  },
+  "protonmail": {
+    "label": "ProtonMail",
+    "host": "smtp.protonmail.ch",
+    "port": 587,
+    "secure": false,
+    "dailyLimit": 150,
+    "defaultDelay": 2000
   }
 }
