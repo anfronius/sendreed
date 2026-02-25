@@ -70,7 +70,11 @@
 <div class="action-links">
   <a href="/campaign/create" class="btn btn-primary">New Campaign</a>
   <a href="/contacts" class="btn btn-secondary">View Contacts</a>
+  <% if (user.role === 'realestate') { %>
+  <a href="/realestate" class="btn btn-secondary">Manage CRMLS Data</a>
+  <% } else { %>
   <a href="/contacts/import" class="btn btn-upload">Import CSV</a>
+  <% } %>
 </div>
 <% } %>
 
