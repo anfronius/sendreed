@@ -267,9 +267,10 @@ router.post('/templates', requireAuth, (req, res) => {
       return res.status(400).json({ error: 'Invalid channel.' });
     }
 
+    const scheduled_date = req.body.scheduled_date || null;
     const result = db.prepare(
-      'INSERT INTO templates (owner_id, name, channel, subject_template, body_template) VALUES (?, ?, ?, ?, ?)'
-    ).run(ownerId, name, channel, subject_template || null, body_template);
+      'INSERT INTO templates (owner_id, name, channel, subject_template, body_template, scheduled_date) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(ownerId, name, channel, subject_template || null, body_template, scheduled_date);
 
     res.json({ id: result.lastInsertRowid });
   } catch (err) {
@@ -290,10 +291,16 @@ router.put('/templates/:id', requireAuth, (req, res) => {
       return res.status(404).json({ error: 'Template not found.' });
     }
 
-    const { name, subject_template, body_template } = req.body;
+    const { name, subject_template, body_template, scheduled_date } = req.body;
     db.prepare(
-      'UPDATE templates SET name = ?, subject_template = ?, body_template = ? WHERE id = ?'
-    ).run(name || tmpl.name, subject_template !== undefined ? subject_template : tmpl.subject_template, body_template || tmpl.body_template, templateId);
+      'UPDATE templates SET name = ?, subject_template = ?, body_template = ?, scheduled_date = ? WHERE id = ?'
+    ).run(
+      name || tmpl.name,
+      subject_template !== undefined ? subject_template : tmpl.subject_template,
+      body_template || tmpl.body_template,
+      scheduled_date !== undefined ? (scheduled_date || null) : tmpl.scheduled_date,
+      templateId
+    );
 
     res.json({ success: true });
   } catch (err) {

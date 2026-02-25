@@ -209,6 +209,12 @@ function createTables() {
   // Migrate existing data: set raw_city = city where raw_city is NULL
   db.prepare('UPDATE crmls_properties SET raw_city = city WHERE raw_city IS NULL').run();
 
+  // Add scheduled_date column to templates if it doesn't exist yet
+  var templateCols = db.pragma('table_info(templates)').map(function(c) { return c.name; });
+  if (!templateCols.includes('scheduled_date')) {
+    db.exec('ALTER TABLE templates ADD COLUMN scheduled_date DATE');
+  }
+
   // Seed field_visibility defaults if the table is empty
   var fieldCount = db.prepare('SELECT COUNT(*) as c FROM field_visibility').get().c;
   if (fieldCount === 0) {

@@ -230,6 +230,100 @@ async function sendMorningDigest() {
 }
 
 /**
+ * Process scheduled templates: auto-create and send campaigns for templates
+ * whose scheduled_date matches today.
+ */
+async function processScheduledTemplates() {
+  const db = getDb();
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  const templates = db.prepare(
+    "SELECT * FROM templates WHERE scheduled_date = ?"
+  ).all(todayStr);
+
+  if (templates.length === 0) return;
+
+  const { sendCampaign } = require('./email');
+  const templateService = require('./template');
+
+  for (const tmpl of templates) {
+    // Check if a campaign already exists for this template today (dedup)
+    const existing = db.prepare(
+      "SELECT id FROM campaigns WHERE template_id = ? AND date(created_at) = ?"
+    ).get(tmpl.id, todayStr);
+    if (existing) {
+      console.log(`[Cron] Scheduled template ${tmpl.id} already has campaign for today; skipping.`);
+      continue;
+    }
+
+    // Get owner's contacts
+    const contacts = db.prepare(
+      "SELECT * FROM contacts WHERE owner_id = ?"
+    ).all(tmpl.owner_id);
+
+    if (contacts.length === 0) {
+      console.log(`[Cron] No contacts for template ${tmpl.id} owner; skipping.`);
+      continue;
+    }
+
+    // Filter contacts by channel
+    var eligibleContacts = contacts;
+    if (tmpl.channel === 'email') {
+      eligibleContacts = contacts.filter(function(c) { return c.email; });
+    } else if (tmpl.channel === 'sms') {
+      eligibleContacts = contacts.filter(function(c) { return c.phone; });
+    }
+
+    if (eligibleContacts.length === 0) continue;
+
+    // Create campaign
+    const campaignResult = db.prepare(
+      "INSERT INTO campaigns (owner_id, template_id, channel, status, total_count) VALUES (?, ?, ?, 'reviewing', ?)"
+    ).run(tmpl.owner_id, tmpl.id, tmpl.channel, eligibleContacts.length);
+    const campaignId = campaignResult.lastInsertRowid;
+
+    // Render and insert recipients
+    const insertRecipient = db.prepare(
+      'INSERT INTO campaign_recipients (campaign_id, contact_id, rendered_subject, rendered_body) VALUES (?, ?, ?, ?)'
+    );
+
+    const insertAll = db.transaction(function(cList) {
+      for (var c of cList) {
+        var renderedSubject = tmpl.subject_template ? templateService.render(tmpl.subject_template, c) : null;
+        var renderedBody = templateService.render(tmpl.body_template, c);
+        insertRecipient.run(campaignId, c.id, renderedSubject, renderedBody);
+      }
+    });
+    insertAll(eligibleContacts);
+
+    // Get user for SMTP and send if email channel
+    if (tmpl.channel === 'email') {
+      const user = db.prepare('SELECT * FROM users WHERE id = ?').get(tmpl.owner_id);
+      if (user && user.smtp_email && user.smtp_password_encrypted) {
+        try {
+          await sendCampaign(campaignId, user, function(progress) {
+            // No SSE stream for cron-triggered sends
+          });
+          console.log(`[Cron] Scheduled template ${tmpl.id} sent as campaign ${campaignId}`);
+        } catch (err) {
+          console.error(`[Cron] Failed to send scheduled campaign ${campaignId}:`, err.message);
+        }
+      } else {
+        console.log(`[Cron] User ${tmpl.owner_id} has no SMTP; campaign ${campaignId} left in reviewing.`);
+      }
+    } else {
+      // SMS campaigns just mark as sent (links are generated on view)
+      db.prepare("UPDATE campaigns SET status = 'sent', sent_at = datetime('now') WHERE id = ?").run(campaignId);
+      db.prepare("UPDATE campaign_recipients SET status = 'generated' WHERE campaign_id = ?").run(campaignId);
+      console.log(`[Cron] Scheduled SMS template ${tmpl.id} campaign ${campaignId} generated.`);
+    }
+
+    // Clear the scheduled_date so it doesn't re-send next year
+    db.prepare('UPDATE templates SET scheduled_date = NULL WHERE id = ?').run(tmpl.id);
+  }
+}
+
+/**
  * Start all cron jobs.
  */
 function startCronJobs() {
@@ -239,6 +333,7 @@ function startCronJobs() {
     try {
       checkAnniversaries(7);
       await sendMorningDigest();
+      await processScheduledTemplates();
     } catch (err) {
       console.error('[Cron] Error in daily job:', err);
     }
