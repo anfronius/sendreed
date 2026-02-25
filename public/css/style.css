@@ -279,3 +279,29 @@ a:hover { text-decoration: underline; }
   .sms-card-actions { flex-direction: column; }
   .btn-sms-send { text-align: center; font-size: 1.1rem; padding: 1rem; }
 }
+
+/* City Mappings Panel */
+.panel-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.panel-box {
+  background: #fff; border-radius: 8px;
+  padding: 24px; width: 90%; max-width: 860px;
+  max-height: 80vh; overflow-y: auto;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+}
+.panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.panel-header h3 { margin: 0; }
+.panel-hint { color: #475569; font-size: 0.875rem; margin-bottom: 16px; }
+.badge-count {
+  background: #dc2626; color: #fff;
+  border-radius: 10px; padding: 1px 7px;
+  font-size: 0.75rem; margin-left: 4px;
+  display: inline-block;
+}

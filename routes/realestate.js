@@ -184,6 +184,17 @@ router.get('/lookup', (req, res) => {
        LIMIT ? OFFSET ?`
     ).all(...params, perPage, offset);
 
+    // Count unmapped cities for admin badge
+    var unmappedCount = 0;
+    if (req.session.user.role === 'admin') {
+      unmappedCount = db.prepare(`
+        SELECT COUNT(DISTINCT raw_city) as c
+        FROM crmls_properties
+        WHERE raw_city IS NOT NULL
+          AND raw_city NOT IN (SELECT raw_city FROM city_mappings)
+      `).get().c;
+    }
+
     res.render('realestate/realist-lookup', {
       title: 'Realist Lookup',
       properties,
@@ -192,6 +203,7 @@ router.get('/lookup', (req, res) => {
       currentPage: page,
       totalPages,
       totalCount,
+      unmappedCount,
     });
   } catch (err) {
     console.error('Realist lookup error:', err);

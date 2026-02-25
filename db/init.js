@@ -163,6 +163,14 @@ function createTables() {
       confirmed_at DATETIME
     );
 
+    CREATE TABLE IF NOT EXISTS city_mappings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      raw_city TEXT UNIQUE NOT NULL,
+      mapped_city TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_contacts_owner ON contacts(owner_id);
     CREATE INDEX IF NOT EXISTS idx_contacts_purchase_date ON contacts(purchase_date);
@@ -171,7 +179,17 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_crmls_status ON crmls_properties(realist_lookup_status);
     CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
     CREATE INDEX IF NOT EXISTS idx_anniversary_status ON anniversary_log(status, anniversary_date);
+    CREATE INDEX IF NOT EXISTS idx_city_mappings_raw ON city_mappings(raw_city);
   `);
+
+  // Add raw_city column to crmls_properties if it doesn't exist yet
+  var crmlsCols = db.pragma('table_info(crmls_properties)').map(function(c) { return c.name; });
+  if (!crmlsCols.includes('raw_city')) {
+    db.exec('ALTER TABLE crmls_properties ADD COLUMN raw_city TEXT');
+  }
+
+  // Migrate existing data: set raw_city = city where raw_city is NULL
+  db.prepare('UPDATE crmls_properties SET raw_city = city WHERE raw_city IS NULL').run();
 }
 
 function seedAdmin() {

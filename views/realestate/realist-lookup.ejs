@@ -59,7 +59,15 @@
       <tr>
         <th style="width:30px"><input type="checkbox" id="select-all-lookup"></th>
         <th>Address</th>
-        <th>City / State / Zip</th>
+        <th>City / State / Zip
+          <% if (user.role === 'admin') { %>
+            <button id="btn-city-mappings" class="btn-sm btn-secondary" style="margin-left:8px;">
+              City Mappings<% if (unmappedCount > 0) { %>
+                <span class="badge-count"><%= unmappedCount %></span>
+              <% } %>
+            </button>
+          <% } %>
+        </th>
         <th>Close Date</th>
         <th>Close Price</th>
         <th>Owner Name</th>
@@ -116,6 +124,24 @@
 </div>
 <% } %>
 
+<% } %>
+
+<% if (user.role === 'admin') { %>
+<div id="city-mappings-panel" class="panel-overlay" style="display:none;">
+  <div class="panel-box">
+    <div class="panel-header">
+      <h3>Unmapped City Values</h3>
+      <button id="btn-close-city-panel" class="btn-sm">&times;</button>
+    </div>
+    <p class="panel-hint">
+      Each row is a city value from an imported CSV that has no mapping yet.
+      Look up the sample address to identify the correct city, then type it and save.
+    </p>
+    <div id="city-mappings-list">
+      <p>Loading&hellip;</p>
+    </div>
+  </div>
+</div>
 <% } %>
 
 <a href="/realestate" class="btn btn-link">Back to Real Estate</a>

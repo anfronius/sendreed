@@ -278,4 +278,125 @@ document.addEventListener('DOMContentLoaded', function() {
     if (pendingEl) pendingEl.textContent = counts.pending;
     if (notFoundEl) notFoundEl.textContent = counts.not_found;
   }
+
+  // ---- City Mappings Panel (admin only) ----
+  var cityPanelBtn = document.getElementById('btn-city-mappings');
+  if (cityPanelBtn) {
+    var cityPanel = document.getElementById('city-mappings-panel');
+    var cityList = document.getElementById('city-mappings-list');
+
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.appendChild(document.createTextNode(str || ''));
+      return div.innerHTML;
+    }
+
+    function escapeAttr(str) {
+      return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    cityPanelBtn.addEventListener('click', function() {
+      cityPanel.style.display = 'flex';
+      loadUnmappedCities();
+    });
+
+    document.getElementById('btn-close-city-panel').addEventListener('click', function() {
+      cityPanel.style.display = 'none';
+    });
+
+    function loadUnmappedCities() {
+      cityList.innerHTML = '<p>Loading\u2026</p>';
+      fetch('/api/city-mappings/unmapped', {
+        headers: { 'X-CSRF-Token': getCsrf() }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.unmapped || data.unmapped.length === 0) {
+          cityList.innerHTML = '<p class="text-muted">All cities are mapped.</p>';
+          return;
+        }
+        var html = '<table class="data-table"><thead><tr>' +
+          '<th>Raw City Value</th><th>Sample Address</th><th>Correct City Name</th><th></th>' +
+          '</tr></thead><tbody>';
+        data.unmapped.forEach(function(row) {
+          html += '<tr data-raw="' + escapeAttr(row.raw_city) + '">' +
+            '<td><code>' + escapeHtml(row.raw_city) + '</code> <small>(' + row.count + ' records)</small></td>' +
+            '<td>' + escapeHtml(row.sample_address) +
+              ' <button class="btn-sm copy-addr" data-addr="' + escapeAttr(row.sample_address) + '">Copy</button></td>' +
+            '<td><input class="city-input" type="text" placeholder="Enter correct city name" style="width:200px"></td>' +
+            '<td><button class="btn-sm btn-primary save-mapping">Save</button></td>' +
+            '</tr>';
+        });
+        html += '</tbody></table>';
+        cityList.innerHTML = html;
+      });
+    }
+
+    cityList.addEventListener('click', function(e) {
+      // Copy sample address
+      if (e.target.classList.contains('copy-addr')) {
+        var addr = e.target.getAttribute('data-addr');
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(addr);
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = addr;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        e.target.textContent = 'Copied!';
+        setTimeout(function() { e.target.textContent = 'Copy'; }, 1500);
+      }
+      // Save mapping
+      if (e.target.classList.contains('save-mapping')) {
+        var row = e.target.closest('tr');
+        var rawCity = row.getAttribute('data-raw');
+        var mappedCity = row.querySelector('.city-input').value.trim();
+        if (!mappedCity) { alert('Please enter the correct city name.'); return; }
+        e.target.disabled = true;
+        e.target.textContent = 'Saving\u2026';
+        fetch('/api/city-mappings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrf()
+          },
+          body: JSON.stringify({ raw_city: rawCity, mapped_city: mappedCity })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            row.remove();
+            // Update badge count
+            var badge = cityPanelBtn.querySelector('.badge-count');
+            var remaining = cityList.querySelectorAll('tbody tr').length;
+            if (badge) {
+              if (remaining === 0) badge.remove();
+              else badge.textContent = remaining;
+            }
+            if (remaining === 0) {
+              cityList.innerHTML = '<p class="text-muted">All cities are mapped.</p>';
+            }
+          } else {
+            e.target.disabled = false;
+            e.target.textContent = 'Save';
+            alert('Error: ' + (data.error || 'Save failed.'));
+          }
+        });
+      }
+    });
+
+    // Allow Enter key to save from city-input field
+    cityList.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target.classList.contains('city-input')) {
+        e.preventDefault();
+        var saveBtn = e.target.closest('tr').querySelector('.save-mapping');
+        if (saveBtn && !saveBtn.disabled) saveBtn.click();
+      }
+    });
+  }
 });

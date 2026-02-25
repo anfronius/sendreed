@@ -527,6 +527,54 @@ router.post('/realist-lookup/bulk-delete', requireRole('realestate', 'admin'), (
   }
 });
 
+// ========== CITY MAPPINGS API ==========
+
+// GET /api/city-mappings/unmapped — distinct unmapped city values with sample address (admin only)
+router.get('/city-mappings/unmapped', requireRole('admin'), function(req, res) {
+  try {
+    var db = getDb();
+    var rows = db.prepare(`
+      SELECT cp.raw_city,
+             MIN(cp.property_address) AS sample_address,
+             COUNT(*) AS count
+      FROM crmls_properties cp
+      WHERE cp.raw_city IS NOT NULL
+        AND cp.raw_city NOT IN (SELECT raw_city FROM city_mappings)
+      GROUP BY cp.raw_city
+      ORDER BY count DESC
+    `).all();
+    res.json({ success: true, unmapped: rows });
+  } catch (err) {
+    console.error('Unmapped cities error:', err);
+    res.status(500).json({ error: 'Failed to load unmapped cities.' });
+  }
+});
+
+// POST /api/city-mappings — save a mapping and bulk-update matching properties (admin only)
+router.post('/city-mappings', requireRole('admin'), function(req, res) {
+  try {
+    var raw_city = (req.body.raw_city || '').trim();
+    var mapped_city = (req.body.mapped_city || '').trim();
+    if (!raw_city || !mapped_city) {
+      return res.status(400).json({ error: 'raw_city and mapped_city are required.' });
+    }
+    var db = getDb();
+    // Upsert the mapping
+    db.prepare(
+      'INSERT INTO city_mappings (raw_city, mapped_city, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ' +
+      'ON CONFLICT(raw_city) DO UPDATE SET mapped_city = excluded.mapped_city, updated_at = CURRENT_TIMESTAMP'
+    ).run(raw_city, mapped_city);
+    // Bulk-update all matching properties
+    var result = db.prepare(
+      'UPDATE crmls_properties SET city = ? WHERE raw_city = ?'
+    ).run(mapped_city, raw_city);
+    res.json({ success: true, updated: result.changes });
+  } catch (err) {
+    console.error('City mapping save error:', err);
+    res.status(500).json({ error: 'Failed to save city mapping.' });
+  }
+});
+
 // ========== PHONE/EMAIL MATCHING API ==========
 
 // POST /api/match/:id/confirm — confirm a match
