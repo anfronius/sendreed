@@ -49,7 +49,7 @@
 
 <% if (properties.length === 0) { %>
   <div class="empty-state">
-    <p>No properties found. <a href="/realestate/import">Import a CRMLS CSV</a> to get started.</p>
+    <p>No properties found. <a href="/realestate/import-crmls">Import a CRMLS CSV</a> to get started.</p>
   </div>
 <% } else { %>
 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -59,7 +59,15 @@
       <tr>
         <th style="width:30px"><input type="checkbox" id="select-all-lookup"></th>
         <th>Address</th>
-        <th>City / State / Zip</th>
+        <th>City
+          <% if (user.role === 'admin') { %>
+            <button id="btn-city-mappings" class="btn-sm btn-secondary" style="margin-left:8px;">
+              City Mappings<% if (unmappedCount > 0) { %>
+                <span class="badge-count"><%= unmappedCount %></span>
+              <% } %>
+            </button>
+          <% } %>
+        </th>
         <th>Close Date</th>
         <th>Close Price</th>
         <th>Owner Name</th>
@@ -70,10 +78,11 @@
     <tbody>
       <% properties.forEach(function(p) { %>
       <tr data-property-id="<%= p.id %>" data-status="<%= p.realist_lookup_status %>"
-          data-address="<%= p.property_address %>">
+          data-address="<%= p.property_address %>" data-city="<%= p.city || '' %>"
+          data-state="<%= p.state || 'CA' %>">
         <td><input type="checkbox" class="lookup-checkbox" value="<%= p.id %>"></td>
         <td class="property-address"><%= p.property_address %></td>
-        <td><%= [p.city, p.state, p.zip].filter(Boolean).join(', ') %></td>
+        <td><%= p.city || '' %></td>
         <td><%= p.sale_date || '' %></td>
         <td><%= p.sale_price ? '$' + Number(p.sale_price).toLocaleString() : '' %></td>
         <td>
@@ -116,6 +125,24 @@
 </div>
 <% } %>
 
+<% } %>
+
+<% if (user.role === 'admin') { %>
+<div id="city-mappings-panel" class="panel-overlay" style="display:none;">
+  <div class="panel-box">
+    <div class="panel-header">
+      <h3>Unmapped City Values</h3>
+      <button id="btn-close-city-panel" class="btn-sm">&times;</button>
+    </div>
+    <p class="panel-hint">
+      Each row is a city value from an imported CSV that has no mapping yet.
+      Look up the sample address to identify the correct city, then type it and save.
+    </p>
+    <div id="city-mappings-list">
+      <p>Loading&hellip;</p>
+    </div>
+  </div>
+</div>
 <% } %>
 
 <a href="/realestate" class="btn btn-link">Back to Real Estate</a>

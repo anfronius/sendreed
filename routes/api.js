@@ -1,6 +1,6 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireRole, getEffectiveOwnerId } = require('../middleware/auth');
 const { getDb } = require('../db/init');
 const { decrypt } = require('../services/crypto');
 const providers = require('../config/providers.json');
@@ -60,13 +60,22 @@ const CONTACT_EDITABLE_FIELDS = [
 router.get('/contacts', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
     const isAdmin = req.session.user.role === 'admin';
+    const effectiveId = getEffectiveOwnerId(req);
     const channel = req.query.channel;
     const search = req.query.search || '';
 
-    let where = isAdmin ? '1=1' : 'owner_id = ?';
-    const params = isAdmin ? [] : [userId];
+    let where, params;
+    if (isAdmin && effectiveId) {
+      where = 'owner_id = ?';
+      params = [effectiveId];
+    } else if (isAdmin) {
+      where = '1=1';
+      params = [];
+    } else {
+      where = 'owner_id = ?';
+      params = [effectiveId];
+    }
 
     if (channel === 'email') {
       where += " AND email IS NOT NULL AND email != ''";
@@ -94,7 +103,10 @@ router.get('/contacts', requireAuth, (req, res) => {
 router.post('/contacts', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const ownerId = getEffectiveOwnerId(req);
+    if (!ownerId) {
+      return res.status(400).json({ error: 'Admin must select a user to act on behalf of.' });
+    }
     const data = {};
     for (const field of CONTACT_EDITABLE_FIELDS) {
       if (req.body[field] !== undefined) {
@@ -108,7 +120,7 @@ router.post('/contacts', requireAuth, (req, res) => {
 
     const result = db.prepare(
       `INSERT INTO contacts (owner_id, ${fields.join(', ')}) VALUES (?, ${placeholders})`
-    ).run(userId, ...values);
+    ).run(ownerId, ...values);
 
     res.json({ id: result.lastInsertRowid });
   } catch (err) {
@@ -207,12 +219,21 @@ router.post('/contacts/bulk-delete', requireAuth, (req, res) => {
 router.get('/templates', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
     const isAdmin = req.session.user.role === 'admin';
+    const effectiveId = getEffectiveOwnerId(req);
     const channel = req.query.channel;
 
-    let where = isAdmin ? '1=1' : 'owner_id = ?';
-    const params = isAdmin ? [] : [userId];
+    let where, params;
+    if (isAdmin && effectiveId) {
+      where = 'owner_id = ?';
+      params = [effectiveId];
+    } else if (isAdmin) {
+      where = '1=1';
+      params = [];
+    } else {
+      where = 'owner_id = ?';
+      params = [effectiveId];
+    }
 
     if (channel) {
       where += ' AND channel = ?';
@@ -233,7 +254,10 @@ router.get('/templates', requireAuth, (req, res) => {
 router.post('/templates', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const ownerId = getEffectiveOwnerId(req);
+    if (!ownerId) {
+      return res.status(400).json({ error: 'Admin must select a user to act on behalf of.' });
+    }
     const { name, channel, subject_template, body_template } = req.body;
 
     if (!name || !channel || !body_template) {
@@ -243,9 +267,10 @@ router.post('/templates', requireAuth, (req, res) => {
       return res.status(400).json({ error: 'Invalid channel.' });
     }
 
+    const scheduled_date = req.body.scheduled_date || null;
     const result = db.prepare(
-      'INSERT INTO templates (owner_id, name, channel, subject_template, body_template) VALUES (?, ?, ?, ?, ?)'
-    ).run(userId, name, channel, subject_template || null, body_template);
+      'INSERT INTO templates (owner_id, name, channel, subject_template, body_template, scheduled_date) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(ownerId, name, channel, subject_template || null, body_template, scheduled_date);
 
     res.json({ id: result.lastInsertRowid });
   } catch (err) {
@@ -266,10 +291,16 @@ router.put('/templates/:id', requireAuth, (req, res) => {
       return res.status(404).json({ error: 'Template not found.' });
     }
 
-    const { name, subject_template, body_template } = req.body;
+    const { name, subject_template, body_template, scheduled_date } = req.body;
     db.prepare(
-      'UPDATE templates SET name = ?, subject_template = ?, body_template = ? WHERE id = ?'
-    ).run(name || tmpl.name, subject_template !== undefined ? subject_template : tmpl.subject_template, body_template || tmpl.body_template, templateId);
+      'UPDATE templates SET name = ?, subject_template = ?, body_template = ?, scheduled_date = ? WHERE id = ?'
+    ).run(
+      name || tmpl.name,
+      subject_template !== undefined ? subject_template : tmpl.subject_template,
+      body_template || tmpl.body_template,
+      scheduled_date !== undefined ? (scheduled_date || null) : tmpl.scheduled_date,
+      templateId
+    );
 
     res.json({ success: true });
   } catch (err) {
@@ -398,6 +429,8 @@ router.get('/campaign/:id/status', requireAuth, (req, res) => {
 router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res) => {
   try {
     const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
     const propId = parseInt(req.params.id);
     const { owner_name } = req.body;
 
@@ -409,6 +442,9 @@ router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res)
     if (!prop) {
       return res.status(404).json({ error: 'Property not found.' });
     }
+    if (!(isAdmin && !effectiveOwnerId) && prop.owner_id !== effectiveOwnerId) {
+      return res.status(403).json({ error: 'Not authorized.' });
+    }
 
     db.prepare(
       `UPDATE crmls_properties
@@ -416,6 +452,8 @@ router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res)
        WHERE id = ?`
     ).run(owner_name.trim(), propId);
 
+    var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
     const counts = db.prepare(`
       SELECT
         COUNT(*) as total,
@@ -423,7 +461,8 @@ router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res)
         SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
         SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
       FROM crmls_properties
-    `).get();
+      WHERE ${countsWhere}
+    `).get(...countsParams);
 
     res.json({ success: true, counts });
   } catch (err) {
@@ -435,11 +474,16 @@ router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res)
 router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'), (req, res) => {
   try {
     const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
     const propId = parseInt(req.params.id);
 
     const prop = db.prepare('SELECT * FROM crmls_properties WHERE id = ?').get(propId);
     if (!prop) {
       return res.status(404).json({ error: 'Property not found.' });
+    }
+    if (!(isAdmin && !effectiveOwnerId) && prop.owner_id !== effectiveOwnerId) {
+      return res.status(403).json({ error: 'Not authorized.' });
     }
 
     db.prepare(
@@ -448,6 +492,8 @@ router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'),
        WHERE id = ?`
     ).run(propId);
 
+    var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
     const counts = db.prepare(`
       SELECT
         COUNT(*) as total,
@@ -455,7 +501,8 @@ router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'),
         SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
         SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
       FROM crmls_properties
-    `).get();
+      WHERE ${countsWhere}
+    `).get(...countsParams);
 
     res.json({ success: true, counts });
   } catch (err) {
@@ -467,9 +514,21 @@ router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'),
 router.post('/realist-lookup/bulk-not-found', requireRole('realestate', 'admin'), (req, res) => {
   try {
     const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'No property IDs provided.' });
+    }
+
+    // Ownership check for non-global-admin
+    if (!(isAdmin && !effectiveOwnerId)) {
+      for (const id of ids) {
+        var prop = db.prepare('SELECT owner_id FROM crmls_properties WHERE id = ?').get(parseInt(id));
+        if (!prop || prop.owner_id !== effectiveOwnerId) {
+          return res.status(403).json({ error: 'Not authorized to modify one or more properties.' });
+        }
+      }
     }
 
     const updateStmt = db.prepare(
@@ -482,13 +541,16 @@ router.post('/realist-lookup/bulk-not-found', requireRole('realestate', 'admin')
     });
     bulkUpdate();
 
+    var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
     const counts = db.prepare(`
       SELECT COUNT(*) as total,
         SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
         SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
         SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
       FROM crmls_properties
-    `).get();
+      WHERE ${countsWhere}
+    `).get(...countsParams);
 
     res.json({ success: true, counts });
   } catch (err) {
@@ -500,9 +562,21 @@ router.post('/realist-lookup/bulk-not-found', requireRole('realestate', 'admin')
 router.post('/realist-lookup/bulk-delete', requireRole('realestate', 'admin'), (req, res) => {
   try {
     const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) {
       return res.status(400).json({ error: 'No property IDs provided.' });
+    }
+
+    // Ownership check for non-global-admin
+    if (!(isAdmin && !effectiveOwnerId)) {
+      for (const id of ids) {
+        var prop = db.prepare('SELECT owner_id FROM crmls_properties WHERE id = ?').get(parseInt(id));
+        if (!prop || prop.owner_id !== effectiveOwnerId) {
+          return res.status(403).json({ error: 'Not authorized to delete one or more properties.' });
+        }
+      }
     }
 
     const deleteStmt = db.prepare('DELETE FROM crmls_properties WHERE id = ?');
@@ -513,17 +587,68 @@ router.post('/realist-lookup/bulk-delete', requireRole('realestate', 'admin'), (
     });
     bulkDelete();
 
+    var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
     const counts = db.prepare(`
       SELECT COUNT(*) as total,
         SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
         SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
         SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
       FROM crmls_properties
-    `).get();
+      WHERE ${countsWhere}
+    `).get(...countsParams);
 
     res.json({ success: true, counts });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== CITY MAPPINGS API ==========
+
+// GET /api/city-mappings/unmapped — distinct unmapped city values with sample address (admin only)
+router.get('/city-mappings/unmapped', requireRole('admin'), function(req, res) {
+  try {
+    var db = getDb();
+    var rows = db.prepare(`
+      SELECT cp.raw_city,
+             MIN(cp.property_address) AS sample_address,
+             COUNT(*) AS count
+      FROM crmls_properties cp
+      WHERE cp.raw_city IS NOT NULL
+        AND cp.raw_city NOT IN (SELECT raw_city FROM city_mappings)
+      GROUP BY cp.raw_city
+      ORDER BY count DESC
+    `).all();
+    res.json({ success: true, unmapped: rows });
+  } catch (err) {
+    console.error('Unmapped cities error:', err);
+    res.status(500).json({ error: 'Failed to load unmapped cities.' });
+  }
+});
+
+// POST /api/city-mappings — save a mapping and bulk-update matching properties (admin only)
+router.post('/city-mappings', requireRole('admin'), function(req, res) {
+  try {
+    var raw_city = (req.body.raw_city || '').trim();
+    var mapped_city = (req.body.mapped_city || '').trim();
+    if (!raw_city || !mapped_city) {
+      return res.status(400).json({ error: 'raw_city and mapped_city are required.' });
+    }
+    var db = getDb();
+    // Upsert the mapping
+    db.prepare(
+      'INSERT INTO city_mappings (raw_city, mapped_city, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ' +
+      'ON CONFLICT(raw_city) DO UPDATE SET mapped_city = excluded.mapped_city, updated_at = CURRENT_TIMESTAMP'
+    ).run(raw_city, mapped_city);
+    // Bulk-update all matching properties
+    var result = db.prepare(
+      'UPDATE crmls_properties SET city = ? WHERE raw_city = ?'
+    ).run(mapped_city, raw_city);
+    res.json({ success: true, updated: result.changes });
+  } catch (err) {
+    console.error('City mapping save error:', err);
+    res.status(500).json({ error: 'Failed to save city mapping.' });
   }
 });
 
@@ -637,6 +762,117 @@ router.post('/anniversary/:id/sent', requireRole('realestate', 'admin'), (req, r
     }
 
     db.prepare("UPDATE anniversary_log SET status = 'sent' WHERE id = ?").run(logId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== DIGEST SETTINGS API ==========
+
+// GET /api/digest-settings — get all digest settings (admin only)
+router.get('/digest-settings', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const reUsers = db.prepare(
+      "SELECT u.id, u.name, u.email FROM users WHERE u.role = 'realestate' ORDER BY u.name"
+    ).all();
+    const settings = db.prepare('SELECT * FROM digest_settings').all();
+    var settingsMap = {};
+    settings.forEach(function(s) { settingsMap[s.user_id] = s; });
+
+    var result = reUsers.map(function(u) {
+      var s = settingsMap[u.id];
+      return {
+        user_id: u.id,
+        user_name: u.name,
+        user_email: u.email,
+        enabled: s ? s.enabled : 1,
+        lookahead_days: s ? s.lookahead_days : 7,
+      };
+    });
+    res.json({ success: true, settings: result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/digest-settings/:userId — update digest settings for a user
+router.put('/digest-settings/:userId', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const userId = parseInt(req.params.userId);
+    const { enabled, lookahead_days } = req.body;
+
+    var user = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'realestate'").get(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'Real estate user not found.' });
+    }
+
+    var days = Math.min(30, Math.max(1, parseInt(lookahead_days) || 7));
+    db.prepare(
+      'INSERT INTO digest_settings (user_id, enabled, lookahead_days, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ' +
+      'ON CONFLICT(user_id) DO UPDATE SET enabled = excluded.enabled, lookahead_days = excluded.lookahead_days, updated_at = CURRENT_TIMESTAMP'
+    ).run(userId, enabled ? 1 : 0, days);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== FIELD VISIBILITY API ==========
+
+// GET /api/field-visibility — get field visibility config for all roles
+router.get('/field-visibility', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const rows = db.prepare(
+      'SELECT * FROM field_visibility ORDER BY role, display_order'
+    ).all();
+    res.json({ success: true, fields: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/field-visibility — update visibility for a role+field
+router.put('/field-visibility', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { role, field_name, visible } = req.body;
+    if (!role || !field_name || visible === undefined) {
+      return res.status(400).json({ error: 'role, field_name, and visible are required.' });
+    }
+    if (!['nonprofit', 'realestate'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role.' });
+    }
+    db.prepare(
+      'UPDATE field_visibility SET visible = ? WHERE role = ? AND field_name = ?'
+    ).run(visible ? 1 : 0, role, field_name);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/field-visibility/reorder — update display order for a role
+router.put('/field-visibility/reorder', requireRole('admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { role, fields } = req.body;
+    if (!role || !Array.isArray(fields)) {
+      return res.status(400).json({ error: 'role and fields array are required.' });
+    }
+    const update = db.prepare(
+      'UPDATE field_visibility SET display_order = ? WHERE role = ? AND field_name = ?'
+    );
+    const reorder = db.transaction(function() {
+      fields.forEach(function(field, idx) {
+        update.run(idx, role, field);
+      });
+    });
+    reorder();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

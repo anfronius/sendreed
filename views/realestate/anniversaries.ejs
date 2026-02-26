@@ -4,6 +4,41 @@
 
 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
+<% if (user.role === 'admin') { %>
+<div class="form-card digest-settings-section">
+  <h2>Digest Email Settings</h2>
+  <p style="color:#64748b; font-size:0.85rem; margin-bottom:1rem;">Configure daily anniversary digest emails sent to real estate users from the admin SMTP account.</p>
+  <% if (typeof digestSettings !== 'undefined' && digestSettings.length > 0) { %>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Email</th>
+        <th>Enabled</th>
+        <th>Lookahead Days</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% digestSettings.forEach(function(ds) { %>
+      <tr>
+        <td><%= ds.user_name %></td>
+        <td><%= ds.user_email %></td>
+        <td>
+          <input type="checkbox" <%= ds.enabled ? 'checked' : '' %> onchange="updateDigestSetting(<%= ds.user_id %>, this.checked, this.closest('tr').querySelector('.digest-days').value)">
+        </td>
+        <td>
+          <input type="number" class="digest-days" value="<%= ds.lookahead_days %>" min="1" max="30" style="width:60px" onchange="updateDigestSetting(<%= ds.user_id %>, this.closest('tr').querySelector('input[type=checkbox]').checked, this.value)">
+        </td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <% } else { %>
+    <p class="anniversary-empty">No real estate users configured yet.</p>
+  <% } %>
+</div>
+<% } %>
+
 <!-- Today's Anniversaries -->
 <div class="anniversary-section anniversary-section-today">
   <h2>Today <span class="count-badge"><%= today.length %></span></h2>

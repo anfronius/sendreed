@@ -1,34 +1,18 @@
-<%- include('../layout-header', { title: 'Contacts' }) %>
+<% var label = typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts'; %>
+<%- include('../layout-header', { title: label }) %>
 
 <div class="page-header">
-  <h1>Contacts <span class="count-badge"><%= totalCount %></span></h1>
+  <h1><%= label %> <span class="count-badge"><%= totalCount %></span></h1>
   <div class="page-actions">
     <button class="btn btn-danger btn-sm" id="bulk-delete-btn" style="display:none;">Delete Selected (<span id="bulk-count">0</span>)</button>
-    <a href="/contacts/import" class="btn btn-secondary">Import CSV</a>
+    <a href="/contacts/import" class="btn btn-upload">Import CSV</a>
   </div>
 </div>
 
-<% if (user.role === 'admin' && users.length > 0) { %>
 <form class="filter-bar" method="GET" action="/contacts">
-  <select name="user_id" class="filter-select" onchange="this.form.submit()">
-    <option value="">All Users</option>
-    <% users.forEach(function(u) { %>
-      <option value="<%= u.id %>" <%= selectedUserId === u.id ? 'selected' : '' %>><%= u.name %> (<%= u.role %>)</option>
-    <% }); %>
-  </select>
-  <input type="hidden" name="search" value="<%= search %>">
-  <input type="hidden" name="filter" value="<%= filter %>">
-  <input type="hidden" name="sort" value="<%= sort %>">
-</form>
-<% } %>
-
-<form class="filter-bar" method="GET" action="/contacts">
-  <% if (user.role === 'admin' && selectedUserId) { %>
-    <input type="hidden" name="user_id" value="<%= selectedUserId %>">
-  <% } %>
   <input type="text" name="search" value="<%= search %>" placeholder="Search all fields..." class="filter-input">
   <select name="filter" class="filter-select">
-    <option value="all" <%= filter === 'all' ? 'selected' : '' %>>All Contacts</option>
+    <option value="all" <%= filter === 'all' ? 'selected' : '' %>>All <%= label %></option>
     <option value="missing-email" <%= filter === 'missing-email' ? 'selected' : '' %>>Missing Email</option>
     <option value="missing-phone" <%= filter === 'missing-phone' ? 'selected' : '' %>>Missing Phone</option>
   </select>
@@ -37,6 +21,10 @@
     <option value="city" <%= sort === 'city' ? 'selected' : '' %>>Sort: City</option>
     <option value="state" <%= sort === 'state' ? 'selected' : '' %>>Sort: State</option>
     <option value="address" <%= sort === 'address' ? 'selected' : '' %>>Sort: Address</option>
+  </select>
+  <select name="dir" class="filter-select">
+    <option value="asc" <%= dir === 'asc' ? 'selected' : '' %>>A &rarr; Z</option>
+    <option value="desc" <%= dir === 'desc' ? 'selected' : '' %>>Z &rarr; A</option>
   </select>
   <button type="submit" class="btn btn-primary btn-sm">Filter</button>
 </form>
@@ -53,11 +41,9 @@
       <tr>
         <th style="width:30px"><input type="checkbox" id="select-all-contacts"></th>
         <th>Name</th>
-        <th>Email</th>
-        <th>Phone</th>
-        <th>Organization</th>
-        <th>City</th>
-        <th>State</th>
+        <% tableFields.forEach(function(field) { %>
+          <th><%= fieldLabels[field] || field %></th>
+        <% }); %>
       </tr>
     </thead>
     <tbody>
@@ -68,18 +54,16 @@
           <span class="editable" data-field="first_name" data-id="<%= c.id %>"><%= c.first_name || '' %></span>
           <span class="editable" data-field="last_name" data-id="<%= c.id %>"><%= c.last_name || '' %></span>
         </td>
-        <td><span class="editable<%= !c.email ? ' editable-empty' : '' %>" data-field="email" data-id="<%= c.id %>"><%= c.email || 'Add email' %></span></td>
-        <td><span class="editable<%= !c.phone ? ' editable-empty' : '' %>" data-field="phone" data-id="<%= c.id %>"><%= c.phone || 'Add phone' %></span></td>
-        <td><span class="editable<%= !c.organization ? ' editable-empty' : '' %>" data-field="organization" data-id="<%= c.id %>"><%= c.organization || 'Add org' %></span></td>
-        <td><span class="editable<%= !c.city ? ' editable-empty' : '' %>" data-field="city" data-id="<%= c.id %>"><%= c.city || 'Add city' %></span></td>
-        <td><span class="editable<%= !c.state ? ' editable-empty' : '' %>" data-field="state" data-id="<%= c.id %>"><%= c.state || 'Add state' %></span></td>
+        <% tableFields.forEach(function(field) { %>
+          <td><span class="editable<%= !c[field] ? ' editable-empty' : '' %>" data-field="<%= field %>" data-id="<%= c.id %>"><%= c[field] || fieldPlaceholders[field] || 'Add' %></span></td>
+        <% }); %>
       </tr>
       <% }); %>
     </tbody>
   </table>
 </div>
 
-<%- include('../partials/pagination', { currentPage, totalPages, baseUrl, search, filter, sort, selectedUserId }) %>
+<%- include('../partials/pagination', { currentPage, totalPages, baseUrl, search, filter, sort, dir }) %>
 <% } %>
 
 <%- include('../layout-footer', { scripts: ['/js/contacts.js'] }) %>

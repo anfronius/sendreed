@@ -110,6 +110,7 @@ function createTables() {
       sale_date DATE,
       sale_price REAL,
       csv_upload_id INTEGER REFERENCES csv_uploads(id),
+      owner_id INTEGER REFERENCES users(id),
       realist_owner_name TEXT,
       realist_lookup_status TEXT DEFAULT 'pending' CHECK (realist_lookup_status IN ('pending', 'found', 'not_found')),
       looked_up_at DATETIME
@@ -163,6 +164,32 @@ function createTables() {
       confirmed_at DATETIME
     );
 
+    CREATE TABLE IF NOT EXISTS city_mappings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      raw_city TEXT UNIQUE NOT NULL,
+      mapped_city TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS digest_settings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      enabled INTEGER NOT NULL DEFAULT 1,
+      lookahead_days INTEGER NOT NULL DEFAULT 7,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS field_visibility (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      role TEXT NOT NULL CHECK (role IN ('nonprofit', 'realestate')),
+      field_name TEXT NOT NULL,
+      visible INTEGER NOT NULL DEFAULT 1,
+      display_order INTEGER DEFAULT 0,
+      UNIQUE(role, field_name)
+    );
+
     -- Indexes
     CREATE INDEX IF NOT EXISTS idx_contacts_owner ON contacts(owner_id);
     CREATE INDEX IF NOT EXISTS idx_contacts_purchase_date ON contacts(purchase_date);
@@ -171,7 +198,48 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_crmls_status ON crmls_properties(realist_lookup_status);
     CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
     CREATE INDEX IF NOT EXISTS idx_anniversary_status ON anniversary_log(status, anniversary_date);
+    CREATE INDEX IF NOT EXISTS idx_city_mappings_raw ON city_mappings(raw_city);
   `);
+
+  // Add raw_city column to crmls_properties if it doesn't exist yet
+  var crmlsCols = db.pragma('table_info(crmls_properties)').map(function(c) { return c.name; });
+  if (!crmlsCols.includes('raw_city')) {
+    db.exec('ALTER TABLE crmls_properties ADD COLUMN raw_city TEXT');
+  }
+
+  // Add owner_id column to crmls_properties if it doesn't exist yet
+  if (!crmlsCols.includes('owner_id')) {
+    db.exec('ALTER TABLE crmls_properties ADD COLUMN owner_id INTEGER REFERENCES users(id)');
+  }
+  db.exec('CREATE INDEX IF NOT EXISTS idx_crmls_owner ON crmls_properties(owner_id)');
+
+  // Migrate existing data: set raw_city = city where raw_city is NULL
+  db.prepare('UPDATE crmls_properties SET raw_city = city WHERE raw_city IS NULL').run();
+
+  // Add scheduled_date column to templates if it doesn't exist yet
+  var templateCols = db.pragma('table_info(templates)').map(function(c) { return c.name; });
+  if (!templateCols.includes('scheduled_date')) {
+    db.exec('ALTER TABLE templates ADD COLUMN scheduled_date DATE');
+  }
+
+  // Seed field_visibility defaults if the table is empty
+  var fieldCount = db.prepare('SELECT COUNT(*) as c FROM field_visibility').get().c;
+  if (fieldCount === 0) {
+    var fieldConfig = require('../config/field-config');
+    var insertField = db.prepare(
+      'INSERT INTO field_visibility (role, field_name, visible, display_order) VALUES (?, ?, ?, ?)'
+    );
+    var seedFields = db.transaction(function() {
+      ['nonprofit', 'realestate'].forEach(function(role) {
+        var allFields = fieldConfig.ALL_CONTACT_FIELDS;
+        var roleFields = fieldConfig.ROLE_FIELDS[role].contacts;
+        allFields.forEach(function(field, idx) {
+          insertField.run(role, field, roleFields.includes(field) ? 1 : 0, idx);
+        });
+      });
+    });
+    seedFields();
+  }
 }
 
 function seedAdmin() {

@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth, setFlash } = require('../middleware/auth');
+const { requireAuth, setFlash, getEffectiveOwnerId, getEffectiveRole } = require('../middleware/auth');
 const { getDb } = require('../db/init');
 const template = require('../services/template');
 const { sendCampaign } = require('../services/email');
@@ -12,23 +12,22 @@ router.use(requireAuth);
 router.get('/', (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
     const isAdmin = req.session.user.role === 'admin';
+    const effectiveId = getEffectiveOwnerId(req);
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const perPage = 25;
     const offset = (page - 1) * perPage;
-    const selectedUserId = isAdmin && req.query.user_id ? parseInt(req.query.user_id) : null;
 
     let where, params;
-    if (isAdmin && selectedUserId) {
+    if (isAdmin && effectiveId) {
       where = 'c.owner_id = ?';
-      params = [selectedUserId];
+      params = [effectiveId];
     } else if (isAdmin) {
       where = '1=1';
       params = [];
     } else {
       where = 'c.owner_id = ?';
-      params = [userId];
+      params = [effectiveId];
     }
 
     const totalCount = db.prepare(
@@ -42,27 +41,21 @@ router.get('/', (req, res) => {
        WHERE ${where} ORDER BY c.created_at DESC LIMIT ? OFFSET ?`
     ).all(...params, perPage, offset);
 
-    // Get templates for the templates list section
+    // Get templates scoped to acting-as user
     let templateWhere, templateParams;
-    if (isAdmin && selectedUserId) {
+    if (isAdmin && effectiveId) {
       templateWhere = 'owner_id = ?';
-      templateParams = [selectedUserId];
+      templateParams = [effectiveId];
     } else if (isAdmin) {
       templateWhere = '1=1';
       templateParams = [];
     } else {
       templateWhere = 'owner_id = ?';
-      templateParams = [userId];
+      templateParams = [effectiveId];
     }
     const templates = db.prepare(
       `SELECT * FROM templates WHERE ${templateWhere} ORDER BY name`
     ).all(...templateParams);
-
-    // Get users for admin dropdown
-    let users = [];
-    if (isAdmin) {
-      users = db.prepare('SELECT id, name, role FROM users ORDER BY name').all();
-    }
 
     res.render('campaign/history', {
       title: 'Campaigns',
@@ -72,8 +65,6 @@ router.get('/', (req, res) => {
       totalPages,
       totalCount,
       baseUrl: '/campaign',
-      users,
-      selectedUserId,
     });
   } catch (err) {
     console.error('Campaign history error:', err);
@@ -84,7 +75,8 @@ router.get('/', (req, res) => {
 // GET /campaign/create — wizard page
 router.get('/create', (req, res) => {
   try {
-    const variables = template.getAvailableVariables(req.session.user.role);
+    const effectiveRole = getEffectiveRole(req, res) || req.session.user.role;
+    const variables = template.getAvailableVariables(effectiveRole);
     res.render('campaign/create', {
       title: 'New Campaign',
       variables,
@@ -99,7 +91,11 @@ router.get('/create', (req, res) => {
 router.post('/create', (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const ownerId = getEffectiveOwnerId(req);
+    if (!ownerId) {
+      setFlash(req, 'error', 'Admin must select a user to act on behalf of.');
+      return res.redirect('/campaign/create');
+    }
     const { channel, template_id, contact_ids } = req.body;
 
     if (!channel || !template_id) {
@@ -120,29 +116,29 @@ router.post('/create', (req, res) => {
       return res.redirect('/campaign/create');
     }
 
-    // Verify template ownership
-    const tmpl = db.prepare('SELECT * FROM templates WHERE id = ? AND (owner_id = ? OR ? = 1)').get(
-      parseInt(template_id), userId, req.session.user.role === 'admin' ? 1 : 0
+    // Verify template ownership (must belong to the effective owner)
+    const tmpl = db.prepare('SELECT * FROM templates WHERE id = ? AND owner_id = ?').get(
+      parseInt(template_id), ownerId
     );
     if (!tmpl) {
       setFlash(req, 'error', 'Template not found.');
       return res.redirect('/campaign/create');
     }
 
-    // Create campaign
+    // Create campaign attributed to the effective owner
     const campaignResult = db.prepare(
       "INSERT INTO campaigns (owner_id, template_id, channel, status, total_count) VALUES (?, ?, ?, 'reviewing', ?)"
-    ).run(userId, tmpl.id, channel, contactIdList.length);
+    ).run(ownerId, tmpl.id, channel, contactIdList.length);
     const campaignId = campaignResult.lastInsertRowid;
 
-    // Get contacts and render templates
+    // Get contacts belonging to the effective owner and render templates
     const insertRecipient = db.prepare(
       'INSERT INTO campaign_recipients (campaign_id, contact_id, rendered_subject, rendered_body) VALUES (?, ?, ?, ?)'
     );
 
     const insertAll = db.transaction((ids) => {
       for (const contactId of ids) {
-        const contact = db.prepare('SELECT * FROM contacts WHERE id = ? AND owner_id = ?').get(contactId, userId);
+        const contact = db.prepare('SELECT * FROM contacts WHERE id = ? AND owner_id = ?').get(contactId, ownerId);
         if (!contact) continue;
 
         const renderedSubject = tmpl.subject_template ? template.render(tmpl.subject_template, contact) : null;

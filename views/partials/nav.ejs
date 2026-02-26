@@ -5,16 +5,42 @@
   <% if (user) { %>
   <div class="nav-links">
     <a href="/dashboard">Dashboard</a>
-    <a href="/contacts">Contacts</a>
+    <a href="/contacts"><%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></a>
     <a href="/campaign">Campaigns</a>
     <% if (user.role === 'realestate' || user.role === 'admin') { %>
       <a href="/realestate">Real Estate</a>
     <% } %>
     <% if (user.role === 'admin') { %>
       <a href="/admin/users">Users</a>
+      <a href="/admin/fields">Fields</a>
     <% } %>
     <span class="nav-user"><%= user.name %> (<%= user.role %>)</span>
     <a href="/auth/logout" class="nav-logout">Logout</a>
   </div>
   <% } %>
 </nav>
+<% if (user && user.role === 'admin') { %>
+<div class="acting-as-banner">
+  <form method="POST" action="/admin/act-as" class="acting-as-form">
+    <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+    <label for="acting-as-select">Acting as:</label>
+    <select name="user_id" id="acting-as-select" onchange="this.form.submit()">
+      <option value="">— Select a user —</option>
+      <% if (typeof allUsers !== 'undefined') { allUsers.forEach(function(u) { %>
+        <option value="<%= u.id %>" <%= (typeof actingUser !== 'undefined' && actingUser && actingUser.id === u.id) ? 'selected' : '' %>><%= u.name %> (<%= u.role %>)</option>
+      <% }); } %>
+    </select>
+    <% if (typeof actingUser !== 'undefined' && actingUser) { %>
+      <span class="acting-as-indicator">Managing <strong><%= actingUser.name %></strong>'s data</span>
+    <% } else { %>
+      <span class="acting-as-warning">Select a user to manage their data</span>
+    <% } %>
+  </form>
+  <% if (typeof actingUser !== 'undefined' && actingUser) { %>
+    <form method="POST" action="/admin/act-as/clear" class="acting-as-clear">
+      <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
+      <button type="submit" class="btn-sm btn-secondary">Clear</button>
+    </form>
+  <% } %>
+</div>
+<% } %>

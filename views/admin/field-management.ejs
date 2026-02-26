@@ -1,0 +1,40 @@
+<%- include('../layout-header', { title: 'Field Management' }) %>
+
+<div class="page-header">
+  <h1>Field Management</h1>
+  <p style="color:#64748b; font-size:0.9rem; margin-top:0.25rem;">Toggle which contact fields are visible for each role. Changes take effect immediately.</p>
+</div>
+
+<div class="field-mgmt-grid">
+  <div class="form-card">
+    <h2>Nonprofit Fields</h2>
+    <div class="field-list" id="nonprofit-fields" data-role="nonprofit">
+      <% nonprofit.forEach(function(f) { %>
+      <div class="field-item" data-field="<%= f.field_name %>">
+        <label class="field-toggle">
+          <input type="checkbox" <%= f.visible ? 'checked' : '' %> onchange="toggleField('nonprofit', '<%= f.field_name %>', this.checked)">
+          <span class="field-name"><%= labels[f.field_name] || f.field_name %></span>
+          <span class="field-key">(<%= f.field_name %>)</span>
+        </label>
+      </div>
+      <% }); %>
+    </div>
+  </div>
+
+  <div class="form-card">
+    <h2>Real Estate Fields</h2>
+    <div class="field-list" id="realestate-fields" data-role="realestate">
+      <% realestate.forEach(function(f) { %>
+      <div class="field-item" data-field="<%= f.field_name %>">
+        <label class="field-toggle">
+          <input type="checkbox" <%= f.visible ? 'checked' : '' %> onchange="toggleField('realestate', '<%= f.field_name %>', this.checked)">
+          <span class="field-name"><%= labels[f.field_name] || f.field_name %></span>
+          <span class="field-key">(<%= f.field_name %>)</span>
+        </label>
+      </div>
+      <% }); %>
+    </div>
+  </div>
+</div>
+
+<%- include('../layout-footer', { scripts: ['/js/field-management.js'] }) %>

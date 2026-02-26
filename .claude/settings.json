@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node server.js)",
+      "Bash(node --watch server.js)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(npx eslint:*)",
+      "Bash(sqlite3:*)",
+      "Bash(curl http://localhost:*)",
+      "Bash(ls:*)",
+      "Bash(docker compose up:*)",
+      "Bash(docker compose down:*)",
+      "Bash(docker compose logs:*)",
+      "Bash(docker build:*)",
+      "Bash(npm test:*)",
+      "Bash(node --test:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout -b:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr:*)"
+    ],
+    "deny": []
+  }
+}

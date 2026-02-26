@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { requireRole, setFlash } = require('../middleware/auth');
+const { requireRole, setFlash, getEffectiveOwnerId } = require('../middleware/auth');
 const { verifyCsrf } = require('../middleware/csrf');
 const { getDb } = require('../db/init');
 const csv = require('../services/csv');
@@ -35,6 +35,11 @@ const CRMLS_FIELDS = ['property_address', 'street_number', 'street_name', 'city'
 router.get('/', (req, res) => {
   try {
     const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    const crmlsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    const crmlsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+
     const stats = db.prepare(`
       SELECT
         COUNT(*) as total,
@@ -42,17 +47,37 @@ router.get('/', (req, res) => {
         SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
         SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
       FROM crmls_properties
-    `).get();
+      WHERE ${crmlsWhere}
+    `).get(...crmlsParams);
 
-    res.render('realestate/dashboard', { title: 'Real Estate', stats });
+    // Upcoming anniversaries (next 7 days)
+    var todayStr = new Date().toISOString().slice(0, 10);
+    var futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 7);
+    var futureStr = futureDate.toISOString().slice(0, 10);
+
+    var ownerFilter = (isAdmin && !effectiveOwnerId) ? '' : 'AND c.owner_id = ?';
+    var ownerParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+
+    var upcomingAnniversaries = db.prepare(`
+      SELECT al.*, c.first_name, c.last_name, c.property_address, c.id as cid
+      FROM anniversary_log al
+      JOIN contacts c ON al.contact_id = c.id
+      WHERE al.anniversary_date >= ? AND al.anniversary_date <= ?
+        AND al.status = 'pending' ${ownerFilter}
+      ORDER BY al.anniversary_date
+      LIMIT 5
+    `).all(todayStr, futureStr, ...ownerParams);
+
+    res.render('realestate/dashboard', { title: 'Real Estate', stats, upcomingAnniversaries });
   } catch (err) {
     console.error('Real estate dashboard error:', err);
     res.status(500).render('error', { status: 500, message: 'Failed to load dashboard.' });
   }
 });
 
-// GET /realestate/import — CRMLS CSV upload form
-router.get('/import', (req, res) => {
+// GET /realestate/import-crmls — CRMLS CSV upload form
+router.get('/import-crmls', (req, res) => {
   res.render('realestate/import-crmls', {
     title: 'Import CRMLS',
     step: 'upload',
@@ -63,12 +88,12 @@ router.get('/import', (req, res) => {
   });
 });
 
-// POST /realestate/import/upload — parse CSV, store in session
-router.post('/import/upload', upload.single('csvfile'), verifyCsrf, (req, res) => {
+// POST /realestate/import-crmls/upload — parse CSV, store in session
+router.post('/import-crmls/upload', upload.single('csvfile'), verifyCsrf, (req, res) => {
   try {
     if (!req.file) {
       setFlash(req, 'error', 'Please select a CSV file.');
-      return res.redirect('/realestate/import');
+      return res.redirect('/realestate/import-crmls');
     }
 
     const result = csv.parseFile(req.file.path);
@@ -76,7 +101,7 @@ router.post('/import/upload', upload.single('csvfile'), verifyCsrf, (req, res) =
     if (!result.rows || result.rows.length === 0) {
       setFlash(req, 'error', 'CSV file is empty or has no data rows.');
       fs.unlinkSync(req.file.path);
-      return res.redirect('/realestate/import');
+      return res.redirect('/realestate/import-crmls');
     }
 
     const suggestions = csv.suggestCrmlsMapping(result.headers);
@@ -101,17 +126,17 @@ router.post('/import/upload', upload.single('csvfile'), verifyCsrf, (req, res) =
     console.error('CRMLS upload error:', err);
     if (req.file) fs.unlinkSync(req.file.path);
     setFlash(req, 'error', 'Failed to parse CSV: ' + err.message);
-    res.redirect('/realestate/import');
+    res.redirect('/realestate/import-crmls');
   }
 });
 
-// POST /realestate/import/map — apply mapping, import to crmls_properties
-router.post('/import/map', (req, res) => {
+// POST /realestate/import-crmls/map — apply mapping, import to crmls_properties
+router.post('/import-crmls/map', (req, res) => {
   try {
     const crmlsImport = req.session.crmlsImport;
     if (!crmlsImport) {
       setFlash(req, 'error', 'No CSV data found. Please upload again.');
-      return res.redirect('/realestate/import');
+      return res.redirect('/realestate/import-crmls');
     }
 
     const mapping = {};
@@ -124,10 +149,16 @@ router.post('/import/map', (req, res) => {
 
     if (Object.keys(mapping).length === 0) {
       setFlash(req, 'error', 'Please map at least one column.');
-      return res.redirect('/realestate/import');
+      return res.redirect('/realestate/import-crmls');
     }
 
-    const result = csv.importCrmlsProperties(crmlsImport.rows, mapping, req.session.user.id);
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    if (!effectiveOwnerId) {
+      setFlash(req, 'error', 'Please select a user to act as before importing.');
+      return res.redirect('/realestate/import-crmls');
+    }
+
+    const result = csv.importCrmlsProperties(crmlsImport.rows, mapping, effectiveOwnerId);
 
     // Clean up
     if (crmlsImport.filePath && fs.existsSync(crmlsImport.filePath)) {
@@ -144,7 +175,7 @@ router.post('/import/map', (req, res) => {
   } catch (err) {
     console.error('CRMLS map error:', err);
     setFlash(req, 'error', 'Failed to import properties: ' + err.message);
-    res.redirect('/realestate/import');
+    res.redirect('/realestate/import-crmls');
   }
 });
 
@@ -152,6 +183,11 @@ router.post('/import/map', (req, res) => {
 router.get('/lookup', (req, res) => {
   try {
     const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    const ownerWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    const ownerParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+
     const statusFilter = req.query.status || 'all';
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const perPage = 50;
@@ -164,14 +200,16 @@ router.get('/lookup', (req, res) => {
         SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
         SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
       FROM crmls_properties
-    `).get();
+      WHERE ${ownerWhere}
+    `).get(...ownerParams);
 
-    let where = '1=1';
-    const params = [];
+    var conditions = [ownerWhere];
+    const params = [...ownerParams];
     if (['pending', 'found', 'not_found'].includes(statusFilter)) {
-      where = 'realist_lookup_status = ?';
+      conditions.push('realist_lookup_status = ?');
       params.push(statusFilter);
     }
+    const where = conditions.join(' AND ');
 
     const totalCount = db.prepare(
       `SELECT COUNT(*) as c FROM crmls_properties WHERE ${where}`
@@ -184,6 +222,17 @@ router.get('/lookup', (req, res) => {
        LIMIT ? OFFSET ?`
     ).all(...params, perPage, offset);
 
+    // Count unmapped cities for admin badge
+    var unmappedCount = 0;
+    if (req.session.user.role === 'admin') {
+      unmappedCount = db.prepare(`
+        SELECT COUNT(DISTINCT raw_city) as c
+        FROM crmls_properties
+        WHERE raw_city IS NOT NULL
+          AND raw_city NOT IN (SELECT raw_city FROM city_mappings)
+      `).get().c;
+    }
+
     res.render('realestate/realist-lookup', {
       title: 'Realist Lookup',
       properties,
@@ -192,6 +241,7 @@ router.get('/lookup', (req, res) => {
       currentPage: page,
       totalPages,
       totalCount,
+      unmappedCount,
     });
   } catch (err) {
     console.error('Realist lookup error:', err);
@@ -203,11 +253,15 @@ router.get('/lookup', (req, res) => {
 router.post('/lookup/finalize', (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    const ownerWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    const ownerParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+    const userId = effectiveOwnerId || req.session.user.id;
 
     const found = db.prepare(
-      "SELECT * FROM crmls_properties WHERE realist_lookup_status = 'found' AND realist_owner_name IS NOT NULL"
-    ).all();
+      `SELECT * FROM crmls_properties WHERE realist_lookup_status = 'found' AND realist_owner_name IS NOT NULL AND ${ownerWhere}`
+    ).all(...ownerParams);
 
     if (found.length === 0) {
       setFlash(req, 'info', 'No properties with found owners to finalize.');
@@ -298,7 +352,12 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
     }
 
     const db = getDb();
-    const userId = req.session.user.id;
+    const userId = getEffectiveOwnerId(req);
+    if (!userId) {
+      setFlash(req, 'error', 'Please select a user to act as before importing.');
+      fs.unlinkSync(req.file.path);
+      return res.redirect('/realestate/import-vcard');
+    }
     const result = vcard.parseFile(req.file.path);
 
     // Clean up uploaded file
@@ -398,14 +457,18 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
 router.get('/matching', (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const userId = getEffectiveOwnerId(req);
+    if (!userId) {
+      setFlash(req, 'error', 'Please select a user to act as before viewing matches.');
+      return res.redirect('/realestate');
+    }
     const importId = req.query.import_id;
 
     // Get the most recent import if no import_id specified
     let importFilter = '';
     const importParams = [];
     if (importId) {
-      importFilter = 'AND ci.import_id = ?';
+      importFilter = 'AND ic.import_id = ?';
       importParams.push(parseInt(importId));
     }
 
@@ -490,7 +553,11 @@ router.get('/matching', (req, res) => {
 router.post('/matching/apply', (req, res) => {
   try {
     const db = getDb();
-    const userId = req.session.user.id;
+    const userId = getEffectiveOwnerId(req);
+    if (!userId) {
+      setFlash(req, 'error', 'Please select a user to act as before applying matches.');
+      return res.redirect('/realestate/matching');
+    }
 
     // Get all confirmed matches (auto with confidence >= 70 OR manually confirmed)
     const matches = db.prepare(`
@@ -599,11 +666,33 @@ router.get('/anniversaries', (req, res) => {
       ORDER BY al.anniversary_date DESC
     `).all(thirtyDaysStr, ...ownerParams);
 
+    // Admin: load digest settings for all RE users
+    var digestSettings = [];
+    if (isAdmin) {
+      var reUsers = db.prepare(
+        "SELECT id, name, email FROM users WHERE role = 'realestate' ORDER BY name"
+      ).all();
+      var settings = db.prepare('SELECT * FROM digest_settings').all();
+      var settingsMap = {};
+      settings.forEach(function(s) { settingsMap[s.user_id] = s; });
+      digestSettings = reUsers.map(function(u) {
+        var s = settingsMap[u.id];
+        return {
+          user_id: u.id,
+          user_name: u.name,
+          user_email: u.email,
+          enabled: s ? s.enabled : 1,
+          lookahead_days: s ? s.lookahead_days : 7,
+        };
+      });
+    }
+
     res.render('realestate/anniversaries', {
       title: 'Anniversaries',
       today,
       thisWeek,
       completed,
+      digestSettings,
     });
   } catch (err) {
     console.error('Anniversaries error:', err);

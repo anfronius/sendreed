@@ -109,13 +109,47 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
+  // ---- Build full address string with city + state ----
+  function buildFullAddress(row) {
+    var address = (row.dataset.address || '').replace(/\s+/g, ' ').trim();
+    var city = row.dataset.city || '';
+    var state = row.dataset.state || 'CA';
+    if (city) address += ', ' + city;
+    address += ', ' + state;
+    return address;
+  }
+
+  function copyToClipboard(text, callback) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(callback).catch(function() {
+        fallbackCopy(text);
+        callback();
+      });
+    } else {
+      fallbackCopy(text);
+      callback();
+    }
+  }
+
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+
   // ---- Copy Address to Clipboard ----
   table.addEventListener('click', function(e) {
     var btn = e.target.closest('.copy-address-btn');
     if (!btn) return;
 
-    var address = btn.dataset.address;
-    navigator.clipboard.writeText(address).then(function() {
+    var row = btn.closest('tr');
+    var fullAddress = buildFullAddress(row);
+    copyToClipboard(fullAddress, function() {
       var original = btn.textContent;
       btn.textContent = 'Copied!';
       btn.classList.add('copy-success');
@@ -123,18 +157,6 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.textContent = original;
         btn.classList.remove('copy-success');
       }, 1500);
-    }).catch(function() {
-      // Fallback for non-HTTPS (dev)
-      var ta = document.createElement('textarea');
-      ta.value = address;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      btn.textContent = 'Copied!';
-      setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
     });
   });
 
@@ -241,8 +263,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (nextInput) {
       var nextRow = nextInput.closest('tr');
-      var nextAddress = nextRow.dataset.address;
-      navigator.clipboard.writeText(nextAddress).then(function() {
+      var fullAddr = buildFullAddress(nextRow);
+      copyToClipboard(fullAddr, function() {
         var copyBtn = nextRow.querySelector('.copy-address-btn');
         if (copyBtn) {
           copyBtn.textContent = 'Copied!';
@@ -252,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
             copyBtn.classList.remove('copy-success');
           }, 1500);
         }
-      }).catch(function() {});
+      });
 
       setTimeout(function() {
         nextInput.focus();
@@ -277,5 +299,126 @@ document.addEventListener('DOMContentLoaded', function() {
     if (foundEl) foundEl.textContent = counts.found;
     if (pendingEl) pendingEl.textContent = counts.pending;
     if (notFoundEl) notFoundEl.textContent = counts.not_found;
+  }
+
+  // ---- City Mappings Panel (admin only) ----
+  var cityPanelBtn = document.getElementById('btn-city-mappings');
+  if (cityPanelBtn) {
+    var cityPanel = document.getElementById('city-mappings-panel');
+    var cityList = document.getElementById('city-mappings-list');
+
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.appendChild(document.createTextNode(str || ''));
+      return div.innerHTML;
+    }
+
+    function escapeAttr(str) {
+      return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    cityPanelBtn.addEventListener('click', function() {
+      cityPanel.style.display = 'flex';
+      loadUnmappedCities();
+    });
+
+    document.getElementById('btn-close-city-panel').addEventListener('click', function() {
+      cityPanel.style.display = 'none';
+    });
+
+    function loadUnmappedCities() {
+      cityList.innerHTML = '<p>Loading\u2026</p>';
+      fetch('/api/city-mappings/unmapped', {
+        headers: { 'X-CSRF-Token': getCsrf() }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.unmapped || data.unmapped.length === 0) {
+          cityList.innerHTML = '<p class="text-muted">All cities are mapped.</p>';
+          return;
+        }
+        var html = '<table class="data-table"><thead><tr>' +
+          '<th>Raw City Value</th><th>Sample Address</th><th>Correct City Name</th><th></th>' +
+          '</tr></thead><tbody>';
+        data.unmapped.forEach(function(row) {
+          html += '<tr data-raw="' + escapeAttr(row.raw_city) + '">' +
+            '<td><code>' + escapeHtml(row.raw_city) + '</code> <small>(' + row.count + ' records)</small></td>' +
+            '<td>' + escapeHtml(row.sample_address) +
+              ' <button class="btn-sm copy-addr" data-addr="' + escapeAttr(row.sample_address) + '">Copy</button></td>' +
+            '<td><input class="city-input" type="text" placeholder="Enter correct city name" style="width:200px"></td>' +
+            '<td><button class="btn-sm btn-primary save-mapping">Save</button></td>' +
+            '</tr>';
+        });
+        html += '</tbody></table>';
+        cityList.innerHTML = html;
+      });
+    }
+
+    cityList.addEventListener('click', function(e) {
+      // Copy sample address
+      if (e.target.classList.contains('copy-addr')) {
+        var addr = e.target.getAttribute('data-addr');
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(addr);
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = addr;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        e.target.textContent = 'Copied!';
+        setTimeout(function() { e.target.textContent = 'Copy'; }, 1500);
+      }
+      // Save mapping
+      if (e.target.classList.contains('save-mapping')) {
+        var row = e.target.closest('tr');
+        var rawCity = row.getAttribute('data-raw');
+        var mappedCity = row.querySelector('.city-input').value.trim();
+        if (!mappedCity) { alert('Please enter the correct city name.'); return; }
+        e.target.disabled = true;
+        e.target.textContent = 'Saving\u2026';
+        fetch('/api/city-mappings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrf()
+          },
+          body: JSON.stringify({ raw_city: rawCity, mapped_city: mappedCity })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            row.remove();
+            // Update badge count
+            var badge = cityPanelBtn.querySelector('.badge-count');
+            var remaining = cityList.querySelectorAll('tbody tr').length;
+            if (badge) {
+              if (remaining === 0) badge.remove();
+              else badge.textContent = remaining;
+            }
+            if (remaining === 0) {
+              cityList.innerHTML = '<p class="text-muted">All cities are mapped.</p>';
+            }
+          } else {
+            e.target.disabled = false;
+            e.target.textContent = 'Save';
+            alert('Error: ' + (data.error || 'Save failed.'));
+          }
+        });
+      }
+    });
+
+    // Allow Enter key to save from city-input field
+    cityList.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target.classList.contains('city-input')) {
+        e.preventDefault();
+        var saveBtn = e.target.closest('tr').querySelector('.save-mapping');
+        if (saveBtn && !saveBtn.disabled) saveBtn.click();
+      }
+    });
   }
 });

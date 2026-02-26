@@ -1,7 +1,6 @@
 const Papa = require('papaparse');
 const fs = require('fs');
 const { getDb } = require('../db/init');
-const { expandCity } = require('../config/ca-cities');
 
 // Alias map: normalized header name → contact field
 const COLUMN_ALIASES = {
@@ -168,11 +167,16 @@ function importCrmlsProperties(rows, mapping, ownerId) {
   ).run('crmls_import', 'crmls', rows.length, ownerId);
 
   const insertStmt = db.prepare(
-    `INSERT INTO crmls_properties (property_address, city, state, zip, sale_date, sale_price, csv_upload_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO crmls_properties (property_address, city, raw_city, state, zip, sale_date, sale_price, csv_upload_id, owner_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
   const CRMLS_FIELDS = ['property_address', 'street_number', 'street_name', 'city', 'state', 'zip', 'sale_date', 'sale_price'];
+
+  // Load saved city mappings for this import
+  var cityMappings = {};
+  db.prepare('SELECT raw_city, mapped_city FROM city_mappings').all()
+    .forEach(function(row) { cityMappings[row.raw_city.toUpperCase()] = row.mapped_city; });
 
   const insertMany = db.transaction((rows) => {
     for (let i = 0; i < rows.length; i++) {
@@ -195,9 +199,13 @@ function importCrmlsProperties(rows, mapping, ownerId) {
           continue;
         }
 
-        // Expand city abbreviations
-        if (prop.city) {
-          prop.city = expandCity(prop.city);
+        // Apply DB-driven city mapping
+        var rawCity = prop.city ? prop.city.trim() : null;
+        prop.raw_city = rawCity;
+        if (rawCity && cityMappings[rawCity.toUpperCase()]) {
+          prop.city = cityMappings[rawCity.toUpperCase()];
+        } else {
+          prop.city = rawCity;
         }
 
         if (prop.sale_price) {
@@ -208,11 +216,13 @@ function importCrmlsProperties(rows, mapping, ownerId) {
         insertStmt.run(
           prop.property_address,
           prop.city || null,
+          prop.raw_city || null,
           prop.state || null,
           prop.zip || null,
           prop.sale_date || null,
           prop.sale_price || null,
-          uploadResult.lastInsertRowid
+          uploadResult.lastInsertRowid,
+          ownerId
         );
         inserted++;
       } catch (err) {

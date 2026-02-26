@@ -4,10 +4,40 @@ const { getDb } = require('../db/init');
 const { requireRole, setFlash } = require('../middleware/auth');
 const { encrypt } = require('../services/crypto');
 const providers = require('../config/providers.json');
+const fieldConfig = require('../config/field-config');
 
 const router = express.Router();
 
 router.use(requireRole('admin'));
+
+// POST /admin/act-as — set the acting-as user context
+router.post('/act-as', (req, res) => {
+  try {
+    var targetId = parseInt(req.body.user_id);
+    if (!targetId) {
+      delete req.session.actingAsUserId;
+      return res.redirect(req.get('Referer') || '/dashboard');
+    }
+    var db = getDb();
+    var target = db.prepare("SELECT id, role FROM users WHERE id = ? AND role != 'admin'").get(targetId);
+    if (!target) {
+      setFlash(req, 'error', 'User not found or cannot act as another admin.');
+      return res.redirect(req.get('Referer') || '/dashboard');
+    }
+    req.session.actingAsUserId = targetId;
+    res.redirect(req.get('Referer') || '/dashboard');
+  } catch (err) {
+    console.error('Act-as error:', err);
+    setFlash(req, 'error', 'Failed to switch user context.');
+    res.redirect('/dashboard');
+  }
+});
+
+// POST /admin/act-as/clear — clear the acting-as user context
+router.post('/act-as/clear', (req, res) => {
+  delete req.session.actingAsUserId;
+  res.redirect(req.get('Referer') || '/dashboard');
+});
 
 // Redirect /admin to /admin/users
 router.get('/', (req, res) => {
@@ -174,6 +204,29 @@ router.post('/users/:id/smtp', (req, res) => {
     console.error('Save SMTP error:', err);
     setFlash(req, 'error', 'Failed to save SMTP settings.');
     res.redirect('/admin/users/' + req.params.id + '/smtp');
+  }
+});
+
+// GET /admin/fields — field management GUI
+router.get('/fields', (req, res) => {
+  try {
+    var db = getDb();
+    var fields = db.prepare(
+      'SELECT * FROM field_visibility ORDER BY role, display_order'
+    ).all();
+
+    var nonprofit = fields.filter(function(f) { return f.role === 'nonprofit'; });
+    var realestate = fields.filter(function(f) { return f.role === 'realestate'; });
+
+    res.render('admin/field-management', {
+      title: 'Field Management',
+      nonprofit: nonprofit,
+      realestate: realestate,
+      labels: fieldConfig.LABEL_MAP,
+    });
+  } catch (err) {
+    console.error('Field management error:', err);
+    res.status(500).render('error', { status: 500, message: 'Failed to load field management.' });
   }
 });
 

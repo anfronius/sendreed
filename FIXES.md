@@ -34,7 +34,35 @@
 ### Users Page
 - *Admin View* For existing users, there should be more stats than just the 'Created' field and allow for for a separate 'Wipe Data' button that doesn't delete the User but removes all their associated data (the Delete button should do this too but also remove the User entirely).
 
-## Second Set of Fixes (INCOMPLETE)
+## Second Set of Fixes
 
-### Real Estate Page
-- *Real Estate and Admin View* Add a similar but not too expansive list of Anniversaries on the main Real Estate Page similar to the dedicated Anniversaries page that can be clicked on to get to the anniversaries page, but do not 
+### Real Estate Page — Quick Wins (DONE)
+- [x] *Real Estate and Admin View* Add a similar but not too expansive list of Anniversaries on the main Real Estate Page similar to the dedicated Anniversaries page that can be clicked on to get to the anniversaries page instead of the Anniversaries button.
+- [x] *Real Estate and Admin View* Currently when copying an address via the Copy button the the realist lookup page, it copies the address including the leading number if it is apart of a unit, which shows up with 3 spaces between the main address name like '10755 MAGNOLIA AVE' and the unit like '#103' '10755 MAGNOLIA AVE   #103' instead of how it appears on the my sendreed realist lookup page '10755 MAGNOLIA AVE #103'. What I want is for the copy button to instead copy the address like this '10755 MAGNOLIA AVE # 103, Anaheim, CA' with the city, like in this case, 'Anaheim' also being copied exaclty like (make sure to include abbreviated CA too).
+- [x] The City field on the realist lookup page STILL says City / State / Zip when its just the City. PLease remove the State and Zip portions
+
+### Admin-as-Supervisor Rework (DONE)
+- [x] An admin GUI which allows them to add or edit or delete the many DB fields that aren't being used or that are needed around the website like for the clients and properties. I only want as many fields that have the possibility of being used to be shown essentially.
+- [x] I want total separation of the type of clients. When I add new clients, it should very specifically specify whether these are for which account, as that determines which fileds that can possibly be attributed to that client or db object in general
+- [x] Before any action of adding or doing anything, it should know for which user I am performing this action for. The admin themself should not have clients or properties or anything as it is just a supervisory role. Whne an admin adds clients, they must be adding them to an existing account and the properties associated must follow the properties of the real estate or non profit client types.
+- [x] The same above also applies to the templates and campaigns. The admin has no templaate or campaigns and when an admin makes a template or institutes a campaign, it MUST be attributed to an existing user of either real estate or nonprofit type.
+
+### Anniversary Digest Config (DONE)
+- [x] The smtp config for admin in the users section should stay as I want you to create a section in the annniversaries page that allows the admin to enable, disable, or change the parameter of days on how close to an anniversary it must be for the anniversary digests to be sent to a real estate user. The emails come from the admin's setup email (in this case please add protonmail as en email option as the admin uses protonmail). This setting should be able to be set on or off and days changed per real estate user.
+
+### General — Quick Wins (DONE)
+- [x] The color of buttons in general are very confusing. Lets simplify that with a more unified button color system. For button that lead to pages that allow upload, make them orange. For buttons that take you to normal menus like realist lookup or anniversaries, have them the same grayish blue that they are now. For when there is a list of buttons of which one can be selected at a time, have them be the same blue that they already are, like the realist lookup page's All, Pending, Found, Not Found button system. This is mainly targetting weird random button color choices like one the quick actions portion of the Real Estate Where Import CRMLS CSV is brighr blue but the Import Contact button is the same blue gray as the other buttons that take you to menus.
+- [x] For the real estate user, the Import CSV quick action should instead be a Manage CRMLS Data which takes you to the main Real Estate Page
+
+### Template Editing + Scheduled Sends (DONE)
+- [x] There should be an ability to fully view and edit the created templates on the campaigns page where you pick one, and the template should have an ability to be associated with a date, to create holiday templates like for Christmas and such and to have it automatically sent out on that day.
+
+### Contacts — Quick Wins (DONE)
+- [x] There now a sort option for Name, City, Name Address, but there is no sort by option like to sort alphabetically A to Z or Z to A
+
+
+## Third Set of Fixes (DONE)
+
+- [x] the route for the crmls import shouldn't just be /import, it should be /import-crmls or whatever the template has. Can you please change that if possible
+- [x] can you make it so at the top banner where it has the Dashboard, Contacts, Campgaigns, and Real Estate page links, can you make it so real estate users see the Contacts link as a Clients instead and reference clients instead too in that pasge for real estate users?
+- [x] the admin for some reason cannot see the imported contacts from the vCard and only the actual account can, even if the admin selects the account with the imported contacts on the admin banner and refreshes the page. Can you investigaate and fix that?

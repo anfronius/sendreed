@@ -5,7 +5,7 @@
 <% if (step === 'upload') { %>
 <div class="form-card">
   <p>Upload a CRMLS CSV file to import property data. The first row should contain column headers.</p>
-  <form method="POST" action="/realestate/import/upload" enctype="multipart/form-data">
+  <form method="POST" action="/realestate/import-crmls/upload" enctype="multipart/form-data">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="form-group">
       <label for="csvfile">CSV File</label>
@@ -17,7 +17,7 @@
 <% } else if (step === 'map') { %>
 <div class="form-card">
   <p>Map your CSV columns to property fields. Found <strong><%= rowCount %></strong> rows.</p>
-  <form method="POST" action="/realestate/import/map">
+  <form method="POST" action="/realestate/import-crmls/map">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
     <table class="data-table">
@@ -54,7 +54,7 @@
 
     <div class="form-actions" style="margin-top: 1rem;">
       <button type="submit" class="btn btn-primary">Import Properties</button>
-      <a href="/realestate/import" class="btn btn-secondary">Cancel</a>
+      <a href="/realestate/import-crmls" class="btn btn-secondary">Cancel</a>
     </div>
   </form>
 </div>

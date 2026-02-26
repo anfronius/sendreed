@@ -1,3 +1,23 @@
+function updateDigestSetting(userId, enabled, days) {
+  fetch('/api/digest-settings/' + userId, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.CSRF_TOKEN,
+    },
+    body: JSON.stringify({ enabled: enabled, lookahead_days: parseInt(days) || 7 }),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (!data.success) {
+      alert('Failed to update digest setting: ' + (data.error || 'Unknown error'));
+    }
+  })
+  .catch(function(err) {
+    alert('Error: ' + err.message);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   function getCsrf() {
     var el = document.querySelector('input[name="_csrf"]');

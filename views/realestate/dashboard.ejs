@@ -21,13 +21,44 @@
   </div>
 </div>
 
+<h2>Upcoming Anniversaries</h2>
+<% if (upcomingAnniversaries.length > 0) { %>
+<div class="anniversary-preview">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Years</th>
+        <th>Property</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% upcomingAnniversaries.forEach(function(a) { %>
+      <tr>
+        <td><%= a.first_name %> <%= a.last_name %></td>
+        <td><%= a.years %> yr<%= a.years !== 1 ? 's' : '' %></td>
+        <td><%= a.property_address %></td>
+        <td><%= a.anniversary_date %></td>
+      </tr>
+      <% }); %>
+    </tbody>
+  </table>
+  <a href="/realestate/anniversaries" class="btn btn-sm btn-secondary" style="margin-top:0.5rem;">View All Anniversaries</a>
+</div>
+<% } else { %>
+<p style="color:#94a3b8; margin-bottom:1.5rem;">No upcoming anniversaries this week.
+  <a href="/realestate/anniversaries">View Anniversaries</a>
+</p>
+<% } %>
+
 <h2>Quick Actions</h2>
 <div class="action-links">
-  <a href="/realestate/import" class="btn btn-primary">Import CRMLS CSV</a>
-  <a href="/realestate/import-vcard" class="btn btn-secondary">Import Contacts</a>
+  <a href="/realestate/import-crmls" class="btn btn-upload">Import CRMLS Data</a>
+  <a href="/realestate/import-vcard" class="btn btn-upload">Import Contacts</a>
   <a href="/realestate/lookup" class="btn btn-secondary">Realist Lookup</a>
   <a href="/realestate/matching" class="btn btn-secondary">Phone Matching</a>
-  <a href="/realestate/anniversaries" class="btn btn-secondary">Anniversaries</a>
+
 </div>
 
 <%- include('../layout-footer', { scripts: [] }) %>
