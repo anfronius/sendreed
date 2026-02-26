@@ -19,7 +19,7 @@ function csrfMiddleware(req, res, next) {
 
   const token = req.body._csrf || req.headers['x-csrf-token'];
   if (!token || token !== req.session.csrfToken) {
-    return res.status(403).send('Invalid CSRF token');
+    return res.status(403).json({ error: 'Invalid CSRF token' });
   }
 
   next();
@@ -29,7 +29,7 @@ function csrfMiddleware(req, res, next) {
 function verifyCsrf(req, res, next) {
   const token = req.body._csrf || req.headers['x-csrf-token'];
   if (!token || token !== req.session.csrfToken) {
-    return res.status(403).send('Invalid CSRF token');
+    return res.status(403).json({ error: 'Invalid CSRF token' });
   }
   next();
 }

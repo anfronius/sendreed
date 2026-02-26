@@ -58,13 +58,18 @@ document.addEventListener('DOMContentLoaded', function() {
       method: 'DELETE',
       headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
     })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+      if (!r.ok) return r.json().catch(function() { return { error: 'Request failed (status ' + r.status + ')' }; });
+      return r.json();
+    })
     .then(function(data) {
-      if (data.success) {
+      if (data.error) {
+        alert('Failed to delete: ' + data.error);
+      } else if (data.success) {
         var row = btn.closest('tr');
         if (row) row.remove();
       } else {
-        alert('Failed to delete: ' + (data.error || 'Unknown error'));
+        alert('Failed to delete: Unknown error');
       }
     })
     .catch(function(err) {
@@ -101,13 +106,18 @@ document.addEventListener('DOMContentLoaded', function() {
       },
       body: JSON.stringify(payload),
     })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+      if (!r.ok) return r.json().catch(function() { return { error: 'Request failed (status ' + r.status + ')' }; });
+      return r.json();
+    })
     .then(function(data) {
-      if (data.success) {
+      if (data.error) {
+        alert('Failed to save: ' + data.error);
+      } else if (data.success || data.id) {
         closeModal();
         window.location.reload();
       } else {
-        alert('Failed to save: ' + (data.error || 'Unknown error'));
+        alert('Failed to save: Unknown error');
       }
     })
     .catch(function(err) {

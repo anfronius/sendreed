@@ -12,10 +12,15 @@ function toggleField(role, fieldName, visible) {
     },
     body: JSON.stringify({ role: role, field_name: fieldName, visible: visible }),
   })
-  .then(function(r) { return r.json(); })
+  .then(function(r) {
+    if (!r.ok) return r.json().catch(function() { return { error: 'Request failed (status ' + r.status + ')' }; });
+    return r.json();
+  })
   .then(function(data) {
-    if (!data.success) {
-      alert('Failed to update field: ' + (data.error || 'Unknown error'));
+    if (data.error) {
+      alert('Failed to update field: ' + data.error);
+    } else if (!data.success) {
+      alert('Failed to update field: Unknown error');
     }
   })
   .catch(function(err) {
