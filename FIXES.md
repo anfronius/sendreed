@@ -70,6 +70,14 @@
 ### 4th Set (DONE)
 
 - the specific requests are lost to a rollback, but the plan to deal with them (which is all that is needed to know what the issues were in this set) are in '~/.claude/plans/playful-cuddling-waffle.md'
+- [x] Fix 1: Anniversary digest toggle — RE users can now toggle their own digest on/off
+- [x] Fix 2: Apply All Confirmed now uses AJAX without page refresh
+- [x] Fix 3: Phone matching page button sizing equalized
+- [x] Fix 5: Templates channel restriction removed (done previously)
+- [x] Fix 6: Phone matching UI reversed — existing contacts are primary, vCard imports are the source
+- [x] Fix 7: Campaign delete action from history page
+- [x] Fix 8: Template list scrolls with fade gradient after 5+ items
+- Fix 4 (SMS in-progress + daily email limit): Deferred
 
 ### 5th set (DONE)
 
@@ -85,6 +93,6 @@
 - [x] When I try to build a new template or edit a pre-exiting one with the new 'New Template' modal on the campaigns page, when I try to click the 'Save' button at the bottom after filling out the fileds I get a 'Failed to save: Invalid CSRF token' Errorr
 - [x] I still get a 'Failed to save: Invalid CSRF token' error when trying to edit the Fields checkboxes on the Fields page as an admin and when trying to delete templates on the main campaign page. 
 
-### 7th Set
+### 7th Set (DONE)
 
-- Even though the 'Zip' and 'State' fields are disabled in the fields mangement page, they still show up as an option in the /realestate/import-crmls/upload page when matching the uploaded csv to the needed fields
+- [x] Even though the 'Zip' and 'State' fields are disabled in the fields mangement page, they still show up as an option in the /realestate/import-crmls/upload page when matching the uploaded csv to the needed fields
