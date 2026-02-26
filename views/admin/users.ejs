@@ -60,17 +60,19 @@
       <td><%= u.smtp_provider ? u.smtp_provider : 'Not configured' %></td>
       <td><%= u.created_at %></td>
       <td>
-        <a href="/admin/users/<%= u.id %>/smtp" class="btn btn-sm btn-secondary">SMTP</a>
-        <% if (u.id !== user.id) { %>
-          <form method="POST" action="/admin/users/<%= u.id %>/wipe" style="display:inline">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button type="submit" class="btn btn-sm btn-secondary" onclick="return confirm('Wipe ALL data for <%= u.name %>? This removes their contacts, templates, and campaigns but keeps their account.')">Wipe Data</button>
-          </form>
-          <form method="POST" action="/admin/users/<%= u.id %>/delete" style="display:inline">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete <%= u.name %> and ALL their data? This cannot be undone.')">Delete</button>
-          </form>
-        <% } %>
+        <div class="user-actions">
+          <a href="/admin/users/<%= u.id %>/smtp" class="btn btn-sm btn-secondary btn-action-user">SMTP</a>
+          <% if (u.id !== user.id) { %>
+            <form method="POST" action="/admin/users/<%= u.id %>/wipe" style="display:contents">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn-sm btn-secondary btn-action-user" onclick="return confirm('Wipe ALL data for <%= u.name %>? This removes their contacts, templates, and campaigns but keeps their account.')">Wipe Data</button>
+            </form>
+            <form method="POST" action="/admin/users/<%= u.id %>/delete" style="display:contents">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="btn btn-sm btn-danger btn-action-user" onclick="return confirm('Delete <%= u.name %> and ALL their data? This cannot be undone.')">Delete</button>
+            </form>
+          <% } %>
+        </div>
       </td>
     </tr>
     <% }); %>

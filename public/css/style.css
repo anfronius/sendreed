@@ -42,6 +42,8 @@ a:hover { text-decoration: underline; }
 .btn-link { background: none; color: #2563eb; padding: 0.5rem 0; }
 .btn-full { width: 100%; }
 .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+.user-actions { display: flex; gap: 0.35rem; align-items: center; }
+.btn-action-user { min-width: 80px; text-align: center; }
 
 /* Forms */
 .form-card { background: #fff; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 1.5rem; }
