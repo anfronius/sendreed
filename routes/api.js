@@ -221,7 +221,6 @@ router.get('/templates', requireAuth, (req, res) => {
     const db = getDb();
     const isAdmin = req.session.user.role === 'admin';
     const effectiveId = getEffectiveOwnerId(req);
-    const channel = req.query.channel;
 
     let where, params;
     if (isAdmin && effectiveId) {
@@ -233,11 +232,6 @@ router.get('/templates', requireAuth, (req, res) => {
     } else {
       where = 'owner_id = ?';
       params = [effectiveId];
-    }
-
-    if (channel) {
-      where += ' AND channel = ?';
-      params.push(channel);
     }
 
     const templates = db.prepare(
@@ -258,19 +252,16 @@ router.post('/templates', requireAuth, (req, res) => {
     if (!ownerId) {
       return res.status(400).json({ error: 'Admin must select a user to act on behalf of.' });
     }
-    const { name, channel, subject_template, body_template } = req.body;
+    const { name, subject_template, body_template } = req.body;
 
-    if (!name || !channel || !body_template) {
-      return res.status(400).json({ error: 'Name, channel, and body are required.' });
-    }
-    if (!['email', 'sms'].includes(channel)) {
-      return res.status(400).json({ error: 'Invalid channel.' });
+    if (!name || !body_template) {
+      return res.status(400).json({ error: 'Name and body are required.' });
     }
 
     const scheduled_date = req.body.scheduled_date || null;
     const result = db.prepare(
-      'INSERT INTO templates (owner_id, name, channel, subject_template, body_template, scheduled_date) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(ownerId, name, channel, subject_template || null, body_template, scheduled_date);
+      'INSERT INTO templates (owner_id, name, subject_template, body_template, scheduled_date) VALUES (?, ?, ?, ?, ?)'
+    ).run(ownerId, name, subject_template || null, body_template, scheduled_date);
 
     res.json({ id: result.lastInsertRowid });
   } catch (err) {

@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   var editId = document.getElementById('template-edit-id');
   var editName = document.getElementById('template-edit-name');
-  var editChannel = document.getElementById('template-edit-channel');
   var editSubject = document.getElementById('template-edit-subject');
   var editBody = document.getElementById('template-edit-body');
   var editScheduled = document.getElementById('template-edit-scheduled');
@@ -16,11 +15,9 @@ document.addEventListener('DOMContentLoaded', function() {
   function openModal(data) {
     editId.value = data.id || '';
     editName.value = data.name || '';
-    editChannel.value = data.channel || 'email';
     editSubject.value = data.subject || '';
     editBody.value = data.body || '';
     editScheduled.value = data.scheduled || '';
-    subjectGroup.style.display = data.channel === 'sms' ? 'none' : 'block';
     modalTitle.textContent = data.id ? 'Edit Template' : 'New Template';
     modal.style.display = 'flex';
   }
@@ -41,7 +38,6 @@ document.addEventListener('DOMContentLoaded', function() {
     openModal({
       id: btn.dataset.id,
       name: btn.dataset.name,
-      channel: btn.dataset.channel,
       subject: btn.dataset.subject,
       body: btn.dataset.body,
       scheduled: btn.dataset.scheduled,

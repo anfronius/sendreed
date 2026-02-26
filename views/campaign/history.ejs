@@ -70,7 +70,6 @@
     <thead>
       <tr>
         <th>Name</th>
-        <th>Channel</th>
         <th>Scheduled</th>
         <th>Preview</th>
         <th>Actions</th>
@@ -80,13 +79,12 @@
       <% templates.forEach(function(t) { %>
       <tr data-template-id="<%= t.id %>">
         <td><strong><%= t.name %></strong></td>
-        <td><span class="badge badge-<%= t.channel %>"><%= t.channel %></span></td>
         <td><%= t.scheduled_date || '—' %></td>
         <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; color: #64748b;">
           <% if (t.subject_template) { %>Subject: <%= t.subject_template %> — <% } %><%= t.body_template.substring(0, 100) %><%= t.body_template.length > 100 ? '...' : '' %>
         </td>
         <td>
-          <button class="btn btn-sm btn-primary edit-template-btn" data-id="<%= t.id %>" data-name="<%= t.name %>" data-channel="<%= t.channel %>" data-subject="<%= t.subject_template || '' %>" data-body="<%= t.body_template.replace(/"/g, '&quot;') %>" data-scheduled="<%= t.scheduled_date || '' %>">Edit</button>
+          <button class="btn btn-sm btn-primary edit-template-btn" data-id="<%= t.id %>" data-name="<%= t.name %>" data-subject="<%= t.subject_template || '' %>" data-body="<%= t.body_template.replace(/"/g, '&quot;') %>" data-scheduled="<%= t.scheduled_date || '' %>">Edit</button>
           <button class="btn btn-sm btn-danger delete-template-btn" data-id="<%= t.id %>" data-name="<%= t.name %>">Delete</button>
         </td>
       </tr>
@@ -108,13 +106,6 @@
     <div class="form-group">
       <label for="template-edit-name">Name</label>
       <input type="text" id="template-edit-name">
-    </div>
-    <div class="form-group">
-      <label for="template-edit-channel">Channel</label>
-      <select id="template-edit-channel" disabled>
-        <option value="email">Email</option>
-        <option value="sms">SMS</option>
-      </select>
     </div>
     <div class="form-group" id="template-edit-subject-group">
       <label for="template-edit-subject">Subject</label>

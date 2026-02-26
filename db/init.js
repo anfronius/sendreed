@@ -62,7 +62,6 @@ function createTables() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       owner_id INTEGER NOT NULL REFERENCES users(id),
       name TEXT NOT NULL,
-      channel TEXT NOT NULL CHECK (channel IN ('email', 'sms')),
       subject_template TEXT,
       body_template TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -216,8 +215,13 @@ function createTables() {
   // Migrate existing data: set raw_city = city where raw_city is NULL
   db.prepare('UPDATE crmls_properties SET raw_city = city WHERE raw_city IS NULL').run();
 
-  // Add scheduled_date column to templates if it doesn't exist yet
+  // Remove channel column from templates (no longer used)
   var templateCols = db.pragma('table_info(templates)').map(function(c) { return c.name; });
+  if (templateCols.includes('channel')) {
+    db.exec('ALTER TABLE templates DROP COLUMN channel');
+  }
+
+  // Add scheduled_date column to templates if it doesn't exist yet
   if (!templateCols.includes('scheduled_date')) {
     db.exec('ALTER TABLE templates ADD COLUMN scheduled_date DATE');
   }
