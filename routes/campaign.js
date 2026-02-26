@@ -57,10 +57,14 @@ router.get('/', (req, res) => {
       `SELECT * FROM templates WHERE ${templateWhere} ORDER BY name`
     ).all(...templateParams);
 
+    const effectiveRole = getEffectiveRole(req, res) || req.session.user.role;
+    const variables = template.getAvailableVariables(effectiveRole);
+
     res.render('campaign/history', {
       title: 'Campaigns',
       campaigns,
       templates,
+      variables,
       currentPage: page,
       totalPages,
       totalCount,

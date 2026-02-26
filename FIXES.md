@@ -78,3 +78,9 @@
 - [x] There still shows on the edit template the channel nut it doesnt let me change it. Is that related to the above?
 - [x] Ability to create new templaates on the main campagign page so you dont have to go through campaign creation to make a template
 - [x] On Users panel for admin, make the SMTP button as wide as the Wipe Data and Delete, and add the same space between the Wipe Data and SMTP buttons as the Wipe Button and Delete buttons have.
+
+### 6th Set (DONE)
+
+- [x] on the newly created 'New Template' modal, there should be the variable  options avilable to click and use in the message/subject like the campaign builder's new template page.
+- [x] When I try to build a new template or edit a pre-exiting one with the new 'New Template' modal on the campaigns page, when I try to click the 'Save' button at the bottom after filling out the fileds I get a 'Failed to save: Invalid CSRF token' Errorr
+- [x] I still get a 'Failed to save: Invalid CSRF token' error when trying to edit the Fields checkboxes on the Fields page as an admin and when trying to delete templates on the main campaign page. 

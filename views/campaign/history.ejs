@@ -118,6 +118,12 @@
     </div>
     <div class="form-group">
       <label for="template-edit-body">Body</label>
+      <div class="variable-toolbar" id="variable-toolbar">
+        <span class="toolbar-label">Insert:</span>
+        <% variables.forEach(function(v) { %>
+          <button type="button" class="var-btn" data-var="<%= v %>">{{<%= v %>}}</button>
+        <% }); %>
+      </div>
       <textarea id="template-edit-body" rows="8"></textarea>
     </div>
     <div class="form-group">
@@ -132,4 +138,5 @@
   </div>
 </div>
 
+<script>window.CSRF_TOKEN = '<%= csrfToken %>';</script>
 <%- include('../layout-footer', { scripts: ['/js/campaign-history.js'] }) %>

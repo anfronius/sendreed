@@ -12,6 +12,27 @@ document.addEventListener('DOMContentLoaded', function() {
   var cancelBtn = document.getElementById('template-cancel-btn');
   var modalTitle = document.getElementById('template-modal-title');
 
+  // Track last focused text field for variable insertion
+  var lastFocusedField = editBody;
+  editSubject.addEventListener('focus', function() { lastFocusedField = editSubject; });
+  editBody.addEventListener('focus', function() { lastFocusedField = editBody; });
+
+  // Variable toolbar insertion
+  var toolbar = document.getElementById('variable-toolbar');
+  if (toolbar) {
+    toolbar.addEventListener('click', function(e) {
+      var btn = e.target.closest('.var-btn');
+      if (!btn) return;
+      var varText = '{{' + btn.dataset.var + '}}';
+      var field = lastFocusedField || editBody;
+      var start = field.selectionStart;
+      var end = field.selectionEnd;
+      field.value = field.value.substring(0, start) + varText + field.value.substring(end);
+      field.selectionStart = field.selectionEnd = start + varText.length;
+      field.focus();
+    });
+  }
+
   function openModal(data) {
     editId.value = data.id || '';
     editName.value = data.name || '';
@@ -19,6 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
     editBody.value = data.body || '';
     editScheduled.value = data.scheduled || '';
     modalTitle.textContent = data.id ? 'Edit Template' : 'New Template';
+    lastFocusedField = editBody;
     modal.style.display = 'flex';
   }
 
