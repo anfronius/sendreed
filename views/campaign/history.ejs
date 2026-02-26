@@ -52,6 +52,9 @@
               <button type="submit" class="btn btn-sm btn-secondary">Retry Failed</button>
             </form>
           <% } %>
+          <% if (c.status !== 'sending') { %>
+            <button class="btn btn-sm btn-danger delete-campaign-btn" data-id="<%= c.id %>">Delete</button>
+          <% } %>
         </td>
       </tr>
       <% }); %>

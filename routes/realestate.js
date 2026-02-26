@@ -8,6 +8,7 @@ const { getDb } = require('../db/init');
 const csv = require('../services/csv');
 const vcard = require('../services/vcard');
 const matcher = require('../services/matcher');
+const fieldConfig = require('../config/field-config');
 const { checkAnniversaries } = require('../services/cron');
 
 const router = express.Router();
@@ -30,6 +31,28 @@ const upload = multer({
 });
 
 const CRMLS_FIELDS = ['property_address', 'street_number', 'street_name', 'city', 'state', 'zip', 'sale_date', 'sale_price'];
+
+// Map CRMLS field names to their field_visibility equivalents (for filtering by admin settings)
+const CRMLS_TO_VISIBILITY = {
+  city: 'city',
+  state: 'state',
+  zip: 'zip',
+  sale_date: 'purchase_date',
+  sale_price: 'purchase_price',
+};
+
+// Fields that are always shown in CRMLS import (no visibility equivalent)
+const CRMLS_ALWAYS_VISIBLE = ['property_address', 'street_number', 'street_name'];
+
+function getFilteredCrmlsFields() {
+  var visibleFields = fieldConfig.getVisibleFields('realestate');
+  return CRMLS_FIELDS.filter(function(field) {
+    if (CRMLS_ALWAYS_VISIBLE.includes(field)) return true;
+    var visibilityName = CRMLS_TO_VISIBILITY[field];
+    if (!visibilityName) return true;
+    return visibleFields.includes(visibilityName);
+  });
+}
 
 // GET /realestate — dashboard
 router.get('/', (req, res) => {
@@ -84,7 +107,7 @@ router.get('/import-crmls', (req, res) => {
     headers: [],
     suggestions: {},
     sampleRows: [],
-    crmlsFields: CRMLS_FIELDS,
+    crmlsFields: getFilteredCrmlsFields(),
   });
 });
 
@@ -119,7 +142,7 @@ router.post('/import-crmls/upload', upload.single('csvfile'), verifyCsrf, (req, 
       headers: result.headers,
       suggestions,
       sampleRows: result.rows.slice(0, 3),
-      crmlsFields: CRMLS_FIELDS,
+      crmlsFields: getFilteredCrmlsFields(),
       rowCount: result.rows.length,
     });
   } catch (err) {
@@ -604,12 +627,20 @@ router.post('/matching/apply', (req, res) => {
 
     applyAll();
 
-    setFlash(req, 'success',
-      `Applied ${matches.length} match(es). Updated ${phonesUpdated} phone(s) and ${emailsUpdated} email(s).`
-    );
+    var message = `Applied ${matches.length} match(es). Updated ${phonesUpdated} phone(s) and ${emailsUpdated} email(s).`;
+
+    // Return JSON for AJAX requests
+    if (req.headers['x-csrf-token']) {
+      return res.json({ success: true, message, applied: matches.length, phonesUpdated, emailsUpdated });
+    }
+
+    setFlash(req, 'success', message);
     res.redirect('/realestate/matching');
   } catch (err) {
     console.error('Apply matches error:', err);
+    if (req.headers['x-csrf-token']) {
+      return res.status(500).json({ error: err.message });
+    }
     setFlash(req, 'error', 'Failed to apply matches: ' + err.message);
     res.redirect('/realestate/matching');
   }
@@ -687,12 +718,20 @@ router.get('/anniversaries', (req, res) => {
       });
     }
 
+    // RE user: load their own digest setting
+    var myDigestEnabled = true;
+    if (!isAdmin) {
+      var mySetting = db.prepare('SELECT enabled FROM digest_settings WHERE user_id = ?').get(userId);
+      myDigestEnabled = mySetting ? !!mySetting.enabled : true;
+    }
+
     res.render('realestate/anniversaries', {
       title: 'Anniversaries',
       today,
       thisWeek,
       completed,
       digestSettings,
+      myDigestEnabled,
     });
   } catch (err) {
     console.error('Anniversaries error:', err);

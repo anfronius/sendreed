@@ -789,11 +789,16 @@ router.get('/digest-settings', requireRole('admin'), (req, res) => {
 });
 
 // PUT /api/digest-settings/:userId — update digest settings for a user
-router.put('/digest-settings/:userId', requireRole('admin'), (req, res) => {
+router.put('/digest-settings/:userId', requireRole('admin', 'realestate'), (req, res) => {
   try {
     const db = getDb();
     const userId = parseInt(req.params.userId);
     const { enabled, lookahead_days } = req.body;
+
+    // Realestate users can only update their own settings
+    if (req.session.user.role === 'realestate' && userId !== req.session.user.id) {
+      return res.status(403).json({ error: 'You can only update your own digest settings.' });
+    }
 
     var user = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'realestate'").get(userId);
     if (!user) {
@@ -805,6 +810,35 @@ router.put('/digest-settings/:userId', requireRole('admin'), (req, res) => {
       'INSERT INTO digest_settings (user_id, enabled, lookahead_days, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ' +
       'ON CONFLICT(user_id) DO UPDATE SET enabled = excluded.enabled, lookahead_days = excluded.lookahead_days, updated_at = CURRENT_TIMESTAMP'
     ).run(userId, enabled ? 1 : 0, days);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== CAMPAIGN API ==========
+
+// DELETE /api/campaign/:id — delete a campaign and its recipients
+router.delete('/campaign/:id', (req, res) => {
+  try {
+    const db = getDb();
+    const campaignId = parseInt(req.params.id);
+    const userId = req.session.user.id;
+    const isAdmin = req.session.user.role === 'admin';
+
+    var campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId);
+    if (!campaign || (!isAdmin && campaign.owner_id !== userId)) {
+      return res.status(404).json({ error: 'Campaign not found.' });
+    }
+    if (campaign.status === 'sending') {
+      return res.status(400).json({ error: 'Cannot delete a campaign that is currently sending.' });
+    }
+
+    db.transaction(function() {
+      db.prepare('DELETE FROM campaign_recipients WHERE campaign_id = ?').run(campaignId);
+      db.prepare('DELETE FROM campaigns WHERE id = ?').run(campaignId);
+    })();
 
     res.json({ success: true });
   } catch (err) {

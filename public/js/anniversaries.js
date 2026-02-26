@@ -11,6 +11,13 @@ function updateDigestSetting(userId, enabled, days) {
   .then(function(data) {
     if (!data.success) {
       alert('Failed to update digest setting: ' + (data.error || 'Unknown error'));
+    } else {
+      // Update toggle label for RE user's own toggle
+      var toggle = document.getElementById('my-digest-toggle');
+      if (toggle) {
+        var label = toggle.parentElement.querySelector('span');
+        if (label) label.textContent = enabled ? 'Enabled' : 'Disabled';
+      }
     }
   })
   .catch(function(err) {

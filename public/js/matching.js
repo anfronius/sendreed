@@ -1,7 +1,60 @@
 document.addEventListener('DOMContentLoaded', function() {
   function getCsrf() {
-    var el = document.querySelector('input[name="_csrf"]');
-    return el ? el.value : '';
+    return window.CSRF_TOKEN || (document.querySelector('input[name="_csrf"]') || {}).value || '';
+  }
+
+  // ---- Apply All Confirmed (AJAX) ----
+  var applyBtn = document.getElementById('apply-all-btn');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', function() {
+      if (!confirm('Apply all confirmed matches to your contacts?')) return;
+
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Applying...';
+
+      fetch('/realestate/matching/apply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCsrf(),
+        },
+        body: JSON.stringify({}),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          // Move auto-confirmed cards to applied state
+          var confirmedSection = document.getElementById('section-confirmed');
+          if (confirmedSection) {
+            confirmedSection.querySelectorAll('.match-card').forEach(function(card) {
+              card.classList.add('match-card-applied');
+              var actions = card.querySelector('.match-card-actions');
+              if (actions) {
+                var badge = actions.querySelector('.confidence-badge');
+                actions.innerHTML = '';
+                if (badge) actions.appendChild(badge);
+                var appliedBadge = document.createElement('span');
+                appliedBadge.className = 'badge badge-status-sent';
+                appliedBadge.textContent = 'Applied';
+                actions.appendChild(appliedBadge);
+              }
+            });
+          }
+          applyBtn.textContent = 'Applied (' + data.applied + ')';
+          applyBtn.classList.remove('btn-primary');
+          applyBtn.classList.add('btn-secondary');
+        } else {
+          alert('Failed to apply: ' + (data.error || 'Unknown error'));
+          applyBtn.disabled = false;
+          applyBtn.textContent = 'Apply All Confirmed (' + applyBtn.dataset.count + ')';
+        }
+      })
+      .catch(function(err) {
+        alert('Error: ' + err.message);
+        applyBtn.disabled = false;
+        applyBtn.textContent = 'Apply All Confirmed (' + applyBtn.dataset.count + ')';
+      });
+    });
   }
 
   // ---- Confirm Match ----

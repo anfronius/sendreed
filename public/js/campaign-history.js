@@ -103,6 +103,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
+  // Delete campaign button click
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.delete-campaign-btn');
+    if (!btn) return;
+    if (!confirm('Delete this campaign? This cannot be undone.')) return;
+
+    fetch('/api/campaign/' + btn.dataset.id, {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().catch(function() { return { error: 'Request failed (status ' + r.status + ')' }; });
+      return r.json();
+    })
+    .then(function(data) {
+      if (data.error) {
+        alert('Failed to delete campaign: ' + data.error);
+      } else if (data.success) {
+        var row = btn.closest('tr');
+        if (row) row.remove();
+      }
+    })
+    .catch(function(err) {
+      alert('Error: ' + err.message);
+    });
+  });
+
   // Save button click
   saveBtn.addEventListener('click', function() {
     var id = editId.value;

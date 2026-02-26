@@ -4,13 +4,10 @@
   <h1>Phone & Email Matching</h1>
   <div class="page-actions">
     <% if (counts.autoConfirmed + counts.confirmed > 0) { %>
-      <form method="POST" action="/realestate/matching/apply" style="display:inline;">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <button type="submit" class="btn btn-primary"
-          onclick="return confirm('Apply all confirmed matches to your contacts?')">
-          Apply All Confirmed (<%= counts.autoConfirmed + counts.confirmed %>)
-        </button>
-      </form>
+      <button type="button" class="btn btn-primary" id="apply-all-btn"
+        data-count="<%= counts.autoConfirmed + counts.confirmed %>">
+        Apply All Confirmed (<%= counts.autoConfirmed + counts.confirmed %>)
+      </button>
     <% } %>
     <a href="/realestate/import-vcard" class="btn btn-upload">Import Another vCard</a>
   </div>
@@ -166,4 +163,5 @@
 
 <a href="/realestate" class="btn btn-link" style="margin-top: 1rem; display: inline-block;">Back to Real Estate</a>
 
+<script>window.CSRF_TOKEN = '<%= csrfToken %>';</script>
 <%- include('../layout-footer', { scripts: ['/js/matching.js'] }) %>

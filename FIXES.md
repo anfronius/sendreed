@@ -84,3 +84,7 @@
 - [x] on the newly created 'New Template' modal, there should be the variable  options avilable to click and use in the message/subject like the campaign builder's new template page.
 - [x] When I try to build a new template or edit a pre-exiting one with the new 'New Template' modal on the campaigns page, when I try to click the 'Save' button at the bottom after filling out the fileds I get a 'Failed to save: Invalid CSRF token' Errorr
 - [x] I still get a 'Failed to save: Invalid CSRF token' error when trying to edit the Fields checkboxes on the Fields page as an admin and when trying to delete templates on the main campaign page. 
+
+### 7th Set
+
+- Even though the 'Zip' and 'State' fields are disabled in the fields mangement page, they still show up as an option in the /realestate/import-crmls/upload page when matching the uploaded csv to the needed fields
