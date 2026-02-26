@@ -685,37 +685,66 @@ router.post('/match/:id/skip', requireRole('realestate', 'admin'), (req, res) =>
   }
 });
 
-// POST /api/match/:importedId/manual — manually assign imported contact to a contact
-router.post('/match/:importedId/manual', requireRole('realestate', 'admin'), (req, res) => {
+// POST /api/match/:contactId/manual — manually assign a vCard import to an existing contact
+router.post('/match/:contactId/manual', requireRole('realestate', 'admin'), (req, res) => {
   try {
     const db = getDb();
-    const importedId = parseInt(req.params.importedId);
-    const { contact_id } = req.body;
+    const contactId = parseInt(req.params.contactId);
+    const { imported_contact_id } = req.body;
     const userId = req.session.user.id;
 
-    if (!contact_id) {
-      return res.status(400).json({ error: 'contact_id is required.' });
+    if (!imported_contact_id) {
+      return res.status(400).json({ error: 'imported_contact_id is required.' });
     }
 
-    const imported = db.prepare('SELECT * FROM imported_contacts WHERE id = ?').get(importedId);
-    if (!imported) {
-      return res.status(404).json({ error: 'Imported contact not found.' });
-    }
-
-    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(parseInt(contact_id));
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
     if (!contact) {
       return res.status(404).json({ error: 'Contact not found.' });
     }
 
-    // Remove any existing match for this imported contact
-    db.prepare('DELETE FROM phone_matches WHERE imported_contact_id = ?').run(importedId);
+    const imported = db.prepare('SELECT * FROM imported_contacts WHERE id = ?').get(parseInt(imported_contact_id));
+    if (!imported) {
+      return res.status(404).json({ error: 'Imported contact not found.' });
+    }
+
+    // Remove any existing match for this existing contact
+    db.prepare('DELETE FROM phone_matches WHERE contact_id = ?').run(contactId);
 
     // Insert manual match as confirmed
     db.prepare(
       "INSERT INTO phone_matches (contact_id, imported_contact_id, match_type, confidence_score, confirmed_by, confirmed_at) VALUES (?, ?, 'manual', 100, ?, datetime('now'))"
-    ).run(parseInt(contact_id), importedId, userId);
+    ).run(contactId, parseInt(imported_contact_id), userId);
 
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/imported-contacts — search imported vCard contacts by name
+router.get('/imported-contacts', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const effectiveId = getEffectiveOwnerId(req);
+    const ownerId = effectiveId || req.session.user.id;
+    const search = (req.query.search || '').trim();
+
+    if (search.length < 2) {
+      return res.json({ contacts: [] });
+    }
+
+    const s = '%' + search + '%';
+    const contacts = db.prepare(`
+      SELECT ic.id, ic.full_name, ic.first_name, ic.last_name, ic.phone, ic.email
+      FROM imported_contacts ic
+      JOIN contact_imports ci ON ic.import_id = ci.id
+      WHERE ci.imported_by = ?
+        AND (ic.full_name LIKE ? OR ic.first_name LIKE ? OR ic.last_name LIKE ?)
+      ORDER BY ic.full_name
+      LIMIT 10
+    `).all(ownerId, s, s, s);
+
+    res.json({ contacts });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

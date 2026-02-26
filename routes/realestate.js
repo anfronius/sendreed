@@ -427,8 +427,8 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
       "SELECT * FROM contacts WHERE owner_id = ? AND ((phone IS NULL OR phone = '') OR (email IS NULL OR email = ''))"
     ).all(userId);
 
-    // Run matching algorithm
-    const matchResults = matcher.matchAll(importedContacts, existingContacts);
+    // Run matching algorithm — from existing contacts' perspective
+    const matchResults = matcher.matchAllByExisting(existingContacts, importedContacts);
 
     // Store matches in phone_matches table
     const insertMatch = db.prepare(
@@ -448,12 +448,10 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
 
         const bestMatch = result.matches[0];
         if (bestMatch.confidence >= 70) {
-          // Auto-confirm high-confidence matches
-          insertMatch.run(bestMatch.contact_id, result.imported_contact_id, 'auto', bestMatch.confidence);
+          insertMatch.run(result.contact_id, bestMatch.imported_contact_id, 'auto', bestMatch.confidence);
           autoConfirmed++;
         } else {
-          // Store best candidate for review
-          insertMatch.run(bestMatch.contact_id, result.imported_contact_id, 'auto', bestMatch.confidence);
+          insertMatch.run(result.contact_id, bestMatch.imported_contact_id, 'auto', bestMatch.confidence);
           needsReview++;
         }
       }
@@ -465,7 +463,7 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
 
     setFlash(req, 'success',
       `Imported ${result.contacts.length} contact(s) (${phonesFound} phones, ${emailsFound} emails). ` +
-      `Auto-matched: ${autoConfirmed}. Needs review: ${needsReview}. Unmatched: ${unmatched}.`
+      `Matched to ${autoConfirmed + needsReview} existing contact(s). Needs review: ${needsReview}. Unmatched contacts: ${unmatched}.`
     );
     res.redirect('/realestate/matching?import_id=' + importId);
   } catch (err) {
@@ -487,67 +485,76 @@ router.get('/matching', (req, res) => {
     }
     const importId = req.query.import_id;
 
-    // Get the most recent import if no import_id specified
+    // Optional import filter (filters through the join chain)
     let importFilter = '';
     const importParams = [];
     if (importId) {
-      importFilter = 'AND ic.import_id = ?';
+      importFilter = 'AND ci.id = ?';
       importParams.push(parseInt(importId));
     }
 
-    // Get all imported contacts with their match status
-    // Join: imported_contacts -> phone_matches -> contacts
+    // Contact-centric queries: existing contacts are the primary entity
+    // Applied: high-confidence matches already confirmed and applied
     const confirmed = db.prepare(`
-      SELECT ic.*, pm.id as match_id, pm.confidence_score, pm.confirmed_at,
-             c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
-             c.property_address as c_address, c.phone as c_phone, c.email as c_email
-      FROM imported_contacts ic
-      JOIN contact_imports ci ON ic.import_id = ci.id
-      JOIN phone_matches pm ON pm.imported_contact_id = ic.id
+      SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
+             c.property_address as c_address, c.phone as c_phone, c.email as c_email,
+             pm.id as match_id, pm.confidence_score, pm.confirmed_at,
+             ic.id as imported_id, ic.full_name as ic_name, ic.first_name as ic_first,
+             ic.last_name as ic_last, ic.phone as ic_phone, ic.email as ic_email
+      FROM phone_matches pm
       JOIN contacts c ON pm.contact_id = c.id
-      WHERE ci.imported_by = ? ${importFilter}
+      JOIN imported_contacts ic ON pm.imported_contact_id = ic.id
+      JOIN contact_imports ci ON ic.import_id = ci.id
+      WHERE c.owner_id = ? ${importFilter}
         AND pm.confidence_score >= 70
         AND pm.confirmed_at IS NOT NULL
       ORDER BY pm.confidence_score DESC
     `).all(userId, ...importParams);
 
+    // Auto-matched: high confidence, not yet applied
     const autoConfirmed = db.prepare(`
-      SELECT ic.*, pm.id as match_id, pm.confidence_score,
-             c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
-             c.property_address as c_address, c.phone as c_phone, c.email as c_email
-      FROM imported_contacts ic
-      JOIN contact_imports ci ON ic.import_id = ci.id
-      JOIN phone_matches pm ON pm.imported_contact_id = ic.id
+      SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
+             c.property_address as c_address, c.phone as c_phone, c.email as c_email,
+             pm.id as match_id, pm.confidence_score,
+             ic.id as imported_id, ic.full_name as ic_name, ic.first_name as ic_first,
+             ic.last_name as ic_last, ic.phone as ic_phone, ic.email as ic_email
+      FROM phone_matches pm
       JOIN contacts c ON pm.contact_id = c.id
-      WHERE ci.imported_by = ? ${importFilter}
+      JOIN imported_contacts ic ON pm.imported_contact_id = ic.id
+      JOIN contact_imports ci ON ic.import_id = ci.id
+      WHERE c.owner_id = ? ${importFilter}
         AND pm.confidence_score >= 70
         AND pm.confirmed_at IS NULL
       ORDER BY pm.confidence_score DESC
     `).all(userId, ...importParams);
 
+    // Needs review: low confidence, not yet confirmed
     const needsReview = db.prepare(`
-      SELECT ic.*, pm.id as match_id, pm.confidence_score,
-             c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
-             c.property_address as c_address, c.phone as c_phone, c.email as c_email
-      FROM imported_contacts ic
-      JOIN contact_imports ci ON ic.import_id = ci.id
-      JOIN phone_matches pm ON pm.imported_contact_id = ic.id
+      SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
+             c.property_address as c_address, c.phone as c_phone, c.email as c_email,
+             pm.id as match_id, pm.confidence_score,
+             ic.id as imported_id, ic.full_name as ic_name, ic.first_name as ic_first,
+             ic.last_name as ic_last, ic.phone as ic_phone, ic.email as ic_email
+      FROM phone_matches pm
       JOIN contacts c ON pm.contact_id = c.id
-      WHERE ci.imported_by = ? ${importFilter}
+      JOIN imported_contacts ic ON pm.imported_contact_id = ic.id
+      JOIN contact_imports ci ON ic.import_id = ci.id
+      WHERE c.owner_id = ? ${importFilter}
         AND pm.confidence_score < 70
         AND pm.confirmed_at IS NULL
       ORDER BY pm.confidence_score DESC
     `).all(userId, ...importParams);
 
-    // Unmatched: imported contacts with no phone_matches entry
+    // Unmatched: existing contacts missing phone/email with no match entry
     const unmatched = db.prepare(`
-      SELECT ic.*
-      FROM imported_contacts ic
-      JOIN contact_imports ci ON ic.import_id = ci.id
-      WHERE ci.imported_by = ? ${importFilter}
-        AND ic.id NOT IN (SELECT imported_contact_id FROM phone_matches)
-      ORDER BY ic.full_name
-    `).all(userId, ...importParams);
+      SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
+             c.property_address as c_address, c.phone as c_phone, c.email as c_email
+      FROM contacts c
+      WHERE c.owner_id = ?
+        AND ((c.phone IS NULL OR c.phone = '') OR (c.email IS NULL OR c.email = ''))
+        AND c.id NOT IN (SELECT contact_id FROM phone_matches)
+      ORDER BY c.last_name, c.first_name
+    `).all(userId);
 
     const counts = {
       confirmed: confirmed.length,

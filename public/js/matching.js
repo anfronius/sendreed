@@ -23,7 +23,6 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
-          // Move auto-confirmed cards to applied state
           var confirmedSection = document.getElementById('section-confirmed');
           if (confirmedSection) {
             confirmedSection.querySelectorAll('.match-card').forEach(function(card) {
@@ -79,7 +78,6 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(data) {
       if (data.success) {
         card.classList.add('match-card-confirmed');
-        // Replace actions with confirmed badge
         var actions = card.querySelector('.match-card-actions');
         var badge = actions.querySelector('.confidence-badge');
         actions.innerHTML = '';
@@ -88,9 +86,8 @@ document.addEventListener('DOMContentLoaded', function() {
         confirmedBadge.className = 'badge badge-status-sent';
         confirmedBadge.textContent = 'Confirmed';
         actions.appendChild(confirmedBadge);
-        // Update arrow
         var arrow = card.querySelector('.match-card-arrow');
-        if (arrow) arrow.textContent = '→';
+        if (arrow) arrow.textContent = '←';
       } else {
         btn.disabled = false;
         btn.textContent = 'Confirm';
@@ -134,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // ---- Contact Search for Unmatched ----
+  // ---- vCard Import Search for Unmatched Contacts ----
   var searchTimeout = null;
 
   document.addEventListener('input', function(e) {
@@ -142,8 +139,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!input) return;
 
     var query = input.value.trim();
-    var importedId = input.dataset.importedId;
-    var resultsDiv = document.querySelector('.contact-search-results[data-imported-id="' + importedId + '"]');
+    var contactId = input.dataset.contactId;
+    var resultsDiv = document.querySelector('.contact-search-results[data-contact-id="' + contactId + '"]');
 
     if (searchTimeout) clearTimeout(searchTimeout);
 
@@ -153,21 +150,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     searchTimeout = setTimeout(function() {
-      fetch('/api/contacts?search=' + encodeURIComponent(query))
+      fetch('/api/imported-contacts?search=' + encodeURIComponent(query))
         .then(function(r) { return r.json(); })
         .then(function(data) {
           resultsDiv.innerHTML = '';
           if (!data.contacts || data.contacts.length === 0) {
-            resultsDiv.innerHTML = '<div class="search-no-results">No contacts found</div>';
+            resultsDiv.innerHTML = '<div class="search-no-results">No vCard imports found</div>';
             return;
           }
-          data.contacts.slice(0, 10).forEach(function(c) {
+          data.contacts.forEach(function(c) {
             var item = document.createElement('div');
             item.className = 'search-result-item';
-            item.dataset.contactId = c.id;
-            item.dataset.importedId = importedId;
-            var name = [c.first_name, c.last_name].filter(Boolean).join(' ');
-            var detail = c.property_address || c.organization || '';
+            item.dataset.importedContactId = c.id;
+            item.dataset.contactId = contactId;
+            var name = c.full_name || [c.first_name, c.last_name].filter(Boolean).join(' ');
+            var detail = [c.phone, c.email].filter(Boolean).join(' | ');
             item.innerHTML = '<strong>' + escapeHtml(name) + '</strong>' +
               (detail ? ' <span class="search-result-detail">' + escapeHtml(detail) + '</span>' : '');
             resultsDiv.appendChild(item);
@@ -181,25 +178,24 @@ document.addEventListener('DOMContentLoaded', function() {
     var item = e.target.closest('.search-result-item');
     if (!item) return;
 
+    var importedContactId = item.dataset.importedContactId;
     var contactId = item.dataset.contactId;
-    var importedId = item.dataset.importedId;
     var card = item.closest('.match-card');
 
-    fetch('/api/match/' + importedId + '/manual', {
+    fetch('/api/match/' + contactId + '/manual', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-CSRF-Token': getCsrf(),
       },
-      body: JSON.stringify({ contact_id: contactId }),
+      body: JSON.stringify({ imported_contact_id: importedContactId }),
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
         card.classList.add('match-card-confirmed');
-        // Replace the search form with a confirmed message
         var rightSide = card.querySelector('.match-card-right');
-        rightSide.innerHTML = '<div class="match-contact-name">' + escapeHtml(item.querySelector('strong').textContent) + '</div>' +
+        rightSide.innerHTML = '<div class="match-imported-name">' + escapeHtml(item.querySelector('strong').textContent) + '</div>' +
           '<span class="badge badge-status-sent">Manually Matched</span>';
       }
     });
