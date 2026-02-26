@@ -31,6 +31,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.target === modal) closeModal();
   });
 
+  // New template button click
+  var newBtn = document.getElementById('new-template-btn');
+  if (newBtn) {
+    newBtn.addEventListener('click', function() {
+      openModal({ id: '', name: '', subject: '', body: '', scheduled: '' });
+    });
+  }
+
   // Edit button click
   document.addEventListener('click', function(e) {
     var btn = e.target.closest('.edit-template-btn');
@@ -88,8 +96,8 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    var url = '/api/templates/' + id;
-    var method = 'PUT';
+    var url = id ? '/api/templates/' + id : '/api/templates';
+    var method = id ? 'PUT' : 'POST';
 
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving...';

@@ -62,7 +62,12 @@
 <%- include('../partials/pagination', { currentPage, totalPages, baseUrl }) %>
 <% } %>
 
-<h2 style="margin-top: 2rem;">Templates <span class="count-badge"><%= templates ? templates.length : 0 %></span></h2>
+<div class="page-header" style="margin-top: 2rem;">
+  <h2>Templates <span class="count-badge"><%= templates ? templates.length : 0 %></span></h2>
+  <div class="page-actions">
+    <button type="button" class="btn btn-primary" id="new-template-btn">New Template</button>
+  </div>
+</div>
 
 <% if (templates && templates.length > 0) { %>
 <div class="table-responsive">
@@ -94,7 +99,7 @@
 </div>
 <% } else { %>
   <div class="empty-state">
-    <p>No templates yet. Create one when starting a new campaign.</p>
+    <p>No templates yet. Click "New Template" above to create one.</p>
   </div>
 <% } %>
 
