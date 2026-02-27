@@ -108,6 +108,7 @@ a:hover { text-decoration: underline; }
 .badge-status-paused { background: #fef3c7; color: #92400e; }
 .badge-status-resume_tomorrow { background: #fee2e2; color: #991b1b; }
 .badge-status-failed { background: #fee2e2; color: #991b1b; }
+.badge-status-in_progress { background: #dbeafe; color: #1e40af; }
 
 /* Inline editing */
 .editable { cursor: pointer; padding: 0.15rem 0.3rem; border-radius: 3px; border: 1px solid transparent; min-width: 30px; display: inline-block; }

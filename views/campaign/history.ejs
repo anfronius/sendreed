@@ -43,7 +43,7 @@
             <a href="/campaign/<%= c.id %>/review" class="btn btn-sm btn-primary">Review</a>
           <% } else if (c.status === 'sending') { %>
             <a href="/campaign/<%= c.id %>/progress" class="btn btn-sm btn-primary">Progress</a>
-          <% } else if (c.channel === 'sms' && c.status === 'sent') { %>
+          <% } else if (c.channel === 'sms' && (c.status === 'sent' || c.status === 'in_progress')) { %>
             <a href="/campaign/<%= c.id %>/sms" class="btn btn-sm btn-secondary">View Texts</a>
           <% } %>
           <% if (['sent', 'paused', 'resume_tomorrow'].includes(c.status) && c.failed_count > 0 && c.channel === 'email') { %>

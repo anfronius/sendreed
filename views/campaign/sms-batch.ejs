@@ -1,23 +1,42 @@
 <%- include('../layout-header', { title: 'Send Texts' }) %>
 
 <h1>Send Texts — Campaign #<%= campaign.id %></h1>
-<p><%= batchData.length %> recipient(s). Tap each "Send Text" button to open your Messages app.</p>
+<p><%= batchData.length %> recipient(s). Tap each "Send Text" button to open your Messages app, then click "Mark Sent" to track progress.</p>
+
+<% if (batchData.length > 0) { %>
+<div class="progress-container" style="margin-bottom: 1rem;">
+  <div class="progress-bar-wrapper">
+    <div class="progress-bar" id="sms-progress" style="width: <%= campaign.total_count > 0 ? Math.round((campaign.sent_count / campaign.total_count) * 100) : 0 %>%"></div>
+  </div>
+  <div class="progress-stats">
+    <span class="stat-sent">Sent: <strong id="sms-sent-count"><%= campaign.sent_count %></strong></span>
+    <span class="stat-total">Total: <strong><%= campaign.total_count %></strong></span>
+    <span id="sms-status-label" class="badge badge-status-<%= campaign.status %>"><%= campaign.status %></span>
+  </div>
+</div>
+<% } %>
 
 <div class="sms-batch">
   <% if (batchData.length === 0) { %>
     <div class="empty-state"><p>No eligible recipients with valid phone numbers.</p></div>
   <% } else { %>
     <% batchData.forEach(function(item) { %>
-    <div class="sms-card">
+    <div class="sms-card" data-recipient-id="<%= item.recipientId %>" data-status="<%= item.recipientStatus %>">
       <div class="sms-card-header">
         <strong><%= item.name %></strong>
         <span class="sms-phone"><%= item.displayPhone %></span>
+        <% if (item.recipientStatus === 'sent') { %>
+          <span class="badge badge-status-sent">Sent</span>
+        <% } %>
       </div>
       <div class="sms-card-body">
         <p class="sms-preview"><%= item.body %></p>
       </div>
       <div class="sms-card-actions">
         <a href="<%= item.deepLink %>" class="btn btn-primary btn-sms-send">Send Text</a>
+        <% if (item.recipientStatus !== 'sent') { %>
+          <button type="button" class="btn btn-secondary btn-sms-mark-sent" data-recipient-id="<%= item.recipientId %>">Mark Sent</button>
+        <% } %>
         <button type="button" class="btn btn-secondary btn-sms-copy" data-body="<%= item.body %>">Copy Message</button>
       </div>
     </div>
@@ -30,6 +49,10 @@
 </div>
 
 <script>
+  window.CSRF_TOKEN = '<%= csrfToken %>';
+  var totalCount = <%= campaign.total_count %>;
+
+  // Copy message handler
   document.querySelectorAll('.btn-sms-copy').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var body = this.dataset.body;
@@ -37,7 +60,6 @@
         btn.textContent = 'Copied!';
         setTimeout(function() { btn.textContent = 'Copy Message'; }, 2000);
       }).catch(function() {
-        // Fallback
         var ta = document.createElement('textarea');
         ta.value = body;
         document.body.appendChild(ta);
@@ -47,6 +69,59 @@
         btn.textContent = 'Copied!';
         setTimeout(function() { btn.textContent = 'Copy Message'; }, 2000);
       });
+    });
+  });
+
+  // Mark Sent handler
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.btn-sms-mark-sent');
+    if (!btn) return;
+
+    var recipientId = btn.dataset.recipientId;
+    btn.disabled = true;
+    btn.textContent = 'Marking...';
+
+    fetch('/api/campaign-recipient/' + recipientId + '/sent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': window.CSRF_TOKEN,
+      },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        var card = btn.closest('.sms-card');
+        card.dataset.status = 'sent';
+        // Add sent badge to header
+        var header = card.querySelector('.sms-card-header');
+        var badge = document.createElement('span');
+        badge.className = 'badge badge-status-sent';
+        badge.textContent = 'Sent';
+        header.appendChild(badge);
+        btn.remove();
+        // Update progress
+        var sentEl = document.getElementById('sms-sent-count');
+        if (sentEl) sentEl.textContent = data.sent_count;
+        var bar = document.getElementById('sms-progress');
+        if (bar && totalCount > 0) bar.style.width = Math.round((data.sent_count / totalCount) * 100) + '%';
+        // Check if all done
+        if (data.allSent) {
+          var statusLabel = document.getElementById('sms-status-label');
+          if (statusLabel) {
+            statusLabel.className = 'badge badge-status-sent';
+            statusLabel.textContent = 'sent';
+          }
+        }
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Mark Sent';
+        alert('Error: ' + (data.error || 'Failed to mark sent.'));
+      }
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = 'Mark Sent';
     });
   });
 </script>

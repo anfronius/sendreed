@@ -220,12 +220,18 @@ router.post('/:id/send', (req, res) => {
       return res.redirect('/campaign');
     }
 
+    // Store per-campaign daily limit if provided
+    const dailyLimit = req.body.daily_limit ? parseInt(req.body.daily_limit) : null;
+    if (dailyLimit) {
+      db.prepare('UPDATE campaigns SET daily_limit = ? WHERE id = ?').run(dailyLimit, campaignId);
+    }
+
     if (campaign.channel === 'sms') {
-      // Mark recipients as generated and redirect to SMS batch page
+      // Mark recipients as generated and set campaign to in_progress
       db.prepare(
         "UPDATE campaign_recipients SET status = 'generated' WHERE campaign_id = ? AND status != 'excluded'"
       ).run(campaignId);
-      db.prepare("UPDATE campaigns SET status = 'sent', sent_at = datetime('now') WHERE id = ?").run(campaignId);
+      db.prepare("UPDATE campaigns SET status = 'in_progress' WHERE id = ?").run(campaignId);
       return res.redirect(`/campaign/${campaignId}/sms`);
     }
 
@@ -333,6 +339,19 @@ router.get('/:id/sms', (req, res) => {
       ...r,
       id: r.contact_id,
     })));
+
+    // Attach campaign_recipient id and status to each batch item
+    const recipientMap = {};
+    recipients.forEach(function(r) {
+      recipientMap[r.contact_id] = { recipientId: r.id, status: r.status };
+    });
+    batchData.forEach(function(item) {
+      var info = recipientMap[item.contactId];
+      if (info) {
+        item.recipientId = info.recipientId;
+        item.recipientStatus = info.status;
+      }
+    });
 
     res.render('campaign/sms-batch', {
       title: 'Send Texts',

@@ -72,10 +72,11 @@ function createTables() {
       owner_id INTEGER NOT NULL REFERENCES users(id),
       template_id INTEGER NOT NULL REFERENCES templates(id),
       channel TEXT NOT NULL CHECK (channel IN ('email', 'sms')),
-      status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'reviewing', 'sending', 'sent', 'paused', 'resume_tomorrow')),
+      status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'reviewing', 'sending', 'sent', 'paused', 'resume_tomorrow', 'in_progress')),
       total_count INTEGER DEFAULT 0,
       sent_count INTEGER DEFAULT 0,
       failed_count INTEGER DEFAULT 0,
+      daily_limit INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       sent_at DATETIME
     );
@@ -224,6 +225,32 @@ function createTables() {
   // Add scheduled_date column to templates if it doesn't exist yet
   if (!templateCols.includes('scheduled_date')) {
     db.exec('ALTER TABLE templates ADD COLUMN scheduled_date DATE');
+  }
+
+  // Migrate campaigns table: add daily_limit column and in_progress status
+  var campaignCols = db.pragma('table_info(campaigns)').map(function(c) { return c.name; });
+  if (!campaignCols.includes('daily_limit')) {
+    // Recreate table to update CHECK constraint and add daily_limit
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS campaigns_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_id INTEGER NOT NULL REFERENCES users(id),
+        template_id INTEGER NOT NULL REFERENCES templates(id),
+        channel TEXT NOT NULL CHECK (channel IN ('email', 'sms')),
+        status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'reviewing', 'sending', 'sent', 'paused', 'resume_tomorrow', 'in_progress')),
+        total_count INTEGER DEFAULT 0,
+        sent_count INTEGER DEFAULT 0,
+        failed_count INTEGER DEFAULT 0,
+        daily_limit INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sent_at DATETIME
+      );
+      INSERT INTO campaigns_new (id, owner_id, template_id, channel, status, total_count, sent_count, failed_count, created_at, sent_at)
+        SELECT id, owner_id, template_id, channel, status, total_count, sent_count, failed_count, created_at, sent_at FROM campaigns;
+      DROP TABLE campaigns;
+      ALTER TABLE campaigns_new RENAME TO campaigns;
+      CREATE INDEX IF NOT EXISTS idx_campaigns_owner ON campaigns(owner_id);
+    `);
   }
 
   // Seed field_visibility defaults if the table is empty

@@ -83,10 +83,12 @@ async function sendCampaign(campaignId, user, onProgress) {
     "SELECT COUNT(*) as c FROM campaign_recipients WHERE campaign_id = ? AND status != 'excluded'"
   ).get(campaignId).c;
 
-  const campaign = db.prepare('SELECT sent_count, failed_count FROM campaigns WHERE id = ?').get(campaignId);
+  const campaign = db.prepare('SELECT sent_count, failed_count, daily_limit FROM campaigns WHERE id = ?').get(campaignId);
   let sent = campaign.sent_count;
   let failed = campaign.failed_count;
-  const dailyLimit = getDailyLimit(user);
+  const providerLimit = getDailyLimit(user);
+  const campaignLimit = campaign.daily_limit;
+  const dailyLimit = campaignLimit ? Math.min(providerLimit, campaignLimit) : providerLimit;
   const delay = getDelay(user);
   let rateLimitHit = false;
 

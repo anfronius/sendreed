@@ -390,6 +390,56 @@ router.post('/campaign/:id/include', requireAuth, (req, res) => {
   }
 });
 
+// POST /api/campaign-recipient/:id/sent — mark individual SMS recipient as sent
+router.post('/campaign-recipient/:id/sent', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const userId = req.session.user.id;
+    const isAdmin = req.session.user.role === 'admin';
+    const recipientId = parseInt(req.params.id);
+
+    const recipient = db.prepare(
+      `SELECT cr.*, c.owner_id as campaign_owner_id, c.id as cid
+       FROM campaign_recipients cr
+       JOIN campaigns c ON cr.campaign_id = c.id
+       WHERE cr.id = ?`
+    ).get(recipientId);
+
+    if (!recipient || (!isAdmin && recipient.campaign_owner_id !== userId)) {
+      return res.status(404).json({ error: 'Recipient not found.' });
+    }
+
+    db.prepare(
+      "UPDATE campaign_recipients SET status = 'sent', sent_at = datetime('now') WHERE id = ?"
+    ).run(recipientId);
+
+    db.prepare(
+      'UPDATE campaigns SET sent_count = sent_count + 1 WHERE id = ?'
+    ).run(recipient.campaign_id);
+
+    // Check if all non-excluded recipients are now sent
+    const remaining = db.prepare(
+      "SELECT COUNT(*) as c FROM campaign_recipients WHERE campaign_id = ? AND status IN ('pending', 'generated')"
+    ).get(recipient.campaign_id).c;
+
+    if (remaining === 0) {
+      db.prepare(
+        "UPDATE campaigns SET status = 'sent', sent_at = datetime('now') WHERE id = ?"
+      ).run(recipient.campaign_id);
+    }
+
+    const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(recipient.campaign_id);
+    res.json({
+      success: true,
+      allSent: remaining === 0,
+      sent_count: campaign.sent_count,
+      total_count: campaign.total_count,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/campaign/:id/status — poll campaign status
 router.get('/campaign/:id/status', requireAuth, (req, res) => {
   try {
