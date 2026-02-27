@@ -15,6 +15,8 @@
     <option value="all" <%= filter === 'all' ? 'selected' : '' %>>All <%= label %></option>
     <option value="missing-email" <%= filter === 'missing-email' ? 'selected' : '' %>>Missing Email</option>
     <option value="missing-phone" <%= filter === 'missing-phone' ? 'selected' : '' %>>Missing Phone</option>
+    <option value="has-email" <%= filter === 'has-email' ? 'selected' : '' %>>Has Email</option>
+    <option value="has-phone" <%= filter === 'has-phone' ? 'selected' : '' %>>Has Phone</option>
   </select>
   <select name="sort" class="filter-select">
     <option value="name" <%= sort === 'name' ? 'selected' : '' %>>Sort: Name</option>
@@ -26,7 +28,6 @@
     <option value="asc" <%= dir === 'asc' ? 'selected' : '' %>>A &rarr; Z</option>
     <option value="desc" <%= dir === 'desc' ? 'selected' : '' %>>Z &rarr; A</option>
   </select>
-  <button type="submit" class="btn btn-primary btn-sm">Filter</button>
 </form>
 
 <% if (contacts.length === 0) { %>

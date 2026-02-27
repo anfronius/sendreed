@@ -73,6 +73,10 @@ router.get('/', (req, res) => {
       where += " AND (email IS NULL OR email = '')";
     } else if (filter === 'missing-phone') {
       where += " AND (phone IS NULL OR phone = '')";
+    } else if (filter === 'has-email') {
+      where += " AND email IS NOT NULL AND email != ''";
+    } else if (filter === 'has-phone') {
+      where += " AND phone IS NOT NULL AND phone != ''";
     }
 
     const totalCount = db.prepare(`SELECT COUNT(*) as c FROM contacts WHERE ${where}`).get(...params).c;
