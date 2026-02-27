@@ -47,7 +47,7 @@
             <a href="/campaign/<%= c.id %>/sms" class="btn btn-sm btn-secondary">View Texts</a>
           <% } %>
           <% if (['sent', 'paused', 'resume_tomorrow'].includes(c.status) && c.failed_count > 0 && c.channel === 'email') { %>
-            <form method="POST" action="/campaign/<%= c.id %>/retry" style="display:inline">
+            <form method="POST" action="/campaign/<%= c.id %>/retry" style="display:contents">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button type="submit" class="btn btn-sm btn-secondary">Retry Failed</button>
             </form>
