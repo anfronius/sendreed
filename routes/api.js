@@ -501,6 +501,42 @@ router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'),
   }
 });
 
+// POST /api/realist-lookup/:id/undo-not-found — reverse not-found back to pending
+router.post('/realist-lookup/:id/undo-not-found', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    const propId = parseInt(req.params.id);
+
+    const prop = db.prepare('SELECT * FROM crmls_properties WHERE id = ?').get(propId);
+    if (!prop) return res.status(404).json({ error: 'Property not found.' });
+    if (!(isAdmin && !effectiveOwnerId) && prop.owner_id !== effectiveOwnerId) {
+      return res.status(403).json({ error: 'Not authorized.' });
+    }
+
+    db.prepare(
+      "UPDATE crmls_properties SET realist_lookup_status = 'pending', looked_up_at = NULL WHERE id = ?"
+    ).run(propId);
+
+    var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+    const counts = db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
+        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+      FROM crmls_properties
+      WHERE ${countsWhere}
+    `).get(...countsParams);
+
+    res.json({ success: true, counts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/realist-lookup/bulk-not-found — mark multiple properties as not found
 router.post('/realist-lookup/bulk-not-found', requireRole('realestate', 'admin'), (req, res) => {
   try {

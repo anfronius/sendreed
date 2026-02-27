@@ -97,7 +97,11 @@
           <button class="btn btn-sm btn-secondary copy-address-btn" data-address="<%= p.property_address %>">
             Copy
           </button>
-          <% if (p.realist_lookup_status !== 'not_found') { %>
+          <% if (p.realist_lookup_status === 'not_found') { %>
+            <button class="btn btn-sm btn-secondary undo-not-found-btn" data-id="<%= p.id %>">
+              Undo
+            </button>
+          <% } else { %>
             <button class="btn btn-sm btn-danger not-found-btn" data-id="<%= p.id %>">
               Not Found
             </button>

@@ -241,7 +241,46 @@ document.addEventListener('DOMContentLoaded', function() {
         var nameInput = row.querySelector('.owner-name-input');
         nameInput.disabled = true;
         nameInput.value = '';
-        btn.remove();
+        // Replace Not Found button with Undo button
+        var undoBtn = document.createElement('button');
+        undoBtn.className = 'btn btn-sm btn-secondary undo-not-found-btn';
+        undoBtn.dataset.id = id;
+        undoBtn.textContent = 'Undo';
+        btn.replaceWith(undoBtn);
+        updateProgress(data.counts);
+      }
+    });
+  });
+
+  // ---- Undo Not Found Button ----
+  table.addEventListener('click', function(e) {
+    var btn = e.target.closest('.undo-not-found-btn');
+    if (!btn) return;
+
+    var id = btn.dataset.id;
+    fetch('/api/realist-lookup/' + id + '/undo-not-found', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCsrf(),
+      },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        var row = btn.closest('tr');
+        var badge = row.querySelector('.badge');
+        badge.textContent = 'pending';
+        badge.className = 'badge lookup-status-pending';
+        row.dataset.status = 'pending';
+        var nameInput = row.querySelector('.owner-name-input');
+        nameInput.disabled = false;
+        // Replace Undo button with Not Found button
+        var nfBtn = document.createElement('button');
+        nfBtn.className = 'btn btn-sm btn-danger not-found-btn';
+        nfBtn.dataset.id = id;
+        nfBtn.textContent = 'Not Found';
+        btn.replaceWith(nfBtn);
         updateProgress(data.counts);
       }
     });
