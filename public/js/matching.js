@@ -3,6 +3,16 @@ document.addEventListener('DOMContentLoaded', function() {
     return window.CSRF_TOKEN || (document.querySelector('input[name="_csrf"]') || {}).value || '';
   }
 
+  // ---- Helper: update Apply All Confirmed button count ----
+  function updateApplyButtonCount(delta) {
+    var btn = document.getElementById('apply-all-btn');
+    if (!btn) return;
+    var count = parseInt(btn.dataset.count || '0') + delta;
+    btn.dataset.count = count;
+    btn.textContent = 'Apply All Confirmed (' + count + ')';
+    btn.style.display = count > 0 ? 'inline-block' : 'none';
+  }
+
   // ---- Apply All Confirmed (AJAX) ----
   var applyBtn = document.getElementById('apply-all-btn');
   if (applyBtn) {
@@ -88,6 +98,14 @@ document.addEventListener('DOMContentLoaded', function() {
         actions.appendChild(confirmedBadge);
         var arrow = card.querySelector('.match-card-arrow');
         if (arrow) arrow.textContent = '←';
+        // Move card to confirmed section if it exists
+        var confirmedSection = document.getElementById('section-confirmed');
+        if (confirmedSection) {
+          var confirmedList = confirmedSection.querySelector('.match-list');
+          if (confirmedList) confirmedList.appendChild(card);
+        }
+        // Update Apply All Confirmed button count
+        updateApplyButtonCount(1);
       } else {
         btn.disabled = false;
         btn.textContent = 'Confirm';
@@ -119,6 +137,10 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
+        // If card was confirmed/auto-confirmed, decrement Apply button count
+        if (card.classList.contains('match-card-confirmed') || card.closest('#section-confirmed')) {
+          updateApplyButtonCount(-1);
+        }
         card.style.transition = 'opacity 0.3s';
         card.style.opacity = '0';
         setTimeout(function() { card.remove(); }, 300);

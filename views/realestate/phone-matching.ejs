@@ -3,12 +3,11 @@
 <div class="page-header">
   <h1>Phone & Email Matching</h1>
   <div class="page-actions">
-    <% if (counts.autoConfirmed + counts.confirmed > 0) { %>
-      <button type="button" class="btn btn-primary" id="apply-all-btn"
-        data-count="<%= counts.autoConfirmed + counts.confirmed %>">
-        Apply All Confirmed (<%= counts.autoConfirmed + counts.confirmed %>)
-      </button>
-    <% } %>
+    <button type="button" class="btn btn-primary" id="apply-all-btn"
+      data-count="<%= counts.autoConfirmed + counts.confirmed %>"
+      style="<%= (counts.autoConfirmed + counts.confirmed) > 0 ? '' : 'display:none;' %>">
+      Apply All Confirmed (<%= counts.autoConfirmed + counts.confirmed %>)
+    </button>
     <a href="/realestate/import-vcard" class="btn btn-upload">Import Another vCard</a>
   </div>
 </div>
