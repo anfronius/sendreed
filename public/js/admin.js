@@ -7,7 +7,8 @@ document.addEventListener('DOMContentLoaded', function () {
   var providers = {
     outlook_free: { host: 'smtp-mail.outlook.com', port: 587 },
     microsoft365: { host: 'smtp.office365.com', port: 587 },
-    yahoo_free: { host: 'smtp.mail.yahoo.com', port: 465 }
+    yahoo_free: { host: 'smtp.mail.yahoo.com', port: 465 },
+    protonmail: { host: 'smtp.protonmail.ch', port: 587 }
   };
 
   if (providerSelect) {
