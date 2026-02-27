@@ -5,15 +5,11 @@
   <div class="page-actions">
     <button class="btn btn-danger" id="bulk-not-found-btn" style="display:none;">Not Found (<span id="bulk-nf-count">0</span>)</button>
     <button class="btn btn-danger" id="bulk-delete-btn" style="display:none;">Delete (<span id="bulk-del-count">0</span>)</button>
-    <% if (counts.found > 0) { %>
-      <form method="POST" action="/realestate/lookup/finalize" style="display:inline;">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <button type="submit" class="btn btn-primary"
-          onclick="return confirm('Create <%= counts.found %> contact(s) from found properties?')">
-          Finalize Lookup (<%= counts.found %>)
-        </button>
-      </form>
-    <% } %>
+    <button type="button" class="btn btn-primary" id="finalize-btn"
+      data-count="<%= counts.found %>"
+      style="<%= counts.found > 0 ? '' : 'display:none;' %>">
+      Finalize Lookup (<%= counts.found %>)
+    </button>
   </div>
 </div>
 

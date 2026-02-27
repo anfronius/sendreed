@@ -283,12 +283,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // ---- Update Progress Bar ----
+  // ---- Update Progress Bar + Finalize Button ----
   function updateProgress(counts) {
     if (!counts) return;
     var total = counts.total || 1;
     var completed = (counts.found || 0) + (counts.not_found || 0);
-    var pct = Math.round((completed / total) * 100);
+    var pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     var bar = document.getElementById('lookup-progress');
     if (bar) bar.style.width = pct + '%';
@@ -299,6 +299,71 @@ document.addEventListener('DOMContentLoaded', function() {
     if (foundEl) foundEl.textContent = counts.found;
     if (pendingEl) pendingEl.textContent = counts.pending;
     if (notFoundEl) notFoundEl.textContent = counts.not_found;
+
+    // Update Finalize button
+    var finalizeBtn = document.getElementById('finalize-btn');
+    if (finalizeBtn) {
+      var foundCount = counts.found || 0;
+      finalizeBtn.dataset.count = foundCount;
+      finalizeBtn.textContent = 'Finalize Lookup (' + foundCount + ')';
+      finalizeBtn.style.display = foundCount > 0 ? 'inline-block' : 'none';
+    }
+
+    // Update filter tab counts
+    var filterLinks = document.querySelectorAll('.filter-bar .btn');
+    filterLinks.forEach(function(link) {
+      var href = link.getAttribute('href') || '';
+      if (href.includes('status=all')) link.textContent = 'All (' + (counts.total || 0) + ')';
+      else if (href.includes('status=pending')) link.textContent = 'Pending (' + (counts.pending || 0) + ')';
+      else if (href.includes('status=found')) link.textContent = 'Found (' + (counts.found || 0) + ')';
+      else if (href.includes('status=not_found')) link.textContent = 'Not Found (' + (counts.not_found || 0) + ')';
+    });
+  }
+
+  // ---- Finalize Lookup (AJAX) ----
+  var finalizeBtn = document.getElementById('finalize-btn');
+  if (finalizeBtn) {
+    finalizeBtn.addEventListener('click', function() {
+      var count = parseInt(finalizeBtn.dataset.count || '0');
+      if (!confirm('Create ' + count + ' contact(s) from found properties?')) return;
+
+      finalizeBtn.disabled = true;
+      finalizeBtn.textContent = 'Finalizing...';
+
+      fetch('/realestate/lookup/finalize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCsrf(),
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({}),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          // Remove finalized rows from table
+          (data.finalizedIds || []).forEach(function(id) {
+            var row = table.querySelector('tr[data-property-id="' + id + '"]');
+            if (row) row.remove();
+          });
+          updateProgress(data.counts);
+          finalizeBtn.disabled = false;
+          var msg = 'Created ' + data.created + ' contact(s).';
+          if (data.skipped > 0) msg += ' Skipped ' + data.skipped + ' duplicate(s).';
+          alert(msg);
+        } else {
+          alert('Error: ' + (data.error || 'Finalize failed.'));
+          finalizeBtn.disabled = false;
+          finalizeBtn.textContent = 'Finalize Lookup (' + count + ')';
+        }
+      })
+      .catch(function(err) {
+        alert('Error: ' + err.message);
+        finalizeBtn.disabled = false;
+        finalizeBtn.textContent = 'Finalize Lookup (' + count + ')';
+      });
+    });
   }
 
   // ---- City Mappings Panel (admin only) ----

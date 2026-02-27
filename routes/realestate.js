@@ -281,12 +281,14 @@ router.post('/lookup/finalize', (req, res) => {
     const ownerWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
     const ownerParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
     const userId = effectiveOwnerId || req.session.user.id;
+    const isAjax = req.headers.accept && req.headers.accept.includes('application/json');
 
     const found = db.prepare(
       `SELECT * FROM crmls_properties WHERE realist_lookup_status = 'found' AND realist_owner_name IS NOT NULL AND ${ownerWhere}`
     ).all(...ownerParams);
 
     if (found.length === 0) {
+      if (isAjax) return res.json({ success: false, error: 'No properties to finalize.' });
       setFlash(req, 'info', 'No properties with found owners to finalize.');
       return res.redirect('/realestate/lookup');
     }
@@ -296,20 +298,24 @@ router.post('/lookup/finalize', (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
-    // Check for existing contacts to avoid duplicates
     const existsCheck = db.prepare(
       'SELECT id FROM contacts WHERE owner_id = ? AND property_address = ?'
     );
 
+    const deleteProperty = db.prepare('DELETE FROM crmls_properties WHERE id = ?');
+
     let created = 0;
     let skipped = 0;
+    const finalizedIds = [];
 
     const finalize = db.transaction(() => {
       for (const prop of found) {
-        // Skip if contact already exists for this property
         const existing = existsCheck.get(userId, prop.property_address);
         if (existing) {
           skipped++;
+          // Still remove from lookup even if duplicate
+          deleteProperty.run(prop.id);
+          finalizedIds.push(prop.id);
           continue;
         }
 
@@ -319,29 +325,41 @@ router.post('/lookup/finalize', (req, res) => {
         const firstName = parts.length > 0 ? parts.join(' ') : null;
 
         insertContact.run(
-          userId,
-          firstName,
-          lastName,
-          prop.property_address,
-          prop.city || null,
-          prop.state || null,
-          prop.zip || null,
-          prop.sale_date || null,
-          prop.sale_price || null
+          userId, firstName, lastName,
+          prop.property_address, prop.city || null, prop.state || null,
+          prop.zip || null, prop.sale_date || null, prop.sale_price || null
         );
         created++;
+        deleteProperty.run(prop.id);
+        finalizedIds.push(prop.id);
       }
     });
 
     finalize();
 
+    // Get updated counts
+    const counts = db.prepare(
+      `SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+      FROM crmls_properties WHERE ${ownerWhere}`
+    ).get(...ownerParams);
+
+    if (isAjax) {
+      return res.json({ success: true, created, skipped, finalizedIds, counts });
+    }
+
     let msg = `Created ${created} contact(s) from found properties.`;
     if (skipped > 0) msg += ` Skipped ${skipped} duplicate(s).`;
-
     setFlash(req, 'success', msg);
     res.redirect('/contacts');
   } catch (err) {
     console.error('Finalize error:', err);
+    if (req.headers.accept && req.headers.accept.includes('application/json')) {
+      return res.status(500).json({ error: 'Failed to finalize.' });
+    }
     setFlash(req, 'error', 'Failed to create contacts: ' + err.message);
     res.redirect('/realestate/lookup');
   }
