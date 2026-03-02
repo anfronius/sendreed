@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
   var editId = document.getElementById('template-edit-id');
   var editName = document.getElementById('template-edit-name');
-  var editChannel = document.getElementById('template-edit-channel');
   var editSubject = document.getElementById('template-edit-subject');
   var editBody = document.getElementById('template-edit-body');
   var editScheduled = document.getElementById('template-edit-scheduled');
@@ -13,15 +12,35 @@ document.addEventListener('DOMContentLoaded', function() {
   var cancelBtn = document.getElementById('template-cancel-btn');
   var modalTitle = document.getElementById('template-modal-title');
 
+  // Track last focused text field for variable insertion
+  var lastFocusedField = editBody;
+  editSubject.addEventListener('focus', function() { lastFocusedField = editSubject; });
+  editBody.addEventListener('focus', function() { lastFocusedField = editBody; });
+
+  // Variable toolbar insertion
+  var toolbar = document.getElementById('variable-toolbar');
+  if (toolbar) {
+    toolbar.addEventListener('click', function(e) {
+      var btn = e.target.closest('.var-btn');
+      if (!btn) return;
+      var varText = '{{' + btn.dataset.var + '}}';
+      var field = lastFocusedField || editBody;
+      var start = field.selectionStart;
+      var end = field.selectionEnd;
+      field.value = field.value.substring(0, start) + varText + field.value.substring(end);
+      field.selectionStart = field.selectionEnd = start + varText.length;
+      field.focus();
+    });
+  }
+
   function openModal(data) {
     editId.value = data.id || '';
     editName.value = data.name || '';
-    editChannel.value = data.channel || 'email';
     editSubject.value = data.subject || '';
     editBody.value = data.body || '';
     editScheduled.value = data.scheduled || '';
-    subjectGroup.style.display = data.channel === 'sms' ? 'none' : 'block';
     modalTitle.textContent = data.id ? 'Edit Template' : 'New Template';
+    lastFocusedField = editBody;
     modal.style.display = 'flex';
   }
 
@@ -34,6 +53,14 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.target === modal) closeModal();
   });
 
+  // New template button click
+  var newBtn = document.getElementById('new-template-btn');
+  if (newBtn) {
+    newBtn.addEventListener('click', function() {
+      openModal({ id: '', name: '', subject: '', body: '', scheduled: '' });
+    });
+  }
+
   // Edit button click
   document.addEventListener('click', function(e) {
     var btn = e.target.closest('.edit-template-btn');
@@ -41,7 +68,6 @@ document.addEventListener('DOMContentLoaded', function() {
     openModal({
       id: btn.dataset.id,
       name: btn.dataset.name,
-      channel: btn.dataset.channel,
       subject: btn.dataset.subject,
       body: btn.dataset.body,
       scheduled: btn.dataset.scheduled,
@@ -58,13 +84,45 @@ document.addEventListener('DOMContentLoaded', function() {
       method: 'DELETE',
       headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
     })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+      if (!r.ok) return r.json().catch(function() { return { error: 'Request failed (status ' + r.status + ')' }; });
+      return r.json();
+    })
     .then(function(data) {
-      if (data.success) {
+      if (data.error) {
+        alert('Failed to delete: ' + data.error);
+      } else if (data.success) {
         var row = btn.closest('tr');
         if (row) row.remove();
       } else {
-        alert('Failed to delete: ' + (data.error || 'Unknown error'));
+        alert('Failed to delete: Unknown error');
+      }
+    })
+    .catch(function(err) {
+      alert('Error: ' + err.message);
+    });
+  });
+
+  // Delete campaign button click
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.delete-campaign-btn');
+    if (!btn) return;
+    if (!confirm('Delete this campaign? This cannot be undone.')) return;
+
+    fetch('/api/campaign/' + btn.dataset.id, {
+      method: 'DELETE',
+      headers: { 'X-CSRF-Token': window.CSRF_TOKEN },
+    })
+    .then(function(r) {
+      if (!r.ok) return r.json().catch(function() { return { error: 'Request failed (status ' + r.status + ')' }; });
+      return r.json();
+    })
+    .then(function(data) {
+      if (data.error) {
+        alert('Failed to delete campaign: ' + data.error);
+      } else if (data.success) {
+        var row = btn.closest('tr');
+        if (row) row.remove();
       }
     })
     .catch(function(err) {
@@ -87,8 +145,8 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
-    var url = '/api/templates/' + id;
-    var method = 'PUT';
+    var url = id ? '/api/templates/' + id : '/api/templates';
+    var method = id ? 'PUT' : 'POST';
 
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving...';
@@ -101,13 +159,18 @@ document.addEventListener('DOMContentLoaded', function() {
       },
       body: JSON.stringify(payload),
     })
-    .then(function(r) { return r.json(); })
+    .then(function(r) {
+      if (!r.ok) return r.json().catch(function() { return { error: 'Request failed (status ' + r.status + ')' }; });
+      return r.json();
+    })
     .then(function(data) {
-      if (data.success) {
+      if (data.error) {
+        alert('Failed to save: ' + data.error);
+      } else if (data.success || data.id) {
         closeModal();
         window.location.reload();
       } else {
-        alert('Failed to save: ' + (data.error || 'Unknown error'));
+        alert('Failed to save: Unknown error');
       }
     })
     .catch(function(err) {

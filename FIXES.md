@@ -66,3 +66,46 @@
 - [x] the route for the crmls import shouldn't just be /import, it should be /import-crmls or whatever the template has. Can you please change that if possible
 - [x] can you make it so at the top banner where it has the Dashboard, Contacts, Campgaigns, and Real Estate page links, can you make it so real estate users see the Contacts link as a Clients instead and reference clients instead too in that pasge for real estate users?
 - [x] the admin for some reason cannot see the imported contacts from the vCard and only the actual account can, even if the admin selects the account with the imported contacts on the admin banner and refreshes the page. Can you investigaate and fix that?
+
+### 4th Set (DONE)
+
+- the specific requests are lost to a rollback, but the plan to deal with them (which is all that is needed to know what the issues were in this set) are in '~/.claude/plans/playful-cuddling-waffle.md'
+- [x] Fix 1: Anniversary digest toggle — RE users can now toggle their own digest on/off
+- [x] Fix 2: Apply All Confirmed now uses AJAX without page refresh
+- [x] Fix 3: Phone matching page button sizing equalized
+- [x] Fix 5: Templates channel restriction removed (done previously)
+- [x] Fix 6: Phone matching UI reversed — existing contacts are primary, vCard imports are the source
+- [x] Fix 7: Campaign delete action from history page
+- [x] Fix 8: Template list scrolls with fade gradient after 5+ items
+- [x] Fix 4 (SMS in-progress + daily email limit): Deferred - moved to 8th set
+
+### 5th set (DONE)
+
+- [x] When I try to delete templates, or change the fields in the fields tab, a pop up saying "Error: Unexpected token 'I', "Invalid CSRF token" is not valid JSON"" appears.
+- [x] the templates still have "channel" designations. Do i need to wipe the db or delete them all to reset that?
+- [x] There still shows on the edit template the channel nut it doesnt let me change it. Is that related to the above?
+- [x] Ability to create new templaates on the main campagign page so you dont have to go through campaign creation to make a template
+- [x] On Users panel for admin, make the SMTP button as wide as the Wipe Data and Delete, and add the same space between the Wipe Data and SMTP buttons as the Wipe Button and Delete buttons have.
+
+### 6th Set (DONE)
+
+- [x] on the newly created 'New Template' modal, there should be the variable  options avilable to click and use in the message/subject like the campaign builder's new template page.
+- [x] When I try to build a new template or edit a pre-exiting one with the new 'New Template' modal on the campaigns page, when I try to click the 'Save' button at the bottom after filling out the fileds I get a 'Failed to save: Invalid CSRF token' Errorr
+- [x] I still get a 'Failed to save: Invalid CSRF token' error when trying to edit the Fields checkboxes on the Fields page as an admin and when trying to delete templates on the main campaign page. 
+
+### 7th Set (DONE)
+
+- [x] Even though the 'Zip' and 'State' fields are disabled in the fields mangement page, they still show up as an option in the /realestate/import-crmls/upload page when matching the uploaded csv to the needed fields
+
+### 8th Set (DONE)
+
+- [x] When I input a name on the crmls lookup page, (realestate/lookup) it automatically gets "FOUND" on that object but the Finalize Lookup button does not update the amount or aknowledges them until the page is refreshed. Also once property / name matches have been finalized into clients, the adress should dissapear from the realist lookup page, which it is currently not and I can infinitely Finalize their lookup. (I think when I do click on the finalize even the ones that weren't initially recongnized by the button work but the button doesn't dynamically appear and change its count properly, only the actual backend functionality works as intended.)
+- [x] The same Apply all confirmed button not dynamically changing with each client being matched with their vcard contact issue is happening on the Phone and email matching page still, and the button is still slightly smaller than the import another vcard button still
+- [x] Increase the height of the 'delete selected' button on the Clients/Contacts Page to match the Import CSV.
+- [x] Like above, the not found and delete buttons should be taller to be the same height as the Finalize lookup buttoNS. Essentially through the project I wan very unified button sizes. For the main buttons for menus and such they should be the largest and have the same size as the Import CSV button on the CLients page. Then there should be the smaller buttons which are the actions for db objects like delete, edit, view tests, etc which should all the that same small size like the delete and edit button the campaigns page for the templates. Finally the buttons that are there on the realestate/lookup that denote "All, Pending, Found, Not Found" should stay the same size as that fits well for now. Also note this is for the menus on the main pages and doesn't apply to the small rectangular choose file buttons that brings up the file system of the device and the other niche buttons on the actual /campaign/create page.
+- [x] On the clients / contacts, have the ability on the "all clients' filter options that also has missing phone and missing email, have options for "has phone" or "has email" too and remove the blue filter button and just have the filter apply automatically when the settings get changed in any way.
+- [x] on the campaigns page, for each campaign and their actions, the 'View Text button should be made shorter to conform with the height of the Delete button right next to it and conform with the size of the other delete and edit button underneath.
+- [x] Fix 4 from '~/.claude/plans/playful-cuddling-waffle.md'
+- [x] There should be a way to reverse the 'Not Found' properties if it was accidently clicked or the client was found later. Also when I click the not found button, it doesnt automatically change the numbers on the "Found, Not FOund" buttons at top, which like I've said many times I want everything to work dynamically and nothing should have to have the page refreshed to work properly, just like this.
+- [x] Same button fix is needed for the Users list on the users page, but considering how small the Wipe Data and Delete buttons look on the page, can you make them the same height (taller) as SMTP button instead of formalizing them to the small button standard?
+- [x] As admin, when I try to add my protonmail with all the correct credentials (the test succeeds and the connection works) when I actually try to save the credentials I get an error saying "Failed to save SMTP settings."

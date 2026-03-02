@@ -1,7 +1,69 @@
 document.addEventListener('DOMContentLoaded', function() {
   function getCsrf() {
-    var el = document.querySelector('input[name="_csrf"]');
-    return el ? el.value : '';
+    return window.CSRF_TOKEN || (document.querySelector('input[name="_csrf"]') || {}).value || '';
+  }
+
+  // ---- Helper: update Apply All Confirmed button count ----
+  function updateApplyButtonCount(delta) {
+    var btn = document.getElementById('apply-all-btn');
+    if (!btn) return;
+    var count = parseInt(btn.dataset.count || '0') + delta;
+    btn.dataset.count = count;
+    btn.textContent = 'Apply All Confirmed (' + count + ')';
+    btn.style.display = count > 0 ? 'inline-block' : 'none';
+  }
+
+  // ---- Apply All Confirmed (AJAX) ----
+  var applyBtn = document.getElementById('apply-all-btn');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', function() {
+      if (!confirm('Apply all confirmed matches to your contacts?')) return;
+
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Applying...';
+
+      fetch('/realestate/matching/apply', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': getCsrf(),
+        },
+        body: JSON.stringify({}),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          var confirmedSection = document.getElementById('section-confirmed');
+          if (confirmedSection) {
+            confirmedSection.querySelectorAll('.match-card').forEach(function(card) {
+              card.classList.add('match-card-applied');
+              var actions = card.querySelector('.match-card-actions');
+              if (actions) {
+                var badge = actions.querySelector('.confidence-badge');
+                actions.innerHTML = '';
+                if (badge) actions.appendChild(badge);
+                var appliedBadge = document.createElement('span');
+                appliedBadge.className = 'badge badge-status-sent';
+                appliedBadge.textContent = 'Applied';
+                actions.appendChild(appliedBadge);
+              }
+            });
+          }
+          applyBtn.textContent = 'Applied (' + data.applied + ')';
+          applyBtn.classList.remove('btn-primary');
+          applyBtn.classList.add('btn-secondary');
+        } else {
+          alert('Failed to apply: ' + (data.error || 'Unknown error'));
+          applyBtn.disabled = false;
+          applyBtn.textContent = 'Apply All Confirmed (' + applyBtn.dataset.count + ')';
+        }
+      })
+      .catch(function(err) {
+        alert('Error: ' + err.message);
+        applyBtn.disabled = false;
+        applyBtn.textContent = 'Apply All Confirmed (' + applyBtn.dataset.count + ')';
+      });
+    });
   }
 
   // ---- Confirm Match ----
@@ -26,7 +88,6 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(data) {
       if (data.success) {
         card.classList.add('match-card-confirmed');
-        // Replace actions with confirmed badge
         var actions = card.querySelector('.match-card-actions');
         var badge = actions.querySelector('.confidence-badge');
         actions.innerHTML = '';
@@ -35,9 +96,16 @@ document.addEventListener('DOMContentLoaded', function() {
         confirmedBadge.className = 'badge badge-status-sent';
         confirmedBadge.textContent = 'Confirmed';
         actions.appendChild(confirmedBadge);
-        // Update arrow
         var arrow = card.querySelector('.match-card-arrow');
-        if (arrow) arrow.textContent = '→';
+        if (arrow) arrow.textContent = '←';
+        // Move card to confirmed section if it exists
+        var confirmedSection = document.getElementById('section-confirmed');
+        if (confirmedSection) {
+          var confirmedList = confirmedSection.querySelector('.match-list');
+          if (confirmedList) confirmedList.appendChild(card);
+        }
+        // Update Apply All Confirmed button count
+        updateApplyButtonCount(1);
       } else {
         btn.disabled = false;
         btn.textContent = 'Confirm';
@@ -69,6 +137,10 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
+        // If card was confirmed/auto-confirmed, decrement Apply button count
+        if (card.classList.contains('match-card-confirmed') || card.closest('#section-confirmed')) {
+          updateApplyButtonCount(-1);
+        }
         card.style.transition = 'opacity 0.3s';
         card.style.opacity = '0';
         setTimeout(function() { card.remove(); }, 300);
@@ -81,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 
-  // ---- Contact Search for Unmatched ----
+  // ---- vCard Import Search for Unmatched Contacts ----
   var searchTimeout = null;
 
   document.addEventListener('input', function(e) {
@@ -89,8 +161,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!input) return;
 
     var query = input.value.trim();
-    var importedId = input.dataset.importedId;
-    var resultsDiv = document.querySelector('.contact-search-results[data-imported-id="' + importedId + '"]');
+    var contactId = input.dataset.contactId;
+    var resultsDiv = document.querySelector('.contact-search-results[data-contact-id="' + contactId + '"]');
 
     if (searchTimeout) clearTimeout(searchTimeout);
 
@@ -100,21 +172,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     searchTimeout = setTimeout(function() {
-      fetch('/api/contacts?search=' + encodeURIComponent(query))
+      fetch('/api/imported-contacts?search=' + encodeURIComponent(query))
         .then(function(r) { return r.json(); })
         .then(function(data) {
           resultsDiv.innerHTML = '';
           if (!data.contacts || data.contacts.length === 0) {
-            resultsDiv.innerHTML = '<div class="search-no-results">No contacts found</div>';
+            resultsDiv.innerHTML = '<div class="search-no-results">No vCard imports found</div>';
             return;
           }
-          data.contacts.slice(0, 10).forEach(function(c) {
+          data.contacts.forEach(function(c) {
             var item = document.createElement('div');
             item.className = 'search-result-item';
-            item.dataset.contactId = c.id;
-            item.dataset.importedId = importedId;
-            var name = [c.first_name, c.last_name].filter(Boolean).join(' ');
-            var detail = c.property_address || c.organization || '';
+            item.dataset.importedContactId = c.id;
+            item.dataset.contactId = contactId;
+            var name = c.full_name || [c.first_name, c.last_name].filter(Boolean).join(' ');
+            var detail = [c.phone, c.email].filter(Boolean).join(' | ');
             item.innerHTML = '<strong>' + escapeHtml(name) + '</strong>' +
               (detail ? ' <span class="search-result-detail">' + escapeHtml(detail) + '</span>' : '');
             resultsDiv.appendChild(item);
@@ -128,25 +200,24 @@ document.addEventListener('DOMContentLoaded', function() {
     var item = e.target.closest('.search-result-item');
     if (!item) return;
 
+    var importedContactId = item.dataset.importedContactId;
     var contactId = item.dataset.contactId;
-    var importedId = item.dataset.importedId;
     var card = item.closest('.match-card');
 
-    fetch('/api/match/' + importedId + '/manual', {
+    fetch('/api/match/' + contactId + '/manual', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-CSRF-Token': getCsrf(),
       },
-      body: JSON.stringify({ contact_id: contactId }),
+      body: JSON.stringify({ imported_contact_id: importedContactId }),
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
         card.classList.add('match-card-confirmed');
-        // Replace the search form with a confirmed message
         var rightSide = card.querySelector('.match-card-right');
-        rightSide.innerHTML = '<div class="match-contact-name">' + escapeHtml(item.querySelector('strong').textContent) + '</div>' +
+        rightSide.innerHTML = '<div class="match-imported-name">' + escapeHtml(item.querySelector('strong').textContent) + '</div>' +
           '<span class="badge badge-status-sent">Manually Matched</span>';
       }
     });

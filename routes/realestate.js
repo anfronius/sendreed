@@ -8,6 +8,7 @@ const { getDb } = require('../db/init');
 const csv = require('../services/csv');
 const vcard = require('../services/vcard');
 const matcher = require('../services/matcher');
+const fieldConfig = require('../config/field-config');
 const { checkAnniversaries } = require('../services/cron');
 
 const router = express.Router();
@@ -30,6 +31,28 @@ const upload = multer({
 });
 
 const CRMLS_FIELDS = ['property_address', 'street_number', 'street_name', 'city', 'state', 'zip', 'sale_date', 'sale_price'];
+
+// Map CRMLS field names to their field_visibility equivalents (for filtering by admin settings)
+const CRMLS_TO_VISIBILITY = {
+  city: 'city',
+  state: 'state',
+  zip: 'zip',
+  sale_date: 'purchase_date',
+  sale_price: 'purchase_price',
+};
+
+// Fields that are always shown in CRMLS import (no visibility equivalent)
+const CRMLS_ALWAYS_VISIBLE = ['property_address', 'street_number', 'street_name'];
+
+function getFilteredCrmlsFields() {
+  var visibleFields = fieldConfig.getVisibleFields('realestate');
+  return CRMLS_FIELDS.filter(function(field) {
+    if (CRMLS_ALWAYS_VISIBLE.includes(field)) return true;
+    var visibilityName = CRMLS_TO_VISIBILITY[field];
+    if (!visibilityName) return true;
+    return visibleFields.includes(visibilityName);
+  });
+}
 
 // GET /realestate — dashboard
 router.get('/', (req, res) => {
@@ -84,7 +107,7 @@ router.get('/import-crmls', (req, res) => {
     headers: [],
     suggestions: {},
     sampleRows: [],
-    crmlsFields: CRMLS_FIELDS,
+    crmlsFields: getFilteredCrmlsFields(),
   });
 });
 
@@ -119,7 +142,7 @@ router.post('/import-crmls/upload', upload.single('csvfile'), verifyCsrf, (req, 
       headers: result.headers,
       suggestions,
       sampleRows: result.rows.slice(0, 3),
-      crmlsFields: CRMLS_FIELDS,
+      crmlsFields: getFilteredCrmlsFields(),
       rowCount: result.rows.length,
     });
   } catch (err) {
@@ -258,12 +281,14 @@ router.post('/lookup/finalize', (req, res) => {
     const ownerWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
     const ownerParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
     const userId = effectiveOwnerId || req.session.user.id;
+    const isAjax = req.headers.accept && req.headers.accept.includes('application/json');
 
     const found = db.prepare(
       `SELECT * FROM crmls_properties WHERE realist_lookup_status = 'found' AND realist_owner_name IS NOT NULL AND ${ownerWhere}`
     ).all(...ownerParams);
 
     if (found.length === 0) {
+      if (isAjax) return res.json({ success: false, error: 'No properties to finalize.' });
       setFlash(req, 'info', 'No properties with found owners to finalize.');
       return res.redirect('/realestate/lookup');
     }
@@ -273,20 +298,24 @@ router.post('/lookup/finalize', (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
-    // Check for existing contacts to avoid duplicates
     const existsCheck = db.prepare(
       'SELECT id FROM contacts WHERE owner_id = ? AND property_address = ?'
     );
 
+    const deleteProperty = db.prepare('DELETE FROM crmls_properties WHERE id = ?');
+
     let created = 0;
     let skipped = 0;
+    const finalizedIds = [];
 
     const finalize = db.transaction(() => {
       for (const prop of found) {
-        // Skip if contact already exists for this property
         const existing = existsCheck.get(userId, prop.property_address);
         if (existing) {
           skipped++;
+          // Still remove from lookup even if duplicate
+          deleteProperty.run(prop.id);
+          finalizedIds.push(prop.id);
           continue;
         }
 
@@ -296,29 +325,41 @@ router.post('/lookup/finalize', (req, res) => {
         const firstName = parts.length > 0 ? parts.join(' ') : null;
 
         insertContact.run(
-          userId,
-          firstName,
-          lastName,
-          prop.property_address,
-          prop.city || null,
-          prop.state || null,
-          prop.zip || null,
-          prop.sale_date || null,
-          prop.sale_price || null
+          userId, firstName, lastName,
+          prop.property_address, prop.city || null, prop.state || null,
+          prop.zip || null, prop.sale_date || null, prop.sale_price || null
         );
         created++;
+        deleteProperty.run(prop.id);
+        finalizedIds.push(prop.id);
       }
     });
 
     finalize();
 
+    // Get updated counts
+    const counts = db.prepare(
+      `SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+      FROM crmls_properties WHERE ${ownerWhere}`
+    ).get(...ownerParams);
+
+    if (isAjax) {
+      return res.json({ success: true, created, skipped, finalizedIds, counts });
+    }
+
     let msg = `Created ${created} contact(s) from found properties.`;
     if (skipped > 0) msg += ` Skipped ${skipped} duplicate(s).`;
-
     setFlash(req, 'success', msg);
     res.redirect('/contacts');
   } catch (err) {
     console.error('Finalize error:', err);
+    if (req.headers.accept && req.headers.accept.includes('application/json')) {
+      return res.status(500).json({ error: 'Failed to finalize.' });
+    }
     setFlash(req, 'error', 'Failed to create contacts: ' + err.message);
     res.redirect('/realestate/lookup');
   }
@@ -404,8 +445,8 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
       "SELECT * FROM contacts WHERE owner_id = ? AND ((phone IS NULL OR phone = '') OR (email IS NULL OR email = ''))"
     ).all(userId);
 
-    // Run matching algorithm
-    const matchResults = matcher.matchAll(importedContacts, existingContacts);
+    // Run matching algorithm — from existing contacts' perspective
+    const matchResults = matcher.matchAllByExisting(existingContacts, importedContacts);
 
     // Store matches in phone_matches table
     const insertMatch = db.prepare(
@@ -425,12 +466,10 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
 
         const bestMatch = result.matches[0];
         if (bestMatch.confidence >= 70) {
-          // Auto-confirm high-confidence matches
-          insertMatch.run(bestMatch.contact_id, result.imported_contact_id, 'auto', bestMatch.confidence);
+          insertMatch.run(result.contact_id, bestMatch.imported_contact_id, 'auto', bestMatch.confidence);
           autoConfirmed++;
         } else {
-          // Store best candidate for review
-          insertMatch.run(bestMatch.contact_id, result.imported_contact_id, 'auto', bestMatch.confidence);
+          insertMatch.run(result.contact_id, bestMatch.imported_contact_id, 'auto', bestMatch.confidence);
           needsReview++;
         }
       }
@@ -442,7 +481,7 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
 
     setFlash(req, 'success',
       `Imported ${result.contacts.length} contact(s) (${phonesFound} phones, ${emailsFound} emails). ` +
-      `Auto-matched: ${autoConfirmed}. Needs review: ${needsReview}. Unmatched: ${unmatched}.`
+      `Matched to ${autoConfirmed + needsReview} existing contact(s). Needs review: ${needsReview}. Unmatched contacts: ${unmatched}.`
     );
     res.redirect('/realestate/matching?import_id=' + importId);
   } catch (err) {
@@ -464,67 +503,76 @@ router.get('/matching', (req, res) => {
     }
     const importId = req.query.import_id;
 
-    // Get the most recent import if no import_id specified
+    // Optional import filter (filters through the join chain)
     let importFilter = '';
     const importParams = [];
     if (importId) {
-      importFilter = 'AND ic.import_id = ?';
+      importFilter = 'AND ci.id = ?';
       importParams.push(parseInt(importId));
     }
 
-    // Get all imported contacts with their match status
-    // Join: imported_contacts -> phone_matches -> contacts
+    // Contact-centric queries: existing contacts are the primary entity
+    // Applied: high-confidence matches already confirmed and applied
     const confirmed = db.prepare(`
-      SELECT ic.*, pm.id as match_id, pm.confidence_score, pm.confirmed_at,
-             c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
-             c.property_address as c_address, c.phone as c_phone, c.email as c_email
-      FROM imported_contacts ic
-      JOIN contact_imports ci ON ic.import_id = ci.id
-      JOIN phone_matches pm ON pm.imported_contact_id = ic.id
+      SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
+             c.property_address as c_address, c.phone as c_phone, c.email as c_email,
+             pm.id as match_id, pm.confidence_score, pm.confirmed_at,
+             ic.id as imported_id, ic.full_name as ic_name, ic.first_name as ic_first,
+             ic.last_name as ic_last, ic.phone as ic_phone, ic.email as ic_email
+      FROM phone_matches pm
       JOIN contacts c ON pm.contact_id = c.id
-      WHERE ci.imported_by = ? ${importFilter}
+      JOIN imported_contacts ic ON pm.imported_contact_id = ic.id
+      JOIN contact_imports ci ON ic.import_id = ci.id
+      WHERE c.owner_id = ? ${importFilter}
         AND pm.confidence_score >= 70
         AND pm.confirmed_at IS NOT NULL
       ORDER BY pm.confidence_score DESC
     `).all(userId, ...importParams);
 
+    // Auto-matched: high confidence, not yet applied
     const autoConfirmed = db.prepare(`
-      SELECT ic.*, pm.id as match_id, pm.confidence_score,
-             c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
-             c.property_address as c_address, c.phone as c_phone, c.email as c_email
-      FROM imported_contacts ic
-      JOIN contact_imports ci ON ic.import_id = ci.id
-      JOIN phone_matches pm ON pm.imported_contact_id = ic.id
+      SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
+             c.property_address as c_address, c.phone as c_phone, c.email as c_email,
+             pm.id as match_id, pm.confidence_score,
+             ic.id as imported_id, ic.full_name as ic_name, ic.first_name as ic_first,
+             ic.last_name as ic_last, ic.phone as ic_phone, ic.email as ic_email
+      FROM phone_matches pm
       JOIN contacts c ON pm.contact_id = c.id
-      WHERE ci.imported_by = ? ${importFilter}
+      JOIN imported_contacts ic ON pm.imported_contact_id = ic.id
+      JOIN contact_imports ci ON ic.import_id = ci.id
+      WHERE c.owner_id = ? ${importFilter}
         AND pm.confidence_score >= 70
         AND pm.confirmed_at IS NULL
       ORDER BY pm.confidence_score DESC
     `).all(userId, ...importParams);
 
+    // Needs review: low confidence, not yet confirmed
     const needsReview = db.prepare(`
-      SELECT ic.*, pm.id as match_id, pm.confidence_score,
-             c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
-             c.property_address as c_address, c.phone as c_phone, c.email as c_email
-      FROM imported_contacts ic
-      JOIN contact_imports ci ON ic.import_id = ci.id
-      JOIN phone_matches pm ON pm.imported_contact_id = ic.id
+      SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
+             c.property_address as c_address, c.phone as c_phone, c.email as c_email,
+             pm.id as match_id, pm.confidence_score,
+             ic.id as imported_id, ic.full_name as ic_name, ic.first_name as ic_first,
+             ic.last_name as ic_last, ic.phone as ic_phone, ic.email as ic_email
+      FROM phone_matches pm
       JOIN contacts c ON pm.contact_id = c.id
-      WHERE ci.imported_by = ? ${importFilter}
+      JOIN imported_contacts ic ON pm.imported_contact_id = ic.id
+      JOIN contact_imports ci ON ic.import_id = ci.id
+      WHERE c.owner_id = ? ${importFilter}
         AND pm.confidence_score < 70
         AND pm.confirmed_at IS NULL
       ORDER BY pm.confidence_score DESC
     `).all(userId, ...importParams);
 
-    // Unmatched: imported contacts with no phone_matches entry
+    // Unmatched: existing contacts missing phone/email with no match entry
     const unmatched = db.prepare(`
-      SELECT ic.*
-      FROM imported_contacts ic
-      JOIN contact_imports ci ON ic.import_id = ci.id
-      WHERE ci.imported_by = ? ${importFilter}
-        AND ic.id NOT IN (SELECT imported_contact_id FROM phone_matches)
-      ORDER BY ic.full_name
-    `).all(userId, ...importParams);
+      SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
+             c.property_address as c_address, c.phone as c_phone, c.email as c_email
+      FROM contacts c
+      WHERE c.owner_id = ?
+        AND ((c.phone IS NULL OR c.phone = '') OR (c.email IS NULL OR c.email = ''))
+        AND c.id NOT IN (SELECT contact_id FROM phone_matches)
+      ORDER BY c.last_name, c.first_name
+    `).all(userId);
 
     const counts = {
       confirmed: confirmed.length,
@@ -604,12 +652,20 @@ router.post('/matching/apply', (req, res) => {
 
     applyAll();
 
-    setFlash(req, 'success',
-      `Applied ${matches.length} match(es). Updated ${phonesUpdated} phone(s) and ${emailsUpdated} email(s).`
-    );
+    var message = `Applied ${matches.length} match(es). Updated ${phonesUpdated} phone(s) and ${emailsUpdated} email(s).`;
+
+    // Return JSON for AJAX requests
+    if (req.headers['x-csrf-token']) {
+      return res.json({ success: true, message, applied: matches.length, phonesUpdated, emailsUpdated });
+    }
+
+    setFlash(req, 'success', message);
     res.redirect('/realestate/matching');
   } catch (err) {
     console.error('Apply matches error:', err);
+    if (req.headers['x-csrf-token']) {
+      return res.status(500).json({ error: err.message });
+    }
     setFlash(req, 'error', 'Failed to apply matches: ' + err.message);
     res.redirect('/realestate/matching');
   }
@@ -687,12 +743,20 @@ router.get('/anniversaries', (req, res) => {
       });
     }
 
+    // RE user: load their own digest setting
+    var myDigestEnabled = true;
+    if (!isAdmin) {
+      var mySetting = db.prepare('SELECT enabled FROM digest_settings WHERE user_id = ?').get(userId);
+      myDigestEnabled = mySetting ? !!mySetting.enabled : true;
+    }
+
     res.render('realestate/anniversaries', {
       title: 'Anniversaries',
       today,
       thisWeek,
       completed,
       digestSettings,
+      myDigestEnabled,
     });
   } catch (err) {
     console.error('Anniversaries error:', err);

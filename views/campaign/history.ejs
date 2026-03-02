@@ -43,14 +43,17 @@
             <a href="/campaign/<%= c.id %>/review" class="btn btn-sm btn-primary">Review</a>
           <% } else if (c.status === 'sending') { %>
             <a href="/campaign/<%= c.id %>/progress" class="btn btn-sm btn-primary">Progress</a>
-          <% } else if (c.channel === 'sms' && c.status === 'sent') { %>
+          <% } else if (c.channel === 'sms' && (c.status === 'sent' || c.status === 'in_progress')) { %>
             <a href="/campaign/<%= c.id %>/sms" class="btn btn-sm btn-secondary">View Texts</a>
           <% } %>
           <% if (['sent', 'paused', 'resume_tomorrow'].includes(c.status) && c.failed_count > 0 && c.channel === 'email') { %>
-            <form method="POST" action="/campaign/<%= c.id %>/retry" style="display:inline">
+            <form method="POST" action="/campaign/<%= c.id %>/retry" style="display:contents">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button type="submit" class="btn btn-sm btn-secondary">Retry Failed</button>
             </form>
+          <% } %>
+          <% if (c.status !== 'sending') { %>
+            <button class="btn btn-sm btn-danger delete-campaign-btn" data-id="<%= c.id %>">Delete</button>
           <% } %>
         </td>
       </tr>
@@ -62,7 +65,12 @@
 <%- include('../partials/pagination', { currentPage, totalPages, baseUrl }) %>
 <% } %>
 
-<h2 style="margin-top: 2rem;">Templates <span class="count-badge"><%= templates ? templates.length : 0 %></span></h2>
+<div class="page-header" style="margin-top: 2rem;">
+  <h2>Templates <span class="count-badge"><%= templates ? templates.length : 0 %></span></h2>
+  <div class="page-actions">
+    <button type="button" class="btn btn-primary" id="new-template-btn">New Template</button>
+  </div>
+</div>
 
 <% if (templates && templates.length > 0) { %>
 <div class="table-responsive">
@@ -70,7 +78,6 @@
     <thead>
       <tr>
         <th>Name</th>
-        <th>Channel</th>
         <th>Scheduled</th>
         <th>Preview</th>
         <th>Actions</th>
@@ -80,13 +87,12 @@
       <% templates.forEach(function(t) { %>
       <tr data-template-id="<%= t.id %>">
         <td><strong><%= t.name %></strong></td>
-        <td><span class="badge badge-<%= t.channel %>"><%= t.channel %></span></td>
         <td><%= t.scheduled_date || '—' %></td>
         <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; color: #64748b;">
           <% if (t.subject_template) { %>Subject: <%= t.subject_template %> — <% } %><%= t.body_template.substring(0, 100) %><%= t.body_template.length > 100 ? '...' : '' %>
         </td>
         <td>
-          <button class="btn btn-sm btn-primary edit-template-btn" data-id="<%= t.id %>" data-name="<%= t.name %>" data-channel="<%= t.channel %>" data-subject="<%= t.subject_template || '' %>" data-body="<%= t.body_template.replace(/"/g, '&quot;') %>" data-scheduled="<%= t.scheduled_date || '' %>">Edit</button>
+          <button class="btn btn-sm btn-primary edit-template-btn" data-id="<%= t.id %>" data-name="<%= t.name %>" data-subject="<%= t.subject_template || '' %>" data-body="<%= t.body_template.replace(/"/g, '&quot;') %>" data-scheduled="<%= t.scheduled_date || '' %>">Edit</button>
           <button class="btn btn-sm btn-danger delete-template-btn" data-id="<%= t.id %>" data-name="<%= t.name %>">Delete</button>
         </td>
       </tr>
@@ -96,7 +102,7 @@
 </div>
 <% } else { %>
   <div class="empty-state">
-    <p>No templates yet. Create one when starting a new campaign.</p>
+    <p>No templates yet. Click "New Template" above to create one.</p>
   </div>
 <% } %>
 
@@ -109,19 +115,18 @@
       <label for="template-edit-name">Name</label>
       <input type="text" id="template-edit-name">
     </div>
-    <div class="form-group">
-      <label for="template-edit-channel">Channel</label>
-      <select id="template-edit-channel" disabled>
-        <option value="email">Email</option>
-        <option value="sms">SMS</option>
-      </select>
-    </div>
     <div class="form-group" id="template-edit-subject-group">
       <label for="template-edit-subject">Subject</label>
       <input type="text" id="template-edit-subject">
     </div>
     <div class="form-group">
       <label for="template-edit-body">Body</label>
+      <div class="variable-toolbar" id="variable-toolbar">
+        <span class="toolbar-label">Insert:</span>
+        <% variables.forEach(function(v) { %>
+          <button type="button" class="var-btn" data-var="<%= v %>">{{<%= v %>}}</button>
+        <% }); %>
+      </div>
       <textarea id="template-edit-body" rows="8"></textarea>
     </div>
     <div class="form-group">
@@ -136,4 +141,5 @@
   </div>
 </div>
 
+<script>window.CSRF_TOKEN = '<%= csrfToken %>';</script>
 <%- include('../layout-footer', { scripts: ['/js/campaign-history.js'] }) %>

@@ -5,10 +5,10 @@ const IV_LENGTH = 16;
 
 function getKey() {
   const hex = process.env.ENCRYPTION_KEY;
-  if (!hex || hex.length < 32) {
-    throw new Error('ENCRYPTION_KEY env var must be at least 32 hex characters');
+  if (!hex || hex.length < 64) {
+    throw new Error('ENCRYPTION_KEY env var must be at least 64 hex characters (32 bytes for AES-256)');
   }
-  return Buffer.from(hex.slice(0, 32), 'hex');
+  return Buffer.from(hex.slice(0, 64), 'hex');
 }
 
 function encrypt(text) {

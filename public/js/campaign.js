@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var container = document.getElementById('templates-list');
     container.innerHTML = '<p class="loading">Loading templates...</p>';
 
-    fetch('/api/templates?channel=' + state.channel, {
+    fetch('/api/templates', {
       headers: { 'X-CSRF-Token': window.CSRF_TOKEN }
     })
     .then(function(r) { return r.json(); })
@@ -77,6 +77,18 @@ document.addEventListener('DOMContentLoaded', function() {
         html += '</div>';
       });
       container.innerHTML = html;
+
+      // Check for overflow and add fade hint
+      var wrapper = container.parentElement;
+      if (wrapper && wrapper.classList.contains('templates-list-wrapper')) {
+        if (container.scrollHeight > container.clientHeight) {
+          wrapper.classList.add('has-overflow');
+          container.addEventListener('scroll', function() {
+            var atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 10;
+            wrapper.classList.toggle('scrolled-bottom', atBottom);
+          });
+        }
+      }
 
       // Select template
       container.querySelectorAll('.template-option').forEach(function(opt) {
@@ -121,12 +133,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var payload = {
       name: name,
-      channel: state.channel,
       body_template: body,
+      subject_template: subject || '',
     };
-    if (state.channel === 'email') {
-      payload.subject_template = subject || '';
-    }
 
     var url, method;
     if (state.editingTemplateId) {

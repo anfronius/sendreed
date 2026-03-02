@@ -148,4 +148,34 @@ function matchAll(importedContacts, existingContacts) {
   return results;
 }
 
-module.exports = { matchAll, findMatches, levenshteinDistance, normalizeName };
+/**
+ * Run matching from the existing-contact perspective: for each existing contact,
+ * find the best matching imported contacts.
+ * Returns array of { contact_id, contact, matches[] }
+ * where matches[].imported_contact_id is the imported contact's ID.
+ */
+function matchAllByExisting(existingContacts, importedContacts) {
+  const results = [];
+
+  for (const existing of existingContacts) {
+    // findMatches returns { contact_id: pool_item.id, ... }
+    // When pool = importedContacts, contact_id = imported contact's id
+    const rawMatches = findMatches(existing, importedContacts);
+    const matches = rawMatches.map(function(m) {
+      return {
+        imported_contact_id: m.contact_id,
+        confidence: m.confidence,
+        match_type: m.match_type,
+      };
+    });
+    results.push({
+      contact_id: existing.id,
+      contact: existing,
+      matches,
+    });
+  }
+
+  return results;
+}
+
+module.exports = { matchAll, matchAllByExisting, findMatches, levenshteinDistance, normalizeName };

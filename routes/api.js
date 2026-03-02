@@ -221,7 +221,6 @@ router.get('/templates', requireAuth, (req, res) => {
     const db = getDb();
     const isAdmin = req.session.user.role === 'admin';
     const effectiveId = getEffectiveOwnerId(req);
-    const channel = req.query.channel;
 
     let where, params;
     if (isAdmin && effectiveId) {
@@ -233,11 +232,6 @@ router.get('/templates', requireAuth, (req, res) => {
     } else {
       where = 'owner_id = ?';
       params = [effectiveId];
-    }
-
-    if (channel) {
-      where += ' AND channel = ?';
-      params.push(channel);
     }
 
     const templates = db.prepare(
@@ -258,19 +252,16 @@ router.post('/templates', requireAuth, (req, res) => {
     if (!ownerId) {
       return res.status(400).json({ error: 'Admin must select a user to act on behalf of.' });
     }
-    const { name, channel, subject_template, body_template } = req.body;
+    const { name, subject_template, body_template } = req.body;
 
-    if (!name || !channel || !body_template) {
-      return res.status(400).json({ error: 'Name, channel, and body are required.' });
-    }
-    if (!['email', 'sms'].includes(channel)) {
-      return res.status(400).json({ error: 'Invalid channel.' });
+    if (!name || !body_template) {
+      return res.status(400).json({ error: 'Name and body are required.' });
     }
 
     const scheduled_date = req.body.scheduled_date || null;
     const result = db.prepare(
-      'INSERT INTO templates (owner_id, name, channel, subject_template, body_template, scheduled_date) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(ownerId, name, channel, subject_template || null, body_template, scheduled_date);
+      'INSERT INTO templates (owner_id, name, subject_template, body_template, scheduled_date) VALUES (?, ?, ?, ?, ?)'
+    ).run(ownerId, name, subject_template || null, body_template, scheduled_date);
 
     res.json({ id: result.lastInsertRowid });
   } catch (err) {
@@ -399,6 +390,56 @@ router.post('/campaign/:id/include', requireAuth, (req, res) => {
   }
 });
 
+// POST /api/campaign-recipient/:id/sent — mark individual SMS recipient as sent
+router.post('/campaign-recipient/:id/sent', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const userId = req.session.user.id;
+    const isAdmin = req.session.user.role === 'admin';
+    const recipientId = parseInt(req.params.id);
+
+    const recipient = db.prepare(
+      `SELECT cr.*, c.owner_id as campaign_owner_id, c.id as cid
+       FROM campaign_recipients cr
+       JOIN campaigns c ON cr.campaign_id = c.id
+       WHERE cr.id = ?`
+    ).get(recipientId);
+
+    if (!recipient || (!isAdmin && recipient.campaign_owner_id !== userId)) {
+      return res.status(404).json({ error: 'Recipient not found.' });
+    }
+
+    db.prepare(
+      "UPDATE campaign_recipients SET status = 'sent', sent_at = datetime('now') WHERE id = ?"
+    ).run(recipientId);
+
+    db.prepare(
+      'UPDATE campaigns SET sent_count = sent_count + 1 WHERE id = ?'
+    ).run(recipient.campaign_id);
+
+    // Check if all non-excluded recipients are now sent
+    const remaining = db.prepare(
+      "SELECT COUNT(*) as c FROM campaign_recipients WHERE campaign_id = ? AND status IN ('pending', 'generated')"
+    ).get(recipient.campaign_id).c;
+
+    if (remaining === 0) {
+      db.prepare(
+        "UPDATE campaigns SET status = 'sent', sent_at = datetime('now') WHERE id = ?"
+      ).run(recipient.campaign_id);
+    }
+
+    const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(recipient.campaign_id);
+    res.json({
+      success: true,
+      allSent: remaining === 0,
+      sent_count: campaign.sent_count,
+      total_count: campaign.total_count,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/campaign/:id/status — poll campaign status
 router.get('/campaign/:id/status', requireAuth, (req, res) => {
   try {
@@ -490,6 +531,42 @@ router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'),
       `UPDATE crmls_properties
        SET realist_lookup_status = 'not_found', realist_owner_name = NULL, looked_up_at = datetime('now')
        WHERE id = ?`
+    ).run(propId);
+
+    var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+    const counts = db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
+        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+      FROM crmls_properties
+      WHERE ${countsWhere}
+    `).get(...countsParams);
+
+    res.json({ success: true, counts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/realist-lookup/:id/undo-not-found — reverse not-found back to pending
+router.post('/realist-lookup/:id/undo-not-found', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    const propId = parseInt(req.params.id);
+
+    const prop = db.prepare('SELECT * FROM crmls_properties WHERE id = ?').get(propId);
+    if (!prop) return res.status(404).json({ error: 'Property not found.' });
+    if (!(isAdmin && !effectiveOwnerId) && prop.owner_id !== effectiveOwnerId) {
+      return res.status(403).json({ error: 'Not authorized.' });
+    }
+
+    db.prepare(
+      "UPDATE crmls_properties SET realist_lookup_status = 'pending', looked_up_at = NULL WHERE id = ?"
     ).run(propId);
 
     var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
@@ -694,37 +771,66 @@ router.post('/match/:id/skip', requireRole('realestate', 'admin'), (req, res) =>
   }
 });
 
-// POST /api/match/:importedId/manual — manually assign imported contact to a contact
-router.post('/match/:importedId/manual', requireRole('realestate', 'admin'), (req, res) => {
+// POST /api/match/:contactId/manual — manually assign a vCard import to an existing contact
+router.post('/match/:contactId/manual', requireRole('realestate', 'admin'), (req, res) => {
   try {
     const db = getDb();
-    const importedId = parseInt(req.params.importedId);
-    const { contact_id } = req.body;
+    const contactId = parseInt(req.params.contactId);
+    const { imported_contact_id } = req.body;
     const userId = req.session.user.id;
 
-    if (!contact_id) {
-      return res.status(400).json({ error: 'contact_id is required.' });
+    if (!imported_contact_id) {
+      return res.status(400).json({ error: 'imported_contact_id is required.' });
     }
 
-    const imported = db.prepare('SELECT * FROM imported_contacts WHERE id = ?').get(importedId);
-    if (!imported) {
-      return res.status(404).json({ error: 'Imported contact not found.' });
-    }
-
-    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(parseInt(contact_id));
+    const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
     if (!contact) {
       return res.status(404).json({ error: 'Contact not found.' });
     }
 
-    // Remove any existing match for this imported contact
-    db.prepare('DELETE FROM phone_matches WHERE imported_contact_id = ?').run(importedId);
+    const imported = db.prepare('SELECT * FROM imported_contacts WHERE id = ?').get(parseInt(imported_contact_id));
+    if (!imported) {
+      return res.status(404).json({ error: 'Imported contact not found.' });
+    }
+
+    // Remove any existing match for this existing contact
+    db.prepare('DELETE FROM phone_matches WHERE contact_id = ?').run(contactId);
 
     // Insert manual match as confirmed
     db.prepare(
       "INSERT INTO phone_matches (contact_id, imported_contact_id, match_type, confidence_score, confirmed_by, confirmed_at) VALUES (?, ?, 'manual', 100, ?, datetime('now'))"
-    ).run(parseInt(contact_id), importedId, userId);
+    ).run(contactId, parseInt(imported_contact_id), userId);
 
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/imported-contacts — search imported vCard contacts by name
+router.get('/imported-contacts', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const effectiveId = getEffectiveOwnerId(req);
+    const ownerId = effectiveId || req.session.user.id;
+    const search = (req.query.search || '').trim();
+
+    if (search.length < 2) {
+      return res.json({ contacts: [] });
+    }
+
+    const s = '%' + search + '%';
+    const contacts = db.prepare(`
+      SELECT ic.id, ic.full_name, ic.first_name, ic.last_name, ic.phone, ic.email
+      FROM imported_contacts ic
+      JOIN contact_imports ci ON ic.import_id = ci.id
+      WHERE ci.imported_by = ?
+        AND (ic.full_name LIKE ? OR ic.first_name LIKE ? OR ic.last_name LIKE ?)
+      ORDER BY ic.full_name
+      LIMIT 10
+    `).all(ownerId, s, s, s);
+
+    res.json({ contacts });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -798,11 +904,16 @@ router.get('/digest-settings', requireRole('admin'), (req, res) => {
 });
 
 // PUT /api/digest-settings/:userId — update digest settings for a user
-router.put('/digest-settings/:userId', requireRole('admin'), (req, res) => {
+router.put('/digest-settings/:userId', requireRole('admin', 'realestate'), (req, res) => {
   try {
     const db = getDb();
     const userId = parseInt(req.params.userId);
     const { enabled, lookahead_days } = req.body;
+
+    // Realestate users can only update their own settings
+    if (req.session.user.role === 'realestate' && userId !== req.session.user.id) {
+      return res.status(403).json({ error: 'You can only update your own digest settings.' });
+    }
 
     var user = db.prepare("SELECT id FROM users WHERE id = ? AND role = 'realestate'").get(userId);
     if (!user) {
@@ -814,6 +925,35 @@ router.put('/digest-settings/:userId', requireRole('admin'), (req, res) => {
       'INSERT INTO digest_settings (user_id, enabled, lookahead_days, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP) ' +
       'ON CONFLICT(user_id) DO UPDATE SET enabled = excluded.enabled, lookahead_days = excluded.lookahead_days, updated_at = CURRENT_TIMESTAMP'
     ).run(userId, enabled ? 1 : 0, days);
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== CAMPAIGN API ==========
+
+// DELETE /api/campaign/:id — delete a campaign and its recipients
+router.delete('/campaign/:id', (req, res) => {
+  try {
+    const db = getDb();
+    const campaignId = parseInt(req.params.id);
+    const userId = req.session.user.id;
+    const isAdmin = req.session.user.role === 'admin';
+
+    var campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(campaignId);
+    if (!campaign || (!isAdmin && campaign.owner_id !== userId)) {
+      return res.status(404).json({ error: 'Campaign not found.' });
+    }
+    if (campaign.status === 'sending') {
+      return res.status(400).json({ error: 'Cannot delete a campaign that is currently sending.' });
+    }
+
+    db.transaction(function() {
+      db.prepare('DELETE FROM campaign_recipients WHERE campaign_id = ?').run(campaignId);
+      db.prepare('DELETE FROM campaigns WHERE id = ?').run(campaignId);
+    })();
 
     res.json({ success: true });
   } catch (err) {

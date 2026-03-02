@@ -7,6 +7,23 @@ document.addEventListener('DOMContentLoaded', function() {
     return el ? el.value : '';
   }
 
+  // ---- Auto-submit filter form on change ----
+  var filterForm = document.querySelector('.filter-bar');
+  if (filterForm) {
+    var filterSelects = filterForm.querySelectorAll('.filter-select');
+    filterSelects.forEach(function(sel) {
+      sel.addEventListener('change', function() { filterForm.submit(); });
+    });
+    var searchInput = filterForm.querySelector('.filter-input');
+    if (searchInput) {
+      var debounceTimer;
+      searchInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() { filterForm.submit(); }, 500);
+      });
+    }
+  }
+
   // ---- Checkbox selection + bulk delete ----
   var selectAll = document.getElementById('select-all-contacts');
   var bulkDeleteBtn = document.getElementById('bulk-delete-btn');

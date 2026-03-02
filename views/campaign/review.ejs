@@ -28,6 +28,12 @@
 <div class="form-actions" style="margin-top: 1rem;">
   <form method="POST" action="/campaign/<%= campaign.id %>/send">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <% if (campaign.channel === 'email') { %>
+      <div class="form-group" style="display: inline-flex; align-items: center; gap: 0.5rem; margin-bottom: 0;">
+        <label for="daily_limit" style="margin-bottom: 0; white-space: nowrap;">Max emails/day (optional):</label>
+        <input type="number" id="daily_limit" name="daily_limit" min="1" placeholder="No limit" style="width: 100px; padding: 0.4rem 0.5rem; border: 1px solid #d1d5db; border-radius: 6px;">
+      </div>
+    <% } %>
     <button type="submit" class="btn btn-primary"><%= campaign.channel === 'email' ? 'Send Emails' : 'Generate Text Links' %></button>
   </form>
   <a href="/campaign" class="btn btn-secondary">Cancel</a>
