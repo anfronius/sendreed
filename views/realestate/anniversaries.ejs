@@ -7,7 +7,7 @@
 <% if (user.role === 'admin') { %>
 <div class="form-card digest-settings-section">
   <h2>Digest Email Settings</h2>
-  <p style="color:#64748b; font-size:0.85rem; margin-bottom:1rem;">Configure daily anniversary digest emails sent to real estate users from the admin SMTP account.</p>
+  <p class="text-muted mb-2">Configure daily anniversary digest emails sent to real estate users from the admin SMTP account.</p>
   <% if (typeof digestSettings !== 'undefined' && digestSettings.length > 0) { %>
   <table class="data-table">
     <thead>
@@ -27,7 +27,7 @@
           <input type="checkbox" <%= ds.enabled ? 'checked' : '' %> onchange="updateDigestSetting(<%= ds.user_id %>, this.checked, this.closest('tr').querySelector('.digest-days').value)">
         </td>
         <td>
-          <input type="number" class="digest-days" value="<%= ds.lookahead_days %>" min="1" max="30" style="width:60px" onchange="updateDigestSetting(<%= ds.user_id %>, this.closest('tr').querySelector('input[type=checkbox]').checked, this.value)">
+          <input type="number" class="digest-days" value="<%= ds.lookahead_days %>" min="1" max="30" style="width:60px;" onchange="updateDigestSetting(<%= ds.user_id %>, this.closest('tr').querySelector('input[type=checkbox]').checked, this.value)">
         </td>
       </tr>
       <% }); %>
@@ -38,16 +38,16 @@
   <% } %>
 </div>
 <% } else if (user.role === 'realestate') { %>
-<div class="form-card" style="margin-bottom: 1.5rem;">
-  <div style="display: flex; align-items: center; gap: 1rem;">
-    <label style="font-weight: 500; margin: 0;">Anniversary Digest Emails</label>
-    <label class="field-toggle" style="margin: 0;">
+<div class="form-card mb-2">
+  <div style="display:flex; align-items:center; gap:1rem;">
+    <label style="font-weight:500; margin:0;">Anniversary Digest Emails</label>
+    <label class="field-toggle" style="margin:0;">
       <input type="checkbox" id="my-digest-toggle" <%= myDigestEnabled ? 'checked' : '' %>
         onchange="updateDigestSetting(<%= user.id %>, this.checked, 7)">
-      <span style="font-size: 0.85rem; color: #64748b;"><%= myDigestEnabled ? 'Enabled' : 'Disabled' %></span>
+      <span class="text-muted"><%= myDigestEnabled ? 'Enabled' : 'Disabled' %></span>
     </label>
   </div>
-  <p style="color:#64748b; font-size:0.8rem; margin-top:0.5rem; margin-bottom:0;">
+  <p class="text-muted mt-1" style="margin-bottom:0;">
     When enabled, you'll receive daily email digests about upcoming purchase anniversaries.
   </p>
 </div>
@@ -144,7 +144,7 @@
 </div>
 <% } %>
 
-<a href="/realestate" class="btn btn-link" style="margin-top: 1rem; display: inline-block;">Back to Real Estate</a>
+<a href="/realestate" class="btn btn-link mt-2">Back to Real Estate</a>
 
 <script>window.CSRF_TOKEN = '<%= csrfToken %>';</script>
 <%- include('../layout-footer', { scripts: ['/js/anniversaries.js'] }) %>

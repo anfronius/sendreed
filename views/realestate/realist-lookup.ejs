@@ -3,11 +3,10 @@
 <div class="page-header">
   <h1>Realist Lookup <span class="count-badge"><%= totalCount %> properties</span></h1>
   <div class="page-actions">
-    <button class="btn btn-danger" id="bulk-not-found-btn" style="display:none;">Not Found (<span id="bulk-nf-count">0</span>)</button>
-    <button class="btn btn-danger" id="bulk-delete-btn" style="display:none;">Delete (<span id="bulk-del-count">0</span>)</button>
-    <button type="button" class="btn btn-primary" id="finalize-btn"
-      data-count="<%= counts.found %>"
-      style="<%= counts.found > 0 ? '' : 'display:none;' %>">
+    <button class="btn btn-danger hidden" id="bulk-not-found-btn">Not Found (<span id="bulk-nf-count">0</span>)</button>
+    <button class="btn btn-danger hidden" id="bulk-delete-btn">Delete (<span id="bulk-del-count">0</span>)</button>
+    <button type="button" class="btn btn-large btn-primary<%= counts.found > 0 ? '' : ' hidden' %>" id="finalize-btn"
+      data-count="<%= counts.found %>">
       Finalize Lookup (<%= counts.found %>)
     </button>
   </div>
@@ -23,7 +22,7 @@
   <div class="progress-stats">
     <span class="stat-total">Total: <strong><%= counts.total %></strong></span>
     <span class="stat-sent">Found: <strong id="count-found"><%= counts.found %></strong></span>
-    <span style="color: #94a3b8;">Pending: <strong id="count-pending"><%= counts.pending %></strong></span>
+    <span class="text-muted">Pending: <strong id="count-pending"><%= counts.pending %></strong></span>
     <span class="stat-failed">Not Found: <strong id="count-not-found"><%= counts.not_found %></strong></span>
   </div>
 </div>
@@ -31,14 +30,14 @@
 <!-- Status filter tabs -->
 <div class="filter-bar">
   <a href="/realestate/lookup?status=all"
-    class="btn btn-sm <%= statusFilter === 'all' ? 'btn-primary' : 'btn-secondary' %>">All (<%= counts.total %>)</a>
+    class="btn btn-filter<%= statusFilter === 'all' ? ' active' : '' %>">All (<%= counts.total %>)</a>
   <a href="/realestate/lookup?status=pending"
-    class="btn btn-sm <%= statusFilter === 'pending' ? 'btn-primary' : 'btn-secondary' %>">Pending (<%= counts.pending %>)</a>
+    class="btn btn-filter<%= statusFilter === 'pending' ? ' active' : '' %>">Pending (<%= counts.pending %>)</a>
   <a href="/realestate/lookup?status=found"
-    class="btn btn-sm <%= statusFilter === 'found' ? 'btn-primary' : 'btn-secondary' %>">Found (<%= counts.found %>)</a>
+    class="btn btn-filter<%= statusFilter === 'found' ? ' active' : '' %>">Found (<%= counts.found %>)</a>
   <a href="/realestate/lookup?status=not_found"
-    class="btn btn-sm <%= statusFilter === 'not_found' ? 'btn-primary' : 'btn-secondary' %>">Not Found (<%= counts.not_found %>)</a>
-  <span style="margin-left: auto; font-size: 0.8rem; color: #94a3b8; font-style: italic;">
+    class="btn btn-filter<%= statusFilter === 'not_found' ? ' active' : '' %>">Not Found (<%= counts.not_found %>)</a>
+  <span class="text-muted" style="margin-left:auto; font-style:italic;">
     Tip: Tab from name field copies next address
   </span>
 </div>
@@ -53,11 +52,11 @@
   <table class="data-table" id="lookup-table">
     <thead>
       <tr>
-        <th style="width:30px"><input type="checkbox" id="select-all-lookup"></th>
+        <th><input type="checkbox" id="select-all-lookup"></th>
         <th>Address</th>
         <th>City
           <% if (user.role === 'admin') { %>
-            <button id="btn-city-mappings" class="btn-sm btn-secondary" style="margin-left:8px;">
+            <button id="btn-city-mappings" class="btn btn-sm btn-secondary" style="margin-left:8px;">
               City Mappings<% if (unmappedCount > 0) { %>
                 <span class="badge-count"><%= unmappedCount %></span>
               <% } %>
@@ -128,7 +127,7 @@
 <% } %>
 
 <% if (user.role === 'admin') { %>
-<div id="city-mappings-panel" class="panel-overlay" style="display:none;">
+<div id="city-mappings-panel" class="panel-overlay hidden">
   <div class="panel-box">
     <div class="panel-header">
       <h3>Unmapped City Values</h3>

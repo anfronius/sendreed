@@ -48,11 +48,11 @@ document.addEventListener('DOMContentLoaded', function() {
     updateProgress(data.sent || 0, data.failed || 0);
 
     if (data.approaching) {
-      rateWarning.style.display = 'block';
+      rateWarning.classList.remove('hidden');
     }
 
     if (data.rateLimitHit) {
-      rateLimitHit.style.display = 'block';
+      rateLimitHit.classList.remove('hidden');
     }
 
     if (data.recipientId) {
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (data.done) {
       source.close();
-      doneActions.style.display = 'block';
+      doneActions.classList.remove('hidden');
 
       if (data.error) {
         var errDiv = document.createElement('div');
@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
           }
           if (['sent', 'paused', 'resume_tomorrow'].includes(data.status)) {
             clearInterval(pollInterval);
-            doneActions.style.display = 'block';
+            doneActions.classList.remove('hidden');
           }
         });
     }, 3000);

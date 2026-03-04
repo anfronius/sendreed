@@ -3,12 +3,11 @@
 <div class="page-header">
   <h1>Phone & Email Matching</h1>
   <div class="page-actions">
-    <button type="button" class="btn btn-primary" id="apply-all-btn"
-      data-count="<%= counts.autoConfirmed + counts.confirmed %>"
-      style="<%= (counts.autoConfirmed + counts.confirmed) > 0 ? '' : 'display:none;' %>">
+    <button type="button" class="btn btn-large btn-primary<%= (counts.autoConfirmed + counts.confirmed) > 0 ? '' : ' hidden' %>" id="apply-all-btn"
+      data-count="<%= counts.autoConfirmed + counts.confirmed %>">
       Apply All Confirmed (<%= counts.autoConfirmed + counts.confirmed %>)
     </button>
-    <a href="/realestate/import-vcard" class="btn btn-upload">Import Another vCard</a>
+    <a href="/realestate/import-vcard" class="btn btn-large btn-upload">Import Another vCard</a>
   </div>
 </div>
 
@@ -19,15 +18,15 @@
     <div class="stat-label">Total Contacts</div>
   </div>
   <div class="stat-card">
-    <div class="stat-number" style="color: #166534;"><%= counts.confirmed + counts.autoConfirmed %></div>
+    <div class="stat-number text-success"><%= counts.confirmed + counts.autoConfirmed %></div>
     <div class="stat-label">Matched</div>
   </div>
   <div class="stat-card">
-    <div class="stat-number" style="color: #92400e;"><%= counts.review %></div>
+    <div class="stat-number" style="color:var(--color-warning-text);"><%= counts.review %></div>
     <div class="stat-label">Needs Review</div>
   </div>
   <div class="stat-card">
-    <div class="stat-number" style="color: #991b1b;"><%= counts.unmatched %></div>
+    <div class="stat-number text-danger"><%= counts.unmatched %></div>
     <div class="stat-label">No Match</div>
   </div>
 </div>
@@ -51,7 +50,7 @@
       <div class="match-card-left">
         <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
         <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
-        <div class="match-contact-detail" style="font-size:0.8rem; color:#94a3b8;">
+        <div class="match-contact-detail">
           <% if (m.c_phone) { %>Phone: <%= m.c_phone %> <% } else { %><em>No phone</em> <% } %>
           <% if (m.c_email) { %>Email: <%= m.c_email %><% } else { %><em>No email</em><% } %>
         </div>
@@ -114,7 +113,7 @@
       <div class="match-card-left">
         <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
         <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
-        <div class="match-contact-detail" style="font-size:0.8rem; color:#94a3b8;">
+        <div class="match-contact-detail">
           <% if (m.c_phone) { %>Phone: <%= m.c_phone %> <% } else { %><em>No phone</em> <% } %>
           <% if (m.c_email) { %>Email: <%= m.c_email %><% } else { %><em>No email</em><% } %>
         </div>
@@ -149,12 +148,12 @@
       <div class="match-card-left">
         <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
         <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
-        <div class="match-contact-detail" style="font-size:0.8rem; color:#94a3b8;">
+        <div class="match-contact-detail">
           <% if (m.c_phone) { %>Phone: <%= m.c_phone %> <% } else { %><em>No phone</em> <% } %>
           <% if (m.c_email) { %>Email: <%= m.c_email %><% } else { %><em>No email</em><% } %>
         </div>
       </div>
-      <div class="match-card-right" style="flex: 1;">
+      <div class="match-card-right" style="flex:1;">
         <div class="manual-match-form">
           <input type="text" class="contact-search-input" placeholder="Search vCard imports by name..."
             data-contact-id="<%= m.contact_id %>">
@@ -169,7 +168,7 @@
 
 <% } %>
 
-<a href="/realestate" class="btn btn-link" style="margin-top: 1rem; display: inline-block;">Back to Real Estate</a>
+<a href="/realestate" class="btn btn-link mt-2">Back to Real Estate</a>
 
 <script>window.CSRF_TOKEN = '<%= csrfToken %>';</script>
 <%- include('../layout-footer', { scripts: ['/js/matching.js'] }) %>

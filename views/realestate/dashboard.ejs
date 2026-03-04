@@ -12,11 +12,11 @@
     <div class="stat-label">Pending Lookup</div>
   </div>
   <div class="stat-card">
-    <div class="stat-number" style="color: #166534;"><%= stats.found %></div>
+    <div class="stat-number text-success"><%= stats.found %></div>
     <div class="stat-label">Found</div>
   </div>
   <div class="stat-card">
-    <div class="stat-number" style="color: #991b1b;"><%= stats.not_found %></div>
+    <div class="stat-number text-danger"><%= stats.not_found %></div>
     <div class="stat-label">Not Found</div>
   </div>
 </div>
@@ -44,20 +44,20 @@
       <% }); %>
     </tbody>
   </table>
-  <a href="/realestate/anniversaries" class="btn btn-sm btn-secondary" style="margin-top:0.5rem;">View All Anniversaries</a>
+  <a href="/realestate/anniversaries" class="btn btn-sm btn-secondary mt-1">View All Anniversaries</a>
 </div>
 <% } else { %>
-<p style="color:#94a3b8; margin-bottom:1.5rem;">No upcoming anniversaries this week.
+<p class="text-muted mb-2">No upcoming anniversaries this week.
   <a href="/realestate/anniversaries">View Anniversaries</a>
 </p>
 <% } %>
 
 <h2>Quick Actions</h2>
 <div class="action-links">
-  <a href="/realestate/import-crmls" class="btn btn-upload">Import CRMLS Data</a>
-  <a href="/realestate/import-vcard" class="btn btn-upload">Import Contacts</a>
-  <a href="/realestate/lookup" class="btn btn-secondary">Realist Lookup</a>
-  <a href="/realestate/matching" class="btn btn-secondary">Phone Matching</a>
+  <a href="/realestate/import-crmls" class="btn btn-large btn-upload">Import CRMLS Data</a>
+  <a href="/realestate/import-vcard" class="btn btn-large btn-upload">Import Contacts</a>
+  <a href="/realestate/lookup" class="btn btn-large btn-secondary">Realist Lookup</a>
+  <a href="/realestate/matching" class="btn btn-large btn-secondary">Phone Matching</a>
 
 </div>
 

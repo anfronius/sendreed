@@ -4,15 +4,15 @@
   </div>
   <% if (user) { %>
   <div class="nav-links">
-    <a href="/dashboard">Dashboard</a>
-    <a href="/contacts"><%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></a>
-    <a href="/campaign">Campaigns</a>
+    <a href="/dashboard"<%= typeof currentPath !== 'undefined' && currentPath === '/dashboard' ? ' class="active"' : '' %>>Dashboard</a>
+    <a href="/contacts"<%= typeof currentPath !== 'undefined' && currentPath.startsWith('/contacts') ? ' class="active"' : '' %>><%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></a>
+    <a href="/campaign"<%= typeof currentPath !== 'undefined' && currentPath.startsWith('/campaign') ? ' class="active"' : '' %>>Campaigns</a>
     <% if (user.role === 'realestate' || user.role === 'admin') { %>
-      <a href="/realestate">Real Estate</a>
+      <a href="/realestate"<%= typeof currentPath !== 'undefined' && currentPath.startsWith('/realestate') ? ' class="active"' : '' %>>Real Estate</a>
     <% } %>
     <% if (user.role === 'admin') { %>
-      <a href="/admin/users">Users</a>
-      <a href="/admin/fields">Fields</a>
+      <a href="/admin/users"<%= typeof currentPath !== 'undefined' && currentPath.startsWith('/admin') ? ' class="active"' : '' %>>Users</a>
+      <a href="/admin/fields"<%= typeof currentPath !== 'undefined' && currentPath.startsWith('/admin/fields') ? ' class="active"' : '' %>>Fields</a>
     <% } %>
     <span class="nav-user"><%= user.name %> (<%= user.role %>)</span>
     <a href="/auth/logout" class="nav-logout">Logout</a>
@@ -39,7 +39,7 @@
   <% if (typeof actingUser !== 'undefined' && actingUser) { %>
     <form method="POST" action="/admin/act-as/clear" class="acting-as-clear">
       <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
-      <button type="submit" class="btn-sm btn-secondary">Clear</button>
+      <button type="submit" class="btn btn-sm btn-secondary">Clear</button>
     </form>
   <% } %>
 </div>

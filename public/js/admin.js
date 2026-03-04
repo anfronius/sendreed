@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       testBtn.disabled = true;
       testBtn.textContent = 'Testing...';
-      resultDiv.style.display = 'none';
+      resultDiv.classList.add('hidden');
 
       fetch('/api/smtp-test', {
         method: 'POST',
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function () {
       })
         .then(function (res) { return res.json(); })
         .then(function (result) {
-          resultDiv.style.display = 'block';
+          resultDiv.classList.remove('hidden');
           if (result.success) {
             resultDiv.className = 'test-result success';
             resultDiv.textContent = 'Connection successful!';
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function () {
           }
         })
         .catch(function (err) {
-          resultDiv.style.display = 'block';
+          resultDiv.classList.remove('hidden');
           resultDiv.className = 'test-result error';
           resultDiv.textContent = 'Request failed: ' + err.message;
         })

@@ -23,11 +23,11 @@ document.addEventListener('DOMContentLoaded', function() {
     var ids = getCheckedIds();
     var count = ids.length;
     if (bulkNotFoundBtn) {
-      bulkNotFoundBtn.style.display = count > 0 ? 'inline-block' : 'none';
+      if (count > 0) { bulkNotFoundBtn.classList.remove('hidden'); } else { bulkNotFoundBtn.classList.add('hidden'); }
       bulkNfCount.textContent = count;
     }
     if (bulkDeleteBtn) {
-      bulkDeleteBtn.style.display = count > 0 ? 'inline-block' : 'none';
+      if (count > 0) { bulkDeleteBtn.classList.remove('hidden'); } else { bulkDeleteBtn.classList.add('hidden'); }
       bulkDelCount.textContent = count;
     }
   }
@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var foundCount = counts.found || 0;
       finalizeBtn.dataset.count = foundCount;
       finalizeBtn.textContent = 'Finalize Lookup (' + foundCount + ')';
-      finalizeBtn.style.display = foundCount > 0 ? 'inline-block' : 'none';
+      if (foundCount > 0) { finalizeBtn.classList.remove('hidden'); } else { finalizeBtn.classList.add('hidden'); }
     }
 
     // Update filter tab counts
@@ -422,12 +422,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     cityPanelBtn.addEventListener('click', function() {
-      cityPanel.style.display = 'flex';
+      cityPanel.classList.remove('hidden');
       loadUnmappedCities();
     });
 
     document.getElementById('btn-close-city-panel').addEventListener('click', function() {
-      cityPanel.style.display = 'none';
+      cityPanel.classList.add('hidden');
     });
 
     function loadUnmappedCities() {

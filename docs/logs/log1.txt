@@ -1,0 +1,50 @@
+2026-02-25T22:23:05.925784428Z #16 sha256:17de89c6a7ffe6a29542a018a1fb965b7ac17b945a2e144eb6c3ec739c983054 16.78MB / 22.77MB 0.2s
+2026-02-25T22:23:06.143880404Z #16 sha256:17de89c6a7ffe6a29542a018a1fb965b7ac17b945a2e144eb6c3ec739c983054 22.77MB / 22.77MB 0.2s done
+2026-02-25T22:23:06.143904804Z #16 extracting sha256:17de89c6a7ffe6a29542a018a1fb965b7ac17b945a2e144eb6c3ec739c983054
+2026-02-25T22:23:07.647859147Z #16 extracting sha256:17de89c6a7ffe6a29542a018a1fb965b7ac17b945a2e144eb6c3ec739c983054 1.7s done
+2026-02-25T22:23:07.723445381Z #16 writing cache image manifest sha256:ac90f3bb84b4b2d8321a60708615217d47378b43331b211ca60552a75d002bab done
+2026-02-25T22:23:07.723473802Z #16 DONE 7.7s
+2026-02-25T22:23:08.537811418Z Pushing image to registry...
+2026-02-25T22:23:10.110566549Z Upload succeeded
+2026-02-25T22:23:13.536769721Z ==> Deploying...
+2026-02-25T22:23:13.627962721Z ==> Setting WEB_CONCURRENCY=1 by default, based on available CPUs in the instance
+2026-02-25T22:23:37.631209378Z 
+2026-02-25T22:23:37.63124604Z /app/node_modules/better-sqlite3/lib/methods/wrappers.js:9
+2026-02-25T22:23:37.631252971Z 	this[cppdb].exec(sql);
+2026-02-25T22:23:37.631255431Z 	            ^
+2026-02-25T22:23:37.633354673Z SqliteError: no such column: owner_id
+2026-02-25T22:23:37.633366774Z     at Database.exec (/app/node_modules/better-sqlite3/lib/methods/wrappers.js:9:14)
+2026-02-25T22:23:37.633369114Z     at createTables (/app/db/init.js:24:6)
+2026-02-25T22:23:37.633370864Z     at getDb (/app/db/init.js:17:3)
+2026-02-25T22:23:37.633384955Z     at Object.<anonymous> (/app/server.js:25:1)
+2026-02-25T22:23:37.633388185Z     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+2026-02-25T22:23:37.633391015Z     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+2026-02-25T22:23:37.633394196Z     at Module.load (node:internal/modules/cjs/loader:1266:32)
+2026-02-25T22:23:37.633396816Z     at Module._load (node:internal/modules/cjs/loader:1091:12)
+2026-02-25T22:23:37.633399506Z     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2026-02-25T22:23:37.633405386Z     at node:internal/main/run_main_module:28:49 {
+2026-02-25T22:23:37.633408496Z   code: 'SQLITE_ERROR'
+2026-02-25T22:23:37.633410946Z }
+2026-02-25T22:23:37.633413247Z 
+2026-02-25T22:23:37.633415537Z Node.js v20.20.0
+2026-02-25T22:23:39.009136393Z ==> Exited with status 1
+2026-02-25T22:23:39.011645353Z ==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+2026-02-25T22:23:39.081985393Z 
+2026-02-25T22:23:39.082035036Z /app/node_modules/better-sqlite3/lib/methods/wrappers.js:9
+2026-02-25T22:23:39.082040616Z 	this[cppdb].exec(sql);
+2026-02-25T22:23:39.082043096Z 	            ^
+2026-02-25T22:23:39.084014501Z SqliteError: no such column: owner_id
+2026-02-25T22:23:39.084031242Z     at Database.exec (/app/node_modules/better-sqlite3/lib/methods/wrappers.js:9:14)
+2026-02-25T22:23:39.084034232Z     at createTables (/app/db/init.js:24:6)
+2026-02-25T22:23:39.084049863Z     at getDb (/app/db/init.js:17:3)
+2026-02-25T22:23:39.084054123Z     at Object.<anonymous> (/app/server.js:25:1)
+2026-02-25T22:23:39.084058293Z     at Module._compile (node:internal/modules/cjs/loader:1521:14)
+2026-02-25T22:23:39.084061704Z     at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+2026-02-25T22:23:39.084065034Z     at Module.load (node:internal/modules/cjs/loader:1266:32)
+2026-02-25T22:23:39.084068544Z     at Module._load (node:internal/modules/cjs/loader:1091:12)
+2026-02-25T22:23:39.084072284Z     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2026-02-25T22:23:39.084079725Z     at node:internal/main/run_main_module:28:49 {
+2026-02-25T22:23:39.084083545Z   code: 'SQLITE_ERROR'
+2026-02-25T22:23:39.084086995Z }
+2026-02-25T22:23:39.084089955Z 
+2026-02-25T22:23:39.084093346Z Node.js v20.20.0

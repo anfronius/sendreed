@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var checked = table.querySelectorAll('.contact-checkbox:checked');
     var count = checked.length;
     if (bulkDeleteBtn) {
-      bulkDeleteBtn.style.display = count > 0 ? 'inline-block' : 'none';
+      if (count > 0) { bulkDeleteBtn.classList.remove('hidden'); } else { bulkDeleteBtn.classList.add('hidden'); }
     }
     if (bulkCount) {
       bulkCount.textContent = count;
