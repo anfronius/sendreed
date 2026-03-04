@@ -12,21 +12,6 @@
   </div>
 </div>
 
-<!-- Progress bar -->
-<div class="progress-container">
-  <div class="progress-bar-wrapper">
-    <div class="progress-bar" id="lookup-progress"
-      style="width: <%= counts.total > 0 ? Math.round(((counts.found + counts.not_found) / counts.total) * 100) : 0 %>%">
-    </div>
-  </div>
-  <div class="progress-stats">
-    <span class="stat-total">Total: <strong><%= counts.total %></strong></span>
-    <span class="stat-sent">Found: <strong id="count-found"><%= counts.found %></strong></span>
-    <span class="text-muted">Pending: <strong id="count-pending"><%= counts.pending %></strong></span>
-    <span class="stat-failed">Not Found: <strong id="count-not-found"><%= counts.not_found %></strong></span>
-  </div>
-</div>
-
 <!-- Status filter tabs -->
 <div class="filter-bar">
   <a href="/realestate/lookup?status=all"

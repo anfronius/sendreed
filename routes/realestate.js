@@ -67,26 +67,37 @@ router.get('/', (req, res) => {
     const propertyStats = db.prepare(`
       SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as to_be_matched
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending_lookup
       FROM crmls_properties
       WHERE ${crmlsWhere}
     `).get(...crmlsParams);
 
-    // Get confirmed clients count (contacts with property_address from finalized properties)
+    // Get client matching stats
     const contactWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
     const contactParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+
+    // Clients to be matched: have property_address but missing both phone and email
+    const clientsToMatch = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM contacts
+      WHERE property_address IS NOT NULL AND property_address != ''
+      AND (phone IS NULL OR phone = '') AND (email IS NULL OR email = '')
+      AND ${contactWhere}
+    `).get(...contactParams);
+
+    // Confirmed clients: have property_address AND at least phone or email
     const confirmedClients = db.prepare(`
       SELECT COUNT(*) as count
       FROM contacts
       WHERE property_address IS NOT NULL AND property_address != ''
+      AND ((phone IS NOT NULL AND phone != '') OR (email IS NOT NULL AND email != ''))
       AND ${contactWhere}
     `).get(...contactParams);
 
     const stats = {
       total: propertyStats.total,
-      pending: propertyStats.pending,
-      to_be_matched: propertyStats.to_be_matched,
+      pending_lookup: propertyStats.pending_lookup,
+      to_be_matched: clientsToMatch.count,
       confirmed: confirmedClients.count,
     };
 

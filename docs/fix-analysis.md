@@ -1,65 +1,94 @@
-# 9th Set Fix Analysis
+# Tenth Set of Fixes - Analysis
 
-## Issues to Address
+## Overview
+10 fixes identified in FIXES.md for the tenth set. These focus on:
+1. Template variable fields respecting Fields page settings
+2. Admin SMTP save functionality
+3. Send Texts page button consistency
+4. Dashboard user list filtering
+5. Real estate dashboard counter accuracy
+6. Phone/email matching UX improvements
+7. Realist lookup UI cleanup
+8. City mappings modal improvements
 
-### 1. Filter persistence issue (Contacts page)
-**Problem**: When filtering by empty options like 'has email', entries don't return when clicking 'all clients' until page refresh.
-**Likely cause**: JavaScript filter state not properly resetting when switching back to 'all' filter.
-**Files to check**: `/public/js/contacts.js`, `/routes/contacts.js`
+## Fix Breakdown
 
-### 2. User wipe/delete failure (Users page)
-**Problem**: Admin cannot wipe data or delete Real Estate user - "Failed to wipe user data" error.
-**Likely cause**: SQL foreign key constraints or transaction issues in wipe operation.
-**Files to check**: `/routes/api.js` (wipe endpoint), `/routes/admin.js`
+### Fix 1: Message Body Inserts respect Fields page
+**Issue**: Variable inserts for templates don't change based on active fields in Fields management
+**Files**:
+- `views/campaigns.ejs` - template modal
+- `views/campaigns/create.ejs` - campaign builder
+- `routes/admin.js` - fetch active fields
+**Implementation**: Query enabled fields from `field_config` table and filter available variables
 
-### 3. City Mappings button alignment (Import CRMLS page)
-**Problem**: "City Mappings" button not centered under city field.
-**Likely cause**: CSS flexbox/grid alignment issue.
-**Files to check**: `/views/realestate/import-crmls.ejs`, `/public/css/styles.css`
+### Fix 2: Admin SMTP save error
+**Issue**: Test succeeds but save fails with "Failed to save SMTP settings"
+**Files**: `routes/admin.js` - SMTP save endpoint
+**Investigation needed**: Check validation, encryption, database constraints
 
-### 4. Apply All Confirmed button issues (Phone matching)
-**Problem**: Button not updating dynamically after matches AND still smaller than "Import Another VCard" button.
-**Likely cause**: Missing event listener for match events + CSS height mismatch.
-**Files to check**: `/public/js/matching.js`, `/views/realestate/phone-matching.ejs`
+### Fix 3: Send Texts button sizing
+**Issue**: 'Send Text' button larger than 'Mark Sent' and 'Copy Message'
+**Files**: `views/campaigns/send-texts.ejs`
+**Implementation**: Apply consistent button sizing CSS
 
-### 5. Skip button not dynamic (Phone matching - under review)
-**Problem**: Skipped contacts don't move back to "no match found" list until refresh.
-**Likely cause**: DOM manipulation missing after skip action.
-**Files to check**: `/public/js/matching.js`
+### Fix 4: Send Texts return button style
+**Issue**: Return button is a link instead of button like other subpages
+**Files**: `views/campaigns/send-texts.ejs`
+**Implementation**: Convert link to btn class button
 
-### 6. Real Estate dashboard stats confusion
-**Problem**: "Found" and "Not Found" numbers unclear. Should show: "Properties Pending Lookup", "Clients to be Matched", "Confirmed Clients".
-**Likely cause**: Wrong SQL queries or labels.
-**Files to check**: `/routes/realestate.js`, `/views/realestate/dashboard.ejs`
+### Fix 5: Campaign page button stacking
+**Issue**: View Texts and Delete buttons stack without spacing on narrow windows
+**Files**: `public/css/main.css` or inline styles in campaigns.ejs
+**Implementation**: Add gap/margin on responsive breakpoint
 
-### 7. Admin user select bar visibility issues
-**Problem**: Should only show on appropriate pages, only show RE users on RE page, clear when switching contexts.
-**Likely cause**: Nav partial logic not checking page context properly.
-**Files to check**: `/views/partials/nav.ejs`, middleware
+### Fix 6: Remove admin from dashboard user list
+**Issue**: Admin shows in Users Overview on dashboard
+**Files**: `routes/dashboard.js`
+**Implementation**: Filter out admin role from user stats query
 
-### 8. Digest Email Settings box spacing (Anniversaries page)
-**Problem**: Random empty top space - should be balanced top/bottom or removed.
-**Likely cause**: CSS padding/margin inconsistency.
-**Files to check**: `/views/realestate/anniversaries.ejs`, CSS
+### Fix 7: "Clients to be matched" counter
+**Issue**: Counter doesn't reflect contacts in "No Match Found" section
+**Files**: `routes/realestate.js` - dashboard stats
+**Investigation**: Check query for contacts with addresses but no phone/email
 
-### 9. Number badge spacing (Multiple pages)
-**Problem**: Numbers next to titles like "Today (5)" need more space.
-**Likely cause**: CSS margin on `.badge` or count spans.
-**Files to check**: CSS, multiple view files
+### Fix 8: Phone/email matching - hide confirmed
+**Issue**: Confirmed matches should disappear dynamically after Apply All
+**Files**:
+- `views/realestate/match-contacts.ejs`
+- `public/js/match-contacts.js`
+**Implementation**: Remove confirmed items from DOM after successful apply
 
-### 10. Fields tab not affecting displayed fields
-**Problem**: Changing field visibility in Fields management doesn't affect what shows on clients page.
-**Likely cause**: Field visibility not being checked in query or template rendering.
-**Files to check**: `/routes/contacts.js`, `/views/contacts/list.ejs`, `/db/init.js`
+### Fix 9: Remove realist lookup progress bar
+**Issue**: Progress bar serves no purpose (always gray, Found: 0)
+**Files**: `views/realestate/lookup.ejs`
+**Implementation**: Remove progress bar HTML
 
----
+### Fix 10: City mappings modal improvements
+**Issue**:
+- Should show "Mapping City Values" not "Unmapped City Values"
+- Should list all mapped cities below unmapped ones
+- Allow editing mapped cities
+**Files**:
+- `views/realestate/lookup.ejs` - modal
+- `public/js/lookup.js` - modal logic
+- `routes/realestate.js` - city mappings API
+**Implementation**:
+- Fetch all mappings, separate mapped/unmapped
+- Display both lists
+- Add edit functionality for mapped cities
 
-## Implementation Plan
+## Implementation Order
+1. Fix 6 (dashboard filter) - quick
+2. Fix 9 (remove progress bar) - quick
+3. Fix 3,4,5 (button styling) - quick
+4. Fix 2 (SMTP investigation)
+5. Fix 7 (counter logic)
+6. Fix 1 (fields filtering)
+7. Fix 8 (matching hide confirmed)
+8. Fix 10 (city mappings modal)
 
-Will address fixes in logical order:
-1. **Quick CSS fixes** (3, 8, 9) - styling only
-2. **JavaScript dynamic updates** (1, 4, 5) - client-side state management
-3. **Backend logic** (2, 6, 10) - database queries and data operations
-4. **Conditional visibility** (7) - template logic
-
-Each fix will be implemented, tested, and committed separately.
+## Testing Strategy
+- Manual testing for each UI fix
+- Database queries for counter fixes
+- SMTP test for save functionality
+- Responsive testing for button stacking

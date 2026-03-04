@@ -33,11 +33,11 @@
         <p class="sms-preview"><%= item.body %></p>
       </div>
       <div class="sms-card-actions">
-        <a href="<%= item.deepLink %>" class="btn btn-primary btn-sms-send">Send Text</a>
+        <a href="<%= item.deepLink %>" class="btn btn-primary btn-large btn-sms-send">Send Text</a>
         <% if (item.recipientStatus !== 'sent') { %>
-          <button type="button" class="btn btn-secondary btn-sms-mark-sent" data-recipient-id="<%= item.recipientId %>">Mark Sent</button>
+          <button type="button" class="btn btn-secondary btn-large btn-sms-mark-sent" data-recipient-id="<%= item.recipientId %>">Mark Sent</button>
         <% } %>
-        <button type="button" class="btn btn-secondary btn-sms-copy" data-body="<%= item.body %>">Copy Message</button>
+        <button type="button" class="btn btn-secondary btn-large btn-sms-copy" data-body="<%= item.body %>">Copy Message</button>
       </div>
     </div>
     <% }); %>
@@ -45,7 +45,7 @@
 </div>
 
 <div class="mt-2">
-  <a href="/campaign" class="btn btn-secondary">Back to Campaigns</a>
+  <a href="/campaign" class="btn btn-secondary btn-large">← Back to Campaigns</a>
 </div>
 
 <script>

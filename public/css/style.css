@@ -1229,4 +1229,6 @@ a:hover { text-decoration: underline; }
   .btn-large { width: 100%; }
   .field-mgmt-grid { grid-template-columns: 1fr; }
   .container { padding: var(--space-4); }
+  /* Campaign actions button stacking */
+  .data-table td .btn-sm { margin-bottom: var(--space-2); }
 }
