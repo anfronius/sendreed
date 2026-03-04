@@ -124,6 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var matchId = btn.dataset.matchId;
     var card = btn.closest('.match-card');
+    var wasInReview = card.closest('#section-review') !== null;
 
     btn.disabled = true;
 
@@ -141,6 +142,51 @@ document.addEventListener('DOMContentLoaded', function() {
         if (card.classList.contains('match-card-confirmed') || card.closest('#section-confirmed')) {
           updateApplyButtonCount(-1);
         }
+
+        // If skipped from "Needs Review", move to "No Match Found" section
+        if (wasInReview && data.contact) {
+          var unmatchedSection = document.getElementById('section-unmatched');
+          if (unmatchedSection) {
+            var unmatchedList = unmatchedSection.querySelector('.match-list');
+            if (unmatchedList) {
+              // Create unmatched card structure
+              var newCard = document.createElement('div');
+              newCard.className = 'match-card';
+              newCard.dataset.contactId = data.contact.id;
+
+              var contactName = [data.contact.first_name, data.contact.last_name].filter(Boolean).join(' ');
+              var contactDetail = '';
+              if (data.contact.phone) contactDetail += 'Phone: ' + escapeHtml(data.contact.phone) + ' ';
+              else contactDetail += '<em>No phone</em> ';
+              if (data.contact.email) contactDetail += 'Email: ' + escapeHtml(data.contact.email);
+              else contactDetail += '<em>No email</em>';
+
+              newCard.innerHTML =
+                '<div class="match-card-left">' +
+                  '<div class="match-contact-name">' + escapeHtml(contactName) + '</div>' +
+                  (data.contact.property_address ? '<div class="match-contact-detail">' + escapeHtml(data.contact.property_address) + '</div>' : '') +
+                  '<div class="match-contact-detail">' + contactDetail + '</div>' +
+                '</div>' +
+                '<div class="match-card-right" style="flex:1;">' +
+                  '<div class="manual-match-form">' +
+                    '<input type="text" class="contact-search-input" placeholder="Search vCard imports by name..." data-contact-id="' + data.contact.id + '">' +
+                    '<div class="contact-search-results" data-contact-id="' + data.contact.id + '"></div>' +
+                  '</div>' +
+                '</div>';
+
+              unmatchedList.appendChild(newCard);
+
+              // Update count badge
+              var countBadge = unmatchedSection.querySelector('.count-badge');
+              if (countBadge) {
+                var currentCount = parseInt(countBadge.textContent) || 0;
+                countBadge.textContent = (currentCount + 1).toString();
+              }
+            }
+          }
+        }
+
+        // Fade out and remove the original card
         card.style.transition = 'opacity 0.3s';
         card.style.opacity = '0';
         setTimeout(function() { card.remove(); }, 300);

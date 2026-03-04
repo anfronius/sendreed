@@ -20,15 +20,32 @@
   <% } %>
 </nav>
 <% if (user && user.role === 'admin') { %>
+<%
+  // Don't show acting-as banner on admin-only pages
+  var isAdminOnlyPage = (typeof currentPath !== 'undefined') && (currentPath.startsWith('/admin/users') || currentPath.startsWith('/admin/fields'));
+
+  // Filter users based on current page
+  var filteredUsers = [];
+  if (typeof allUsers !== 'undefined' && allUsers.length > 0) {
+    if (typeof currentPath !== 'undefined' && currentPath.startsWith('/realestate')) {
+      // On RE page, only show RE users
+      filteredUsers = allUsers.filter(function(u) { return u.role === 'realestate'; });
+    } else {
+      // On other pages, show all non-admin users
+      filteredUsers = allUsers.filter(function(u) { return u.role !== 'admin'; });
+    }
+  }
+%>
+<% if (!isAdminOnlyPage && filteredUsers.length > 0) { %>
 <div class="acting-as-banner">
   <form method="POST" action="/admin/act-as" class="acting-as-form">
     <input type="hidden" name="_csrf" value="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>">
     <label for="acting-as-select">Acting as:</label>
     <select name="user_id" id="acting-as-select" onchange="this.form.submit()">
       <option value="">— Select a user —</option>
-      <% if (typeof allUsers !== 'undefined') { allUsers.forEach(function(u) { %>
+      <% filteredUsers.forEach(function(u) { %>
         <option value="<%= u.id %>" <%= (typeof actingUser !== 'undefined' && actingUser && actingUser.id === u.id) ? 'selected' : '' %>><%= u.name %> (<%= u.role %>)</option>
-      <% }); } %>
+      <% }); %>
     </select>
     <% if (typeof actingUser !== 'undefined' && actingUser) { %>
       <span class="acting-as-indicator">Managing <strong><%= actingUser.name %></strong>'s data</span>
@@ -43,4 +60,5 @@
     </form>
   <% } %>
 </div>
+<% } %>
 <% } %>

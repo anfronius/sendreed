@@ -95,20 +95,47 @@ router.post('/users', (req, res) => {
 });
 
 /**
- * Wipe all data for a user (contacts, templates, campaigns, campaign_recipients).
+ * Wipe all data for a user (contacts, templates, campaigns, campaign_recipients, RE-specific data).
  * Does NOT delete the user account itself.
  */
 function wipeUserData(db, userId) {
+  // Delete phone_matches for user's contacts
+  db.prepare(
+    'DELETE FROM phone_matches WHERE contact_id IN (SELECT id FROM contacts WHERE owner_id = ?)'
+  ).run(userId);
+
+  // Delete anniversary_log for user's contacts
+  db.prepare(
+    'DELETE FROM anniversary_log WHERE contact_id IN (SELECT id FROM contacts WHERE owner_id = ?)'
+  ).run(userId);
+
+  // Delete imported_contacts from user's imports
+  db.prepare(
+    'DELETE FROM imported_contacts WHERE import_id IN (SELECT id FROM contact_imports WHERE imported_by = ?)'
+  ).run(userId);
+
+  // Delete contact_imports
+  db.prepare('DELETE FROM contact_imports WHERE imported_by = ?').run(userId);
+
+  // Delete crmls_properties
+  db.prepare('DELETE FROM crmls_properties WHERE owner_id = ?').run(userId);
+
   // Delete campaign_recipients for user's campaigns
   db.prepare(
     'DELETE FROM campaign_recipients WHERE campaign_id IN (SELECT id FROM campaigns WHERE owner_id = ?)'
   ).run(userId);
+
   // Delete campaigns
   db.prepare('DELETE FROM campaigns WHERE owner_id = ?').run(userId);
+
   // Delete templates
   db.prepare('DELETE FROM templates WHERE owner_id = ?').run(userId);
+
   // Delete contacts
   db.prepare('DELETE FROM contacts WHERE owner_id = ?').run(userId);
+
+  // Delete digest_settings
+  db.prepare('DELETE FROM digest_settings WHERE user_id = ?').run(userId);
 }
 
 // Wipe user data (keep account)

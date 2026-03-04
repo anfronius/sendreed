@@ -67,7 +67,7 @@
 - [x] can you make it so at the top banner where it has the Dashboard, Contacts, Campgaigns, and Real Estate page links, can you make it so real estate users see the Contacts link as a Clients instead and reference clients instead too in that pasge for real estate users?
 - [x] the admin for some reason cannot see the imported contacts from the vCard and only the actual account can, even if the admin selects the account with the imported contacts on the admin banner and refreshes the page. Can you investigaate and fix that?
 
-### 4th Set (DONE)
+## 4th Set (DONE)
 
 - the specific requests are lost to a rollback, but the plan to deal with them (which is all that is needed to know what the issues were in this set) are in '~/.claude/plans/playful-cuddling-waffle.md'
 - [x] Fix 1: Anniversary digest toggle — RE users can now toggle their own digest on/off
@@ -79,7 +79,7 @@
 - [x] Fix 8: Template list scrolls with fade gradient after 5+ items
 - [x] Fix 4 (SMS in-progress + daily email limit): Deferred - moved to 8th set
 
-### 5th set (DONE)
+## 5th set (DONE)
 
 - [x] When I try to delete templates, or change the fields in the fields tab, a pop up saying "Error: Unexpected token 'I', "Invalid CSRF token" is not valid JSON"" appears.
 - [x] the templates still have "channel" designations. Do i need to wipe the db or delete them all to reset that?
@@ -87,17 +87,17 @@
 - [x] Ability to create new templaates on the main campagign page so you dont have to go through campaign creation to make a template
 - [x] On Users panel for admin, make the SMTP button as wide as the Wipe Data and Delete, and add the same space between the Wipe Data and SMTP buttons as the Wipe Button and Delete buttons have.
 
-### 6th Set (DONE)
+## 6th Set (DONE)
 
 - [x] on the newly created 'New Template' modal, there should be the variable  options avilable to click and use in the message/subject like the campaign builder's new template page.
 - [x] When I try to build a new template or edit a pre-exiting one with the new 'New Template' modal on the campaigns page, when I try to click the 'Save' button at the bottom after filling out the fileds I get a 'Failed to save: Invalid CSRF token' Errorr
 - [x] I still get a 'Failed to save: Invalid CSRF token' error when trying to edit the Fields checkboxes on the Fields page as an admin and when trying to delete templates on the main campaign page. 
 
-### 7th Set (DONE)
+## 7th Set (DONE)
 
 - [x] Even though the 'Zip' and 'State' fields are disabled in the fields mangement page, they still show up as an option in the /realestate/import-crmls/upload page when matching the uploaded csv to the needed fields
 
-### 8th Set (DONE)
+## 8th Set (DONE)
 
 - [x] When I input a name on the crmls lookup page, (realestate/lookup) it automatically gets "FOUND" on that object but the Finalize Lookup button does not update the amount or aknowledges them until the page is refreshed. Also once property / name matches have been finalized into clients, the adress should dissapear from the realist lookup page, which it is currently not and I can infinitely Finalize their lookup. (I think when I do click on the finalize even the ones that weren't initially recongnized by the button work but the button doesn't dynamically appear and change its count properly, only the actual backend functionality works as intended.)
 - [x] The same Apply all confirmed button not dynamically changing with each client being matched with their vcard contact issue is happening on the Phone and email matching page still, and the button is still slightly smaller than the import another vcard button still
@@ -110,16 +110,27 @@
 - [x] Same button fix is needed for the Users list on the users page, but considering how small the Wipe Data and Delete buttons look on the page, can you make them the same height (taller) as SMTP button instead of formalizing them to the small button standard?
 - [x] As admin, when I try to add my protonmail with all the correct credentials (the test succeeds and the connection works) when I actually try to save the credentials I get an error saying "Failed to save SMTP settings."
 
-### 9th Set
+## 9th Set (DONE)
 
-- The last set of fixes were largely a failure and did not accomplish many of its stated goals:
-- Why is the Delete Selected Button still smaller than the Import CSV Button on the Client page vertically. 
-- When I click on a filter option that is empty or has only a few client like 'has email' the entries so do not back when you click back on all clients button unntil you refresh the page and repopulate the visible list.
-- The Review button and View Tests button is smaller that the Delete button in the campaign list on the campaigns page.
-- The Wipe Data Button is still larger than the SMTP and Delete button the Users Page.
-- I't won't met me wipe the data of the Real Estate User's profile. It just says "Failed to wipe user data." or delete that user for some reason.
-- Can you make the copy button blue on the lookup page.
-- can you decrease the size of thee CCity Mappings button that shows up when there are missing mappings and make it rounded like all other buttons on the website.
-- The Apply All Confirmed buttn on the Phone and Email matching page STILL isnt updating dynamically when you match a crmls client with a iphone contacct and it is STILL smaller than the Import Another VCard button right next to it.
-- On the under review, when slicking skip the skipped contact should dynamically go back to the no match found list instead of waiting for a refresh. Remember AGAIN everything should work dynamically and no functionality should have to be refreshed if the change is made on that device. 
-- What is the point of the Found and Not Found numbers on the base real estate page? It should have the Total Properties that have been downloaded by the user lifetime into the CRMLS Data upload, the amount of Propertis Pending Lookup, Clients to be Matched (properties which have been successfully looked up), Lost Properties (properties which have been designated "not found" on the realist lookup portion.)
+- [x] When I click on a filter option that is empty or has only a few client like 'has email' the entries so do not back when you click back on all clients button unntil you refresh the page and repopulate the visible list.
+- [x] I't won't met me wipe the data of the Real Estate User's profile. It just says "Failed to wipe user data." or delete that user for some reason.
+- [x] center the City Mappings button underneath the city field
+- [x] The Apply All Confirmed buttn on the Phone and Email matching page STILL isnt updating dynamically when you match a crmls client with a iphone contacct and it is STILL smaller than the Import Another VCard button right next to it. Please make sure all updates and mage functionality happens dynamically and immediately. Users WILL be confused if things require page refreshes.
+- [x] On the under review, when clicking skip, the skipped contact should dynamically go back to the no match found list instead of waiting for a refresh. Remember AGAIN everything should work dynamically and no functionality should have to be refreshed if the change is made on that device.
+- [x] What is the point of the Found and Not Found numbers on the base real estate page? It should have the amount of 'Properties Pending Lookup', 'Clients to be Matched' (properties which have been successfully looked up), and 'Confirmed Clients' that have been matched so far.
+- [x] admin user select bar shouldn't show up on admin only pages like Fields or User and only real estate users should be able to be chosen on the real estate page (if a nonprofit user was previously selected on another page then the 'Acting As:' clears).
+- [x] Digest Email Settings box shouldn't have that random empty top space on anniversaries page, or if it cannot be removed then the bottom should also have it so it doesn't look weird and off center. The same goes for the boxes on the Fields page.
+- [x] bit more space between the numbers artifact that is next to many Titles/Items like 'Today' and 'This Week' on anniversaries page and on other pages with other items.
+- [x] The Fields tab doesn't seem to change which fields I see on the real estate clients page. Can you fix that and make sure everywhere that those fields are used that they respect the changes in the Fields page
+
+## Tenth Set: 
+- Message Body Inserts should change with the active Fields for that user type in the Fields page for template page and campaign page
+- When testing the SMTP for the first time by trying to put in my admin SMTP via protonmail after having created my SMTP token and custom domain, the test says it is succefful but when I actually try to save the settings, I get an error saying "Failed to save SMTP settings"
+- On the "Send Tects" page for campaigns, the 'Send Text' button is much larger than the 'Mark Sent' and 'Copy Message' buttons right next to it. Can you make those two smaller buttons as large as the Send Text button?
+- On tha Send Texts page, why is the return to campaigns page button not like the others on other sub pages (more of a link than an ctual button)
+- When the browser window is very thin on the Campaigns Page, the View Texts and Delete buttons stack (which is fine) but they stack right ontop of eachother without any space. Could you add a bit of space between them when that compaction happens?
+- Can you remove the Admin as being one of the Users that is listed on the Users Overview on the Dashboard Page?
+- The "clients to be matched" counter on the real estate dashboard page doesn't work. I currently have 7 clients under the "No Match Found" portion as a test and when I go to the dashboard it still says there are none. That number should follow the total amount of Clinets that have been matched to a CRMSL address but haven't been matched to an Iphone contact as given a phone nuumber or email address yet.
+- When names are applied to email/phone numbers in the real estate matching dashboard have been confirmed, they should dissapear from the view so the age doesn't get filled up with confirmed matches that have already been applied. this should happen dynamically and update instantly after clicking and applying the confirmations. Basically it should follow essentially the same system that the Realist Lookup page follows with their "Apply All Confirmed"
+- Can you remove the progress bar at the top of the realist lookup page? It doesn't really serve any purpose since it doesn't save the properties that are found so it is permanently a gray bar with Found: 0 underneath
+- At the bottom of the City mappings modal underneath the unmapped cities that appear should be a list with all the mapped cities and acronyms which can be changed in case of spelling issue or mapping mistake. Once all cities aare mapped, that is what shouold appear on the city mappings modal instead of 'All cities are mapped' Also inside the modal can you call it "Mapping City Values" instead of "Unmapped City Values"
