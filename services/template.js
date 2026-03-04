@@ -16,8 +16,45 @@ const VARIABLES_BY_ROLE = {
   ],
 };
 
+// Map of variable names to field_visibility field names
+const VARIABLE_TO_FIELD_MAP = {
+  first_name: 'first_name',
+  last_name: 'last_name',
+  title: 'title',
+  district: 'district',
+  city: 'city',
+  state: 'state',
+  organization: 'organization',
+  email: 'email',
+  phone: 'phone',
+  property_address: 'property_address',
+  purchase_date: 'purchase_date',
+  purchase_price: 'purchase_price',
+  years: 'purchase_date', // years is computed from purchase_date
+};
+
 function getAvailableVariables(role) {
-  return VARIABLES_BY_ROLE[role] || VARIABLES_BY_ROLE.admin;
+  var baseVariables = VARIABLES_BY_ROLE[role] || VARIABLES_BY_ROLE.admin;
+
+  // Filter by field visibility for non-admin roles
+  if (role !== 'admin') {
+    try {
+      var fieldConfig = require('../config/field-config');
+      var visibleFields = fieldConfig.getVisibleFields(role);
+
+      // Filter variables to only include those whose corresponding field is visible
+      return baseVariables.filter(function(varName) {
+        var fieldName = VARIABLE_TO_FIELD_MAP[varName];
+        // If no mapping exists or field is visible, include the variable
+        return !fieldName || visibleFields.includes(fieldName);
+      });
+    } catch (e) {
+      // If field config fails, return base variables
+      return baseVariables;
+    }
+  }
+
+  return baseVariables;
 }
 
 function extractVariables(templateStr) {

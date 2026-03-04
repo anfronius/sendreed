@@ -33,25 +33,23 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
+          // Hide and remove all confirmed cards dynamically
           var confirmedSection = document.getElementById('section-confirmed');
           if (confirmedSection) {
             confirmedSection.querySelectorAll('.match-card').forEach(function(card) {
-              card.classList.add('match-card-applied');
-              var actions = card.querySelector('.match-card-actions');
-              if (actions) {
-                var badge = actions.querySelector('.confidence-badge');
-                actions.innerHTML = '';
-                if (badge) actions.appendChild(badge);
-                var appliedBadge = document.createElement('span');
-                appliedBadge.className = 'badge badge-status-sent';
-                appliedBadge.textContent = 'Applied';
-                actions.appendChild(appliedBadge);
-              }
+              card.style.transition = 'opacity 0.3s';
+              card.style.opacity = '0';
+              setTimeout(function() { card.remove(); }, 300);
             });
+            // Hide the entire section after cards are removed
+            setTimeout(function() {
+              confirmedSection.style.display = 'none';
+            }, 350);
           }
+          // Update and hide the button
           applyBtn.textContent = 'Applied (' + data.applied + ')';
-          applyBtn.classList.remove('btn-primary');
-          applyBtn.classList.add('btn-secondary');
+          applyBtn.dataset.count = '0';
+          applyBtn.classList.add('hidden');
         } else {
           alert('Failed to apply: ' + (data.error || 'Unknown error'));
           applyBtn.disabled = false;

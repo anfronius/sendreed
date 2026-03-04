@@ -12,21 +12,6 @@
   </div>
 </div>
 
-<!-- Progress bar -->
-<div class="progress-container">
-  <div class="progress-bar-wrapper">
-    <div class="progress-bar" id="lookup-progress"
-      style="width: <%= counts.total > 0 ? Math.round(((counts.found + counts.not_found) / counts.total) * 100) : 0 %>%">
-    </div>
-  </div>
-  <div class="progress-stats">
-    <span class="stat-total">Total: <strong><%= counts.total %></strong></span>
-    <span class="stat-sent">Found: <strong id="count-found"><%= counts.found %></strong></span>
-    <span class="text-muted">Pending: <strong id="count-pending"><%= counts.pending %></strong></span>
-    <span class="stat-failed">Not Found: <strong id="count-not-found"><%= counts.not_found %></strong></span>
-  </div>
-</div>
-
 <!-- Status filter tabs -->
 <div class="filter-bar">
   <a href="/realestate/lookup?status=all"
@@ -131,12 +116,11 @@
 <div id="city-mappings-panel" class="panel-overlay hidden">
   <div class="panel-box">
     <div class="panel-header">
-      <h3>Unmapped City Values</h3>
+      <h3>Mapping City Values</h3>
       <button id="btn-close-city-panel" class="btn-sm">&times;</button>
     </div>
     <p class="panel-hint">
-      Each row is a city value from an imported CSV that has no mapping yet.
-      Look up the sample address to identify the correct city, then type it and save.
+      Map raw city values from CSV imports to their correct names. Unmapped cities appear first, followed by existing mappings you can edit.
     </p>
     <div id="city-mappings-list">
       <p>Loading&hellip;</p>

@@ -14,13 +14,13 @@ router.get('/', requireAuth, (req, res) => {
     let userStats = [];
 
     if (isAdmin) {
-      // Per-user stats for admin dashboard
+      // Per-user stats for admin dashboard (exclude admin users)
       userStats = db.prepare(`
         SELECT u.id, u.name, u.role,
           (SELECT COUNT(*) FROM contacts WHERE owner_id = u.id) as contacts,
           (SELECT COUNT(*) FROM templates WHERE owner_id = u.id) as templates,
           (SELECT COUNT(*) FROM campaigns WHERE owner_id = u.id) as campaigns
-        FROM users u ORDER BY u.name
+        FROM users u WHERE u.role != 'admin' ORDER BY u.name
       `).all();
       contactCount = userStats.reduce((sum, u) => sum + u.contacts, 0);
       templateCount = userStats.reduce((sum, u) => sum + u.templates, 0);

@@ -683,7 +683,38 @@ router.post('/realist-lookup/bulk-delete', requireRole('realestate', 'admin'), (
 
 // ========== CITY MAPPINGS API ==========
 
-// GET /api/city-mappings/unmapped — distinct unmapped city values with sample address (admin only)
+// GET /api/city-mappings — get all unmapped and mapped cities (admin only)
+router.get('/city-mappings', requireRole('admin'), function(req, res) {
+  try {
+    var db = getDb();
+
+    // Get unmapped cities
+    var unmapped = db.prepare(`
+      SELECT cp.raw_city,
+             MIN(cp.property_address) AS sample_address,
+             COUNT(*) AS count
+      FROM crmls_properties cp
+      WHERE cp.raw_city IS NOT NULL
+        AND cp.raw_city NOT IN (SELECT raw_city FROM city_mappings)
+      GROUP BY cp.raw_city
+      ORDER BY count DESC
+    `).all();
+
+    // Get existing mappings
+    var mapped = db.prepare(`
+      SELECT raw_city, mapped_city, updated_at
+      FROM city_mappings
+      ORDER BY mapped_city
+    `).all();
+
+    res.json({ success: true, unmapped, mapped });
+  } catch (err) {
+    console.error('City mappings error:', err);
+    res.status(500).json({ error: 'Failed to load city mappings.' });
+  }
+});
+
+// GET /api/city-mappings/unmapped — backward compatibility
 router.get('/city-mappings/unmapped', requireRole('admin'), function(req, res) {
   try {
     var db = getDb();

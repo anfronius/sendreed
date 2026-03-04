@@ -206,6 +206,13 @@ router.post('/users/:id/smtp', (req, res) => {
     const targetId = parseInt(req.params.id);
     const { smtp_provider, smtp_host, smtp_port, smtp_email, smtp_password } = req.body;
 
+    // Verify user exists
+    const targetUser = db.prepare('SELECT id FROM users WHERE id = ?').get(targetId);
+    if (!targetUser) {
+      setFlash(req, 'error', 'User not found.');
+      return res.redirect('/admin/users');
+    }
+
     const updates = {
       smtp_provider: smtp_provider || null,
       smtp_host: smtp_host || null,
@@ -214,22 +221,25 @@ router.post('/users/:id/smtp', (req, res) => {
     };
 
     // Only update password if provided (non-empty)
-    if (smtp_password) {
+    if (smtp_password && smtp_password.trim()) {
       updates.smtp_password_encrypted = encrypt(smtp_password);
-      db.prepare(
+      const result = db.prepare(
         'UPDATE users SET smtp_provider = ?, smtp_host = ?, smtp_port = ?, smtp_email = ?, smtp_password_encrypted = ? WHERE id = ?'
       ).run(updates.smtp_provider, updates.smtp_host, updates.smtp_port, updates.smtp_email, updates.smtp_password_encrypted, targetId);
+      console.log('SMTP update with password - rows affected:', result.changes);
     } else {
-      db.prepare(
+      const result = db.prepare(
         'UPDATE users SET smtp_provider = ?, smtp_host = ?, smtp_port = ?, smtp_email = ? WHERE id = ?'
       ).run(updates.smtp_provider, updates.smtp_host, updates.smtp_port, updates.smtp_email, targetId);
+      console.log('SMTP update without password - rows affected:', result.changes);
     }
 
     setFlash(req, 'success', 'SMTP settings saved.');
     res.redirect('/admin/users/' + targetId + '/smtp');
   } catch (err) {
     console.error('Save SMTP error:', err);
-    setFlash(req, 'error', 'Failed to save SMTP settings.');
+    console.error('Error stack:', err.stack);
+    setFlash(req, 'error', 'Failed to save SMTP settings: ' + err.message);
     res.redirect('/admin/users/' + req.params.id + '/smtp');
   }
 });
