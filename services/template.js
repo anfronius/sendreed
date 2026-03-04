@@ -7,12 +7,12 @@ const VARIABLES_BY_ROLE = {
   ],
   realestate: [
     'first_name', 'last_name', 'property_address', 'city', 'state',
-    'purchase_date', 'purchase_price', 'years', 'email', 'phone'
+    'purchase_date', 'purchase_price', 'years_since_purchase', 'email', 'phone'
   ],
   admin: [
     'first_name', 'last_name', 'title', 'district', 'city', 'state',
     'organization', 'email', 'phone', 'property_address',
-    'purchase_date', 'purchase_price', 'years'
+    'purchase_date', 'purchase_price', 'years_since_purchase'
   ],
 };
 
@@ -30,7 +30,7 @@ const VARIABLE_TO_FIELD_MAP = {
   property_address: 'property_address',
   purchase_date: 'purchase_date',
   purchase_price: 'purchase_price',
-  years: 'purchase_date', // years is computed from purchase_date
+  years_since_purchase: 'years_since_purchase',
 };
 
 function getAvailableVariables(role) {
@@ -69,7 +69,7 @@ function extractVariables(templateStr) {
 function render(templateStr, contact) {
   if (!templateStr) return '';
   return templateStr.replace(VARIABLE_REGEX, (full, varName) => {
-    if (varName === 'years' && contact.purchase_date) {
+    if ((varName === 'years_since_purchase' || varName === 'years') && contact.purchase_date) {
       const purchaseYear = new Date(contact.purchase_date).getFullYear();
       const currentYear = new Date().getFullYear();
       const years = currentYear - purchaseYear;

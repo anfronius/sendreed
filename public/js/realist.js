@@ -441,7 +441,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Unmapped cities section
         if (data.unmapped && data.unmapped.length > 0) {
-          html += '<h3 style="margin-top:0;">Unmapped City Values</h3>';
+          html += '<h3 style="margin-top:0;margin-bottom:var(--space-3);">Unmapped City Values</h3>';
           html += '<table class="data-table"><thead><tr>' +
             '<th>Raw City Value</th><th>Sample Address</th><th>Correct City Name</th><th></th>' +
             '</tr></thead><tbody>';
@@ -459,7 +459,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Mapped cities section
         if (data.mapped && data.mapped.length > 0) {
-          html += '<h3 style="margin-top:var(--space-6);">Mapped City Values</h3>';
+          html += '<h3 style="margin-top:var(--space-6);margin-bottom:var(--space-3);">Mapped City Values</h3>';
           html += '<table class="data-table"><thead><tr>' +
             '<th>Raw Value</th><th>Mapped To</th><th></th>' +
             '</tr></thead><tbody>';

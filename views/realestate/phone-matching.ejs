@@ -3,9 +3,9 @@
 <div class="page-header">
   <h1>Phone & Email Matching</h1>
   <div class="page-actions">
-    <button type="button" class="btn btn-large btn-primary<%= (counts.autoConfirmed + counts.confirmed) > 0 ? '' : ' hidden' %>" id="apply-all-btn"
-      data-count="<%= counts.autoConfirmed + counts.confirmed %>">
-      Apply All Confirmed (<%= counts.autoConfirmed + counts.confirmed %>)
+    <button type="button" class="btn btn-large btn-primary<%= counts.autoConfirmed > 0 ? '' : ' hidden' %>" id="apply-all-btn"
+      data-count="<%= counts.autoConfirmed %>">
+      Apply All Confirmed (<%= counts.autoConfirmed %>)
     </button>
     <a href="/realestate/import-vcard" class="btn btn-large btn-upload">Import Another vCard</a>
   </div>
@@ -18,7 +18,7 @@
     <div class="stat-label">Total Contacts</div>
   </div>
   <div class="stat-card">
-    <div class="stat-number text-success"><%= counts.confirmed + counts.autoConfirmed %></div>
+    <div class="stat-number text-success"><%= counts.matched %></div>
     <div class="stat-label">Matched</div>
   </div>
   <div class="stat-card">
@@ -73,34 +73,6 @@
 </div>
 <% } %>
 
-<!-- Section 1b: Already applied -->
-<% if (confirmed.length > 0) { %>
-<div class="match-section match-section-green">
-  <h2>Applied <span class="count-badge"><%= confirmed.length %></span></h2>
-  <div class="match-list">
-    <% confirmed.forEach(function(m) { %>
-    <div class="match-card match-card-applied">
-      <div class="match-card-left">
-        <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
-        <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
-      </div>
-      <div class="match-card-arrow">←</div>
-      <div class="match-card-right">
-        <div class="match-imported-name"><%= m.ic_name || [m.ic_first, m.ic_last].filter(Boolean).join(' ') %></div>
-        <div class="match-imported-details">
-          <% if (m.ic_phone) { %><span>Phone: <%= m.ic_phone %></span><% } %>
-          <% if (m.ic_email) { %><span>Email: <%= m.ic_email %></span><% } %>
-        </div>
-      </div>
-      <div class="match-card-actions">
-        <span class="confidence-badge confidence-high"><%= m.confidence_score %>%</span>
-        <span class="badge badge-status-sent">Applied</span>
-      </div>
-    </div>
-    <% }); %>
-  </div>
-</div>
-<% } %>
 
 <!-- Section 2: Needs Review (low confidence) -->
 <% if (needsReview.length > 0) { %>

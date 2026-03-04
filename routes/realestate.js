@@ -540,23 +540,6 @@ router.get('/matching', (req, res) => {
     }
 
     // Contact-centric queries: existing contacts are the primary entity
-    // Applied: high-confidence matches already confirmed and applied
-    const confirmed = db.prepare(`
-      SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
-             c.property_address as c_address, c.phone as c_phone, c.email as c_email,
-             pm.id as match_id, pm.confidence_score, pm.confirmed_at,
-             ic.id as imported_id, ic.full_name as ic_name, ic.first_name as ic_first,
-             ic.last_name as ic_last, ic.phone as ic_phone, ic.email as ic_email
-      FROM phone_matches pm
-      JOIN contacts c ON pm.contact_id = c.id
-      JOIN imported_contacts ic ON pm.imported_contact_id = ic.id
-      JOIN contact_imports ci ON ic.import_id = ci.id
-      WHERE c.owner_id = ? ${importFilter}
-        AND pm.confidence_score >= 70
-        AND pm.confirmed_at IS NOT NULL
-      ORDER BY pm.confidence_score DESC
-    `).all(userId, ...importParams);
-
     // Auto-matched: high confidence, not yet applied
     const autoConfirmed = db.prepare(`
       SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
@@ -602,17 +585,25 @@ router.get('/matching', (req, res) => {
       ORDER BY c.last_name, c.first_name
     `).all(userId);
 
+    // Count contacts that have been matched (have both phone and email from vcard)
+    const matchedCount = db.prepare(`
+      SELECT COUNT(*) as c FROM contacts
+      WHERE owner_id = ?
+        AND phone IS NOT NULL AND phone != ''
+        AND email IS NOT NULL AND email != ''
+        AND (phone_source = 'vcard' OR email_source = 'vcard')
+    `).get(userId).c;
+
     const counts = {
-      confirmed: confirmed.length,
+      matched: matchedCount,
       autoConfirmed: autoConfirmed.length,
       review: needsReview.length,
       unmatched: unmatched.length,
-      total: confirmed.length + autoConfirmed.length + needsReview.length + unmatched.length,
+      total: autoConfirmed.length + needsReview.length + unmatched.length,
     };
 
     res.render('realestate/phone-matching', {
       title: 'Phone & Email Matching',
-      confirmed,
       autoConfirmed,
       needsReview,
       unmatched,
@@ -670,11 +661,8 @@ router.post('/matching/apply', (req, res) => {
           emailsUpdated++;
         }
 
-        // Mark match as confirmed if not already
-        if (!db.prepare('SELECT confirmed_at FROM phone_matches WHERE id = ?').get(match.id).confirmed_at) {
-          db.prepare("UPDATE phone_matches SET confirmed_at = datetime('now'), confirmed_by = ? WHERE id = ?")
-            .run(userId, match.id);
-        }
+        // Delete match record — permanently removes from matching page
+        db.prepare('DELETE FROM phone_matches WHERE id = ?').run(match.id);
       }
     });
 

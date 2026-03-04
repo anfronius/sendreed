@@ -39,6 +39,7 @@
         <td><%= c.total_count %></td>
         <td><%= c.created_at %></td>
         <td>
+          <div class="action-btns">
           <% if (c.status === 'reviewing') { %>
             <a href="/campaign/<%= c.id %>/review" class="btn btn-sm btn-primary">Review</a>
           <% } else if (c.status === 'sending') { %>
@@ -55,6 +56,7 @@
           <% if (c.status !== 'sending') { %>
             <button class="btn btn-sm btn-danger delete-campaign-btn" data-id="<%= c.id %>">Delete</button>
           <% } %>
+          </div>
         </td>
       </tr>
       <% }); %>

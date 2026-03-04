@@ -3,16 +3,22 @@ document.addEventListener('DOMContentLoaded', function() {
     return window.CSRF_TOKEN || (document.querySelector('input[name="_csrf"]') || {}).value || '';
   }
 
-  // ---- Helper: update stat card numbers ----
-  function updateStatCard(label, value) {
+  // ---- Helper: get stat number element by label ----
+  function getStatEl(label) {
     var cards = document.querySelectorAll('.stat-card');
     for (var i = 0; i < cards.length; i++) {
       var lbl = cards[i].querySelector('.stat-label');
       if (lbl && lbl.textContent.trim() === label) {
-        cards[i].querySelector('.stat-number').textContent = value;
-        return;
+        return cards[i].querySelector('.stat-number');
       }
     }
+    return null;
+  }
+
+  // ---- Helper: update stat card numbers ----
+  function updateStatCard(label, value) {
+    var el = getStatEl(label);
+    if (el) el.textContent = value;
   }
 
   // ---- Helper: update section count badge ----
@@ -86,12 +92,11 @@ document.addEventListener('DOMContentLoaded', function() {
           var confirmedSection = document.getElementById('section-confirmed');
           if (confirmedSection) confirmedSection.style.display = 'none';
 
-          // Hide applied section entirely
-          var appliedSections = document.querySelectorAll('.match-section-green');
-          appliedSections.forEach(function(sec) { sec.style.display = 'none'; });
-
-          // Update stats
-          updateStatCard('Matched', 0);
+          // Update matched stat — add the applied count to existing matched
+          var matchedStat = document.querySelector('.stat-card .text-success');
+          if (matchedStat) {
+            matchedStat.textContent = (parseInt(matchedStat.textContent) || 0) + data.applied;
+          }
 
           // Hide the button
           applyBtn.dataset.count = '0';
@@ -138,28 +143,15 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
-        // Mark as confirmed and fade out — no need to stare at it
+        // Mark as confirmed and fade out
         card.classList.add('match-card-confirmed');
 
         // Update review section count
         updateSectionCount(reviewSection, -1);
 
-        // Update matched stat
-        var matchedStat = document.querySelector('.stat-card .text-success');
-        if (matchedStat) {
-          matchedStat.textContent = (parseInt(matchedStat.textContent) || 0) + 1;
-        }
-
-        // Update review stat
-        var reviewCards = document.querySelectorAll('.stat-card');
-        for (var i = 0; i < reviewCards.length; i++) {
-          var lbl = reviewCards[i].querySelector('.stat-label');
-          if (lbl && lbl.textContent.trim() === 'Needs Review') {
-            var num = reviewCards[i].querySelector('.stat-number');
-            num.textContent = Math.max(0, (parseInt(num.textContent) || 0) - 1);
-            break;
-          }
-        }
+        // Decrement Needs Review stat
+        var reviewStatEl = getStatEl('Needs Review');
+        if (reviewStatEl) reviewStatEl.textContent = Math.max(0, (parseInt(reviewStatEl.textContent) || 0) - 1);
 
         // Update Apply All Confirmed button count
         updateApplyButtonCount(1);
@@ -204,30 +196,19 @@ document.addEventListener('DOMContentLoaded', function() {
         // If card was confirmed/auto-confirmed, decrement Apply button count
         if (wasConfirmed) {
           updateApplyButtonCount(-1);
-          updateStatCard('Matched', Math.max(0, (parseInt(document.querySelector('.stat-card .text-success').textContent) || 0) - 1));
         }
 
-        // If skipped from "Needs Review", update stats and move to unmatched
+        // If skipped from "Needs Review", update review stat
         if (wasInReview) {
-          // Update review stat
-          var reviewCards = document.querySelectorAll('.stat-card');
-          for (var ri = 0; ri < reviewCards.length; ri++) {
-            var rlbl = reviewCards[ri].querySelector('.stat-label');
-            if (rlbl && rlbl.textContent.trim() === 'Needs Review') {
-              var rnum = reviewCards[ri].querySelector('.stat-number');
-              rnum.textContent = Math.max(0, (parseInt(rnum.textContent) || 0) - 1);
-              break;
-            }
-          }
+          var reviewEl = getStatEl('Needs Review');
+          if (reviewEl) reviewEl.textContent = Math.max(0, (parseInt(reviewEl.textContent) || 0) - 1);
         }
 
         // If skipped from "Needs Review", move to "No Match Found" section
         if (wasInReview && data.contact) {
           // Update No Match stat
-          var noMatchStat = document.querySelector('.stat-card .text-danger');
-          if (noMatchStat) {
-            noMatchStat.textContent = (parseInt(noMatchStat.textContent) || 0) + 1;
-          }
+          var noMatchEl = getStatEl('No Match');
+          if (noMatchEl) noMatchEl.textContent = (parseInt(noMatchEl.textContent) || 0) + 1;
 
           var unmatchedSection = document.getElementById('section-unmatched');
           if (unmatchedSection) {
@@ -344,14 +325,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update unmatched section count
         updateSectionCount(unmatchedSection, -1);
 
-        // Update matched stat
-        var matchedStat = document.querySelector('.stat-card .text-success');
-        if (matchedStat) {
-          matchedStat.textContent = (parseInt(matchedStat.textContent) || 0) + 1;
-        }
-
         // Update No Match stat
-        updateStatCard('No Match', Math.max(0, (parseInt(document.querySelector('.stat-card .text-danger').textContent) || 0) - 1));
+        var noMatchEl = getStatEl('No Match');
+        if (noMatchEl) noMatchEl.textContent = Math.max(0, (parseInt(noMatchEl.textContent) || 0) - 1);
 
         // Update Apply All Confirmed button count
         updateApplyButtonCount(1);

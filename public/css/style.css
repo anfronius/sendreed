@@ -115,7 +115,7 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.3;
   color: var(--color-text);
 }
-h1 { font-size: var(--text-2xl); }
+h1 { font-size: var(--text-2xl); margin-bottom: var(--space-3); }
 h2 { font-size: var(--text-xl); margin-top: var(--space-6); margin-bottom: var(--space-3); }
 h3 { font-size: var(--text-lg); }
 
@@ -389,6 +389,9 @@ a:hover { text-decoration: underline; }
   background: #f8fafc;
 }
 .data-table tr:last-child td { border-bottom: none; }
+
+/* Action buttons wrapper — flex wrap with gap */
+.action-btns { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; }
 .data-table tfoot td {
   background: #f8fafc;
   font-weight: 600;
@@ -1058,7 +1061,7 @@ a:hover { text-decoration: underline; }
 }
 .confidence-high { background: var(--color-success-light); color: var(--color-success-text); }
 .confidence-medium { background: var(--color-warning-light); color: var(--color-warning-text); }
-.confidence-low { background: var(--color-danger-light); color: #991b1b; }
+.confidence-low { background: var(--color-warning-light); color: var(--color-warning-text); }
 .manual-match-form { display: flex; flex-direction: column; gap: var(--space-1); width: 100%; }
 .contact-search-input {
   padding: var(--space-2) var(--space-3);
@@ -1227,7 +1230,4 @@ a:hover { text-decoration: underline; }
   .btn-large { width: 100%; }
   .field-mgmt-grid { grid-template-columns: 1fr; }
   .container { padding: var(--space-4); }
-  /* Campaign actions button stacking */
-  .data-table td .btn-sm { margin-bottom: var(--space-2); }
-  .data-table td .btn-sm:last-child { margin-bottom: 0; }
 }
