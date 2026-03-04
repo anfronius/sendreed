@@ -135,7 +135,7 @@
 - [x] Can you remove the progress bar at the top of the realist lookup page? It doesn't really serve any purpose since it doesn't save the properties that are found so it is permanently a gray bar with Found: 0 underneath
 - [x] At the bottom of the City mappings modal underneath the unmapped cities that appear should be a list with all the mapped cities and acronyms which can be changed in case of spelling issue or mapping mistake. Once all cities aare mapped, that is what shouold appear on the city mappings modal instead of 'All cities are mapped' Also inside the modal can you call it "Mapping City Values" instead of "Unmapped City Values"
 
-## 11th Set (IN PROGRESS)
+## 11th Set (COMPLETE MOSTLY)
 
 - [x] The buttons on the Send Texts page are STILL not uniformly sized vertically and the later two buttons aare still smaller, like before, albiet slighlty larger.
 - [CONFIGURATION ISSUE] when I try to save the admin SMTP settings so the digests can be sent to the real estate users email witn my protonmail, the test works but when I save it I get: "Failed to save SMTP settings: ENCRYPTION_KEY env var must be at least 64 hex characters (32 bytes for AES-256)" — **This is correct validation. The ENCRYPTION_KEY environment variable must be exactly 64 hexadecimal characters (32 bytes for AES-256). See .env.example for guidance.**
@@ -143,3 +143,8 @@
 - [NEEDS VERIFICATION] On the New campaign page and template page, the Message body inserts for the template creation panel still are not following the current allowed fields for that user type. I still see a "years" options when there is no years field anywhere to use that with. — **The code already filters variables based on field_visibility table. The "years" variable is shown when purchase_date field is enabled (which is correct for realestate users). If you're seeing "years" for a nonprofit user, please verify which user role you're testing with.**
 - [x] On the Send Texts Page, there should be a filter option (like with the realist lookup page) that allows the user to only view the unsent or the sent texts and dynamically updates in rel time without refreshing anything.
 - [x] The "Back to Campaigns" button is still an actual button and not like a small piece of clickable text like all other sub pages.
+
+## 12th Set of Fixes
+
+- The real estate matching site is STILL NOT DYNAMICAL AND TOTALLY STATIC REQUIRING REFRESHES  when matching a name as the contact card turns green and says it was applied but it does not move up to the Applied section until thhey are refrrshed and WHEN AFTER APPLYING THE CONFIRMED CONTACTS THEY JUST SIT THERE STILL
+- I am STILL GETTING "Failed to save SMTP settings: ENCRYPTION_KEY env var must be at least 64 hex characters (32 bytes for AES-256)"

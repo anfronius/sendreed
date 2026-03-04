@@ -3,6 +3,32 @@ document.addEventListener('DOMContentLoaded', function() {
     return window.CSRF_TOKEN || (document.querySelector('input[name="_csrf"]') || {}).value || '';
   }
 
+  // ---- Helper: update stat card numbers ----
+  function updateStatCard(label, value) {
+    var cards = document.querySelectorAll('.stat-card');
+    for (var i = 0; i < cards.length; i++) {
+      var lbl = cards[i].querySelector('.stat-label');
+      if (lbl && lbl.textContent.trim() === label) {
+        cards[i].querySelector('.stat-number').textContent = value;
+        return;
+      }
+    }
+  }
+
+  // ---- Helper: update section count badge ----
+  function updateSectionCount(section, delta) {
+    if (!section) return;
+    var badge = section.querySelector('h2 .count-badge');
+    if (badge) {
+      var count = Math.max(0, (parseInt(badge.textContent) || 0) + delta);
+      badge.textContent = count;
+      // Hide entire section if empty
+      if (count === 0) {
+        section.style.display = 'none';
+      }
+    }
+  }
+
   // ---- Helper: update Apply All Confirmed button count ----
   function updateApplyButtonCount(delta) {
     var btn = document.getElementById('apply-all-btn');
@@ -13,11 +39,28 @@ document.addEventListener('DOMContentLoaded', function() {
     if (count > 0) { btn.classList.remove('hidden'); } else { btn.classList.add('hidden'); }
   }
 
-  // ---- Apply All Confirmed (AJAX) ----
+  // ---- Helper: fade out and remove a card ----
+  function fadeOutCard(card, callback) {
+    card.style.transition = 'opacity 0.3s, max-height 0.3s';
+    card.style.opacity = '0';
+    card.style.overflow = 'hidden';
+    setTimeout(function() {
+      card.style.maxHeight = '0';
+      card.style.margin = '0';
+      card.style.padding = '0';
+      setTimeout(function() {
+        card.remove();
+        if (callback) callback();
+      }, 300);
+    }, 300);
+  }
+
+  // ---- Apply All Confirmed (AJAX) — Realist Finalize pattern ----
   var applyBtn = document.getElementById('apply-all-btn');
   if (applyBtn) {
     applyBtn.addEventListener('click', function() {
-      if (!confirm('Apply all confirmed matches to your contacts?')) return;
+      var count = parseInt(applyBtn.dataset.count || '0');
+      if (!confirm('Apply all ' + count + ' confirmed match(es) to your contacts?')) return;
 
       applyBtn.disabled = true;
       applyBtn.textContent = 'Applying...';
@@ -33,23 +76,32 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
-          // Hide and remove all confirmed cards dynamically
+          // Remove ALL confirmed/auto-confirmed cards from ALL sections
+          var allConfirmedCards = document.querySelectorAll('.match-card-confirmed, .match-card-applied, #section-confirmed .match-card');
+          allConfirmedCards.forEach(function(card) {
+            card.remove();
+          });
+
+          // Hide auto-confirmed section entirely
           var confirmedSection = document.getElementById('section-confirmed');
-          if (confirmedSection) {
-            confirmedSection.querySelectorAll('.match-card').forEach(function(card) {
-              card.style.transition = 'opacity 0.3s';
-              card.style.opacity = '0';
-              setTimeout(function() { card.remove(); }, 300);
-            });
-            // Hide the entire section after cards are removed
-            setTimeout(function() {
-              confirmedSection.style.display = 'none';
-            }, 350);
-          }
-          // Update and hide the button
-          applyBtn.textContent = 'Applied (' + data.applied + ')';
+          if (confirmedSection) confirmedSection.style.display = 'none';
+
+          // Hide applied section entirely
+          var appliedSections = document.querySelectorAll('.match-section-green');
+          appliedSections.forEach(function(sec) { sec.style.display = 'none'; });
+
+          // Update stats
+          updateStatCard('Matched', 0);
+
+          // Hide the button
           applyBtn.dataset.count = '0';
           applyBtn.classList.add('hidden');
+
+          // Browser alert like Realist Finalize
+          var msg = 'Applied ' + data.applied + ' match(es).';
+          if (data.phonesUpdated) msg += ' Updated ' + data.phonesUpdated + ' phone(s).';
+          if (data.emailsUpdated) msg += ' Updated ' + data.emailsUpdated + ' email(s).';
+          alert(msg);
         } else {
           alert('Failed to apply: ' + (data.error || 'Unknown error'));
           applyBtn.disabled = false;
@@ -64,13 +116,14 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // ---- Confirm Match ----
+  // ---- Confirm Match — fade out from review, update counts dynamically ----
   document.addEventListener('click', function(e) {
     var btn = e.target.closest('.confirm-match-btn');
     if (!btn) return;
 
     var matchId = btn.dataset.matchId;
     var card = btn.closest('.match-card');
+    var reviewSection = card.closest('#section-review');
 
     btn.disabled = true;
     btn.textContent = '...';
@@ -85,25 +138,34 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
+        // Mark as confirmed and fade out — no need to stare at it
         card.classList.add('match-card-confirmed');
-        var actions = card.querySelector('.match-card-actions');
-        var badge = actions.querySelector('.confidence-badge');
-        actions.innerHTML = '';
-        if (badge) actions.appendChild(badge);
-        var confirmedBadge = document.createElement('span');
-        confirmedBadge.className = 'badge badge-status-sent';
-        confirmedBadge.textContent = 'Confirmed';
-        actions.appendChild(confirmedBadge);
-        var arrow = card.querySelector('.match-card-arrow');
-        if (arrow) arrow.textContent = '←';
-        // Move card to confirmed section if it exists
-        var confirmedSection = document.getElementById('section-confirmed');
-        if (confirmedSection) {
-          var confirmedList = confirmedSection.querySelector('.match-list');
-          if (confirmedList) confirmedList.appendChild(card);
+
+        // Update review section count
+        updateSectionCount(reviewSection, -1);
+
+        // Update matched stat
+        var matchedStat = document.querySelector('.stat-card .text-success');
+        if (matchedStat) {
+          matchedStat.textContent = (parseInt(matchedStat.textContent) || 0) + 1;
         }
+
+        // Update review stat
+        var reviewCards = document.querySelectorAll('.stat-card');
+        for (var i = 0; i < reviewCards.length; i++) {
+          var lbl = reviewCards[i].querySelector('.stat-label');
+          if (lbl && lbl.textContent.trim() === 'Needs Review') {
+            var num = reviewCards[i].querySelector('.stat-number');
+            num.textContent = Math.max(0, (parseInt(num.textContent) || 0) - 1);
+            break;
+          }
+        }
+
         // Update Apply All Confirmed button count
         updateApplyButtonCount(1);
+
+        // Fade out the card from view
+        fadeOutCard(card);
       } else {
         btn.disabled = false;
         btn.textContent = 'Confirm';
@@ -136,18 +198,42 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
+        var wasConfirmed = card.classList.contains('match-card-confirmed') || card.closest('#section-confirmed');
+        var parentSection = card.closest('.match-section');
+
         // If card was confirmed/auto-confirmed, decrement Apply button count
-        if (card.classList.contains('match-card-confirmed') || card.closest('#section-confirmed')) {
+        if (wasConfirmed) {
           updateApplyButtonCount(-1);
+          updateStatCard('Matched', Math.max(0, (parseInt(document.querySelector('.stat-card .text-success').textContent) || 0) - 1));
+        }
+
+        // If skipped from "Needs Review", update stats and move to unmatched
+        if (wasInReview) {
+          // Update review stat
+          var reviewCards = document.querySelectorAll('.stat-card');
+          for (var ri = 0; ri < reviewCards.length; ri++) {
+            var rlbl = reviewCards[ri].querySelector('.stat-label');
+            if (rlbl && rlbl.textContent.trim() === 'Needs Review') {
+              var rnum = reviewCards[ri].querySelector('.stat-number');
+              rnum.textContent = Math.max(0, (parseInt(rnum.textContent) || 0) - 1);
+              break;
+            }
+          }
         }
 
         // If skipped from "Needs Review", move to "No Match Found" section
         if (wasInReview && data.contact) {
+          // Update No Match stat
+          var noMatchStat = document.querySelector('.stat-card .text-danger');
+          if (noMatchStat) {
+            noMatchStat.textContent = (parseInt(noMatchStat.textContent) || 0) + 1;
+          }
+
           var unmatchedSection = document.getElementById('section-unmatched');
           if (unmatchedSection) {
+            unmatchedSection.style.display = '';
             var unmatchedList = unmatchedSection.querySelector('.match-list');
             if (unmatchedList) {
-              // Create unmatched card structure
               var newCard = document.createElement('div');
               newCard.className = 'match-card';
               newCard.dataset.contactId = data.contact.id;
@@ -173,21 +259,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 '</div>';
 
               unmatchedList.appendChild(newCard);
-
-              // Update count badge
-              var countBadge = unmatchedSection.querySelector('.count-badge');
-              if (countBadge) {
-                var currentCount = parseInt(countBadge.textContent) || 0;
-                countBadge.textContent = (currentCount + 1).toString();
-              }
+              updateSectionCount(unmatchedSection, 1);
             }
           }
         }
 
-        // Fade out and remove the original card
-        card.style.transition = 'opacity 0.3s';
-        card.style.opacity = '0';
-        setTimeout(function() { card.remove(); }, 300);
+        // Update the parent section count and fade out the card
+        updateSectionCount(parentSection, -1);
+        fadeOutCard(card);
       } else {
         btn.disabled = false;
       }
@@ -247,6 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var importedContactId = item.dataset.importedContactId;
     var contactId = item.dataset.contactId;
     var card = item.closest('.match-card');
+    var unmatchedSection = card.closest('#section-unmatched');
 
     fetch('/api/match/' + contactId + '/manual', {
       method: 'POST',
@@ -260,9 +340,24 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(data) {
       if (data.success) {
         card.classList.add('match-card-confirmed');
-        var rightSide = card.querySelector('.match-card-right');
-        rightSide.innerHTML = '<div class="match-imported-name">' + escapeHtml(item.querySelector('strong').textContent) + '</div>' +
-          '<span class="badge badge-status-sent">Manually Matched</span>';
+
+        // Update unmatched section count
+        updateSectionCount(unmatchedSection, -1);
+
+        // Update matched stat
+        var matchedStat = document.querySelector('.stat-card .text-success');
+        if (matchedStat) {
+          matchedStat.textContent = (parseInt(matchedStat.textContent) || 0) + 1;
+        }
+
+        // Update No Match stat
+        updateStatCard('No Match', Math.max(0, (parseInt(document.querySelector('.stat-card .text-danger').textContent) || 0) - 1));
+
+        // Update Apply All Confirmed button count
+        updateApplyButtonCount(1);
+
+        // Fade out card from view
+        fadeOutCard(card);
       }
     });
   });
