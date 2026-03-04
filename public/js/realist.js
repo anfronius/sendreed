@@ -432,28 +432,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function loadUnmappedCities() {
       cityList.innerHTML = '<p>Loading\u2026</p>';
-      fetch('/api/city-mappings/unmapped', {
+      fetch('/api/city-mappings', {
         headers: { 'X-CSRF-Token': getCsrf() }
       })
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        if (!data.unmapped || data.unmapped.length === 0) {
-          cityList.innerHTML = '<p class="text-muted">All cities are mapped.</p>';
-          return;
+        var html = '';
+
+        // Unmapped cities section
+        if (data.unmapped && data.unmapped.length > 0) {
+          html += '<h3 style="margin-top:0;">Unmapped City Values</h3>';
+          html += '<table class="data-table"><thead><tr>' +
+            '<th>Raw City Value</th><th>Sample Address</th><th>Correct City Name</th><th></th>' +
+            '</tr></thead><tbody>';
+          data.unmapped.forEach(function(row) {
+            html += '<tr data-raw="' + escapeAttr(row.raw_city) + '">' +
+              '<td><code>' + escapeHtml(row.raw_city) + '</code> <small>(' + row.count + ' records)</small></td>' +
+              '<td>' + escapeHtml(row.sample_address) +
+                ' <button class="btn-sm copy-addr" data-addr="' + escapeAttr(row.sample_address) + '">Copy</button></td>' +
+              '<td><input class="city-input" type="text" placeholder="Enter correct city name" style="width:200px"></td>' +
+              '<td><button class="btn-sm btn-primary save-mapping">Save</button></td>' +
+              '</tr>';
+          });
+          html += '</tbody></table>';
         }
-        var html = '<table class="data-table"><thead><tr>' +
-          '<th>Raw City Value</th><th>Sample Address</th><th>Correct City Name</th><th></th>' +
-          '</tr></thead><tbody>';
-        data.unmapped.forEach(function(row) {
-          html += '<tr data-raw="' + escapeAttr(row.raw_city) + '">' +
-            '<td><code>' + escapeHtml(row.raw_city) + '</code> <small>(' + row.count + ' records)</small></td>' +
-            '<td>' + escapeHtml(row.sample_address) +
-              ' <button class="btn-sm copy-addr" data-addr="' + escapeAttr(row.sample_address) + '">Copy</button></td>' +
-            '<td><input class="city-input" type="text" placeholder="Enter correct city name" style="width:200px"></td>' +
-            '<td><button class="btn-sm btn-primary save-mapping">Save</button></td>' +
-            '</tr>';
-        });
-        html += '</tbody></table>';
+
+        // Mapped cities section
+        if (data.mapped && data.mapped.length > 0) {
+          html += '<h3 style="margin-top:var(--space-6);">Mapped City Values</h3>';
+          html += '<table class="data-table"><thead><tr>' +
+            '<th>Raw Value</th><th>Mapped To</th><th></th>' +
+            '</tr></thead><tbody>';
+          data.mapped.forEach(function(row) {
+            html += '<tr data-raw="' + escapeAttr(row.raw_city) + '" data-mapped="' + escapeAttr(row.mapped_city) + '">' +
+              '<td><code>' + escapeHtml(row.raw_city) + '</code></td>' +
+              '<td><input class="city-edit-input" type="text" value="' + escapeAttr(row.mapped_city) + '" style="width:200px"></td>' +
+              '<td><button class="btn-sm btn-primary update-mapping">Update</button></td>' +
+              '</tr>';
+          });
+          html += '</tbody></table>';
+        }
+
+        if (!html) {
+          html = '<p class="text-muted">All cities are mapped.</p>';
+        }
+
         cityList.innerHTML = html;
       });
     }
@@ -477,7 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.target.textContent = 'Copied!';
         setTimeout(function() { e.target.textContent = 'Copy'; }, 1500);
       }
-      // Save mapping
+      // Save new mapping
       if (e.target.classList.contains('save-mapping')) {
         var row = e.target.closest('tr');
         var rawCity = row.getAttribute('data-raw');
@@ -496,21 +519,53 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(function(r) { return r.json(); })
         .then(function(data) {
           if (data.success) {
-            row.remove();
+            // Reload the entire mappings list to reflect changes
+            loadUnmappedCities();
             // Update badge count
             var badge = cityPanelBtn.querySelector('.badge-count');
-            var remaining = cityList.querySelectorAll('tbody tr').length;
             if (badge) {
-              if (remaining === 0) badge.remove();
-              else badge.textContent = remaining;
-            }
-            if (remaining === 0) {
-              cityList.innerHTML = '<p class="text-muted">All cities are mapped.</p>';
+              var currentCount = parseInt(badge.textContent) || 0;
+              if (currentCount <= 1) badge.remove();
+              else badge.textContent = (currentCount - 1).toString();
             }
           } else {
             e.target.disabled = false;
             e.target.textContent = 'Save';
             alert('Error: ' + (data.error || 'Save failed.'));
+          }
+        });
+      }
+      // Update existing mapping
+      if (e.target.classList.contains('update-mapping')) {
+        var row = e.target.closest('tr');
+        var rawCity = row.getAttribute('data-raw');
+        var mappedCity = row.querySelector('.city-edit-input').value.trim();
+        if (!mappedCity) { alert('Please enter the city name.'); return; }
+        e.target.disabled = true;
+        e.target.textContent = 'Updating\u2026';
+        fetch('/api/city-mappings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrf()
+          },
+          body: JSON.stringify({ raw_city: rawCity, mapped_city: mappedCity })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            e.target.disabled = false;
+            e.target.textContent = 'Update';
+            e.target.classList.remove('btn-primary');
+            e.target.classList.add('btn-secondary');
+            setTimeout(function() {
+              e.target.classList.remove('btn-secondary');
+              e.target.classList.add('btn-primary');
+            }, 1500);
+          } else {
+            e.target.disabled = false;
+            e.target.textContent = 'Update';
+            alert('Error: ' + (data.error || 'Update failed.'));
           }
         });
       }
