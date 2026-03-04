@@ -109,3 +109,17 @@
 - [x] There should be a way to reverse the 'Not Found' properties if it was accidently clicked or the client was found later. Also when I click the not found button, it doesnt automatically change the numbers on the "Found, Not FOund" buttons at top, which like I've said many times I want everything to work dynamically and nothing should have to have the page refreshed to work properly, just like this.
 - [x] Same button fix is needed for the Users list on the users page, but considering how small the Wipe Data and Delete buttons look on the page, can you make them the same height (taller) as SMTP button instead of formalizing them to the small button standard?
 - [x] As admin, when I try to add my protonmail with all the correct credentials (the test succeeds and the connection works) when I actually try to save the credentials I get an error saying "Failed to save SMTP settings."
+
+### 9th Set
+
+- The last set of fixes were largely a failure and did not accomplish many of its stated goals:
+- Why is the Delete Selected Button still smaller than the Import CSV Button on the Client page vertically. 
+- When I click on a filter option that is empty or has only a few client like 'has email' the entries so do not back when you click back on all clients button unntil you refresh the page and repopulate the visible list.
+- The Review button and View Tests button is smaller that the Delete button in the campaign list on the campaigns page.
+- The Wipe Data Button is still larger than the SMTP and Delete button the Users Page.
+- I't won't met me wipe the data of the Real Estate User's profile. It just says "Failed to wipe user data." or delete that user for some reason.
+- Can you make the copy button blue on the lookup page.
+- can you decrease the size of thee CCity Mappings button that shows up when there are missing mappings and make it rounded like all other buttons on the website.
+- The Apply All Confirmed buttn on the Phone and Email matching page STILL isnt updating dynamically when you match a crmls client with a iphone contacct and it is STILL smaller than the Import Another VCard button right next to it.
+- On the under review, when slicking skip the skipped contact should dynamically go back to the no match found list instead of waiting for a refresh. Remember AGAIN everything should work dynamically and no functionality should have to be refreshed if the change is made on that device. 
+- What is the point of the Found and Not Found numbers on the base real estate page? It should have the Total Properties that have been downloaded by the user lifetime into the CRMLS Data upload, the amount of Propertis Pending Lookup, Clients to be Matched (properties which have been successfully looked up), Lost Properties (properties which have been designated "not found" on the realist lookup portion.)
