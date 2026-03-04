@@ -4,6 +4,14 @@
 <p><%= batchData.length %> recipient(s). Tap each "Send Text" button to open your Messages app, then click "Mark Sent" to track progress.</p>
 
 <% if (batchData.length > 0) { %>
+<div class="filter-bar mb-2">
+  <button class="btn btn-filter active" data-filter="all">All</button>
+  <button class="btn btn-filter" data-filter="pending">Pending</button>
+  <button class="btn btn-filter" data-filter="sent">Sent</button>
+</div>
+<% } %>
+
+<% if (batchData.length > 0) { %>
 <div class="progress-container mb-2">
   <div class="progress-bar-wrapper">
     <div class="progress-bar" id="sms-progress" style="width: <%= campaign.total_count > 0 ? Math.round((campaign.sent_count / campaign.total_count) * 100) : 0 %>%"></div>
@@ -45,7 +53,7 @@
 </div>
 
 <div class="mt-2">
-  <a href="/campaign" class="btn btn-secondary btn-large">← Back to Campaigns</a>
+  <a href="/campaign" class="btn btn-link">← Back to Campaigns</a>
 </div>
 
 <script>
@@ -113,6 +121,8 @@
             statusLabel.textContent = 'sent';
           }
         }
+        // Reapply current filter to update visibility
+        applyFilter(document.querySelector('.btn-filter.active').dataset.filter);
       } else {
         btn.disabled = false;
         btn.textContent = 'Mark Sent';
@@ -122,6 +132,37 @@
     .catch(function(err) {
       btn.disabled = false;
       btn.textContent = 'Mark Sent';
+    });
+  });
+
+  // Filter functionality
+  function applyFilter(filter) {
+    var cards = document.querySelectorAll('.sms-card');
+    cards.forEach(function(card) {
+      var status = card.dataset.status;
+      if (filter === 'all') {
+        card.style.display = '';
+      } else if (filter === 'sent' && status === 'sent') {
+        card.style.display = '';
+      } else if (filter === 'pending' && status !== 'sent') {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  }
+
+  // Filter button handlers
+  document.querySelectorAll('.btn-filter').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var filter = this.dataset.filter;
+      // Update active state
+      document.querySelectorAll('.btn-filter').forEach(function(b) {
+        b.classList.remove('active');
+      });
+      this.classList.add('active');
+      // Apply filter
+      applyFilter(filter);
     });
   });
 </script>
