@@ -1,23 +1,60 @@
-# Tenth Set of Fixes - COMPLETED
+# Eleventh Set of Fixes - COMPLETED
+
+## Date: 2026-03-04
+## Branch: fix/11th-set-of-fixes
 
 ## Summary
-All 10 fixes from the tenth set have been successfully implemented and committed in 2 commits.
+5 fixes implemented, 1 configuration issue documented, 1 issue requires user verification.
 
-### Commit 1: Quick Wins (f55d983)
-- Fix 6: Removed admin from dashboard user stats
-- Fix 9: Removed unused progress bar from realist lookup page
-- Fix 3, 4, 5: Standardized button sizes on SMS batch page
-- Fix 7: Fixed "clients to be matched" counter logic
+### Fixes Implemented
 
-### Commit 2: Advanced Features (e38ed68)
-- Fix 1: Template variables now filter by active fields
-- Fix 8: Confirmed matches hide dynamically after Apply All
-- Fix 10: City mappings modal shows both unmapped and mapped cities with edit capability
-- Fix 2: Improved SMTP save error logging
+#### 1. Send Texts Page - Button Sizing (FIXED)
+**File**: `public/css/style.css`
+**Issue**: "Mark Sent" and "Copy Message" buttons appeared smaller than "Send Text" button
+**Root Cause**: `.btn-sms-send` had `height: auto` override on line 978
+**Fix**: Removed the height override and font-size override, kept only `.sms-card-actions` flex container with gap and align-items
+
+#### 2. ENCRYPTION_KEY Error (CONFIGURATION ISSUE - NO CODE FIX)
+**Issue**: "ENCRYPTION_KEY env var must be at least 64 hex characters (32 bytes for AES-256)"
+**Analysis**: This is correct validation in `services/crypto.js` (lines 6-12)
+**Resolution**: Documented in FIXES.md that user needs to set proper 64-hex-char ENCRYPTION_KEY in environment. The .env.example already provides clear guidance. Error message is accurate.
+
+#### 3. Stacked Buttons Missing Space (FIXED)
+**File**: `public/css/style.css` (line 1231-1233)
+**Issue**: "View Texts" and "Delete" buttons stack with no space on narrow windows
+**Fix**: Enhanced existing CSS rule to add `margin-bottom` to `.data-table td .btn-sm` and ensure last child has no margin
+
+#### 4. Template Variables - "years" Issue (NEEDS USER VERIFICATION)
+**Files**: `services/template.js`, `config/field-config.js`
+**Issue**: User sees "years" variable even when "there is no years field"
+**Investigation**:
+- Template service filters variables by active fields (template.js lines 36-58)
+- Database check shows purchase_date is enabled for realestate (visible=1) and disabled for nonprofit (visible=0)
+- "years" variable is computed from purchase_date field
+**Resolution**: Code is working correctly. User needs to verify:
+  1. Which user role they're testing with (realestate should see "years", nonprofit should not)
+  2. If they disabled purchase_date field in Fields management but are still testing as admin
+
+#### 5. Send Texts Filter (IMPLEMENTED)
+**File**: `views/campaign/sms-batch.ejs`
+**Implementation**:
+- Added filter bar with All/Pending/Sent buttons using `.btn-filter` class
+- Implemented `applyFilter()` JavaScript function for dynamic filtering
+- Filter updates instantly when clicking buttons
+- Filter reapplies after marking a text as sent to maintain view consistency
+
+#### 6. Back to Campaigns Button Style (FIXED)
+**File**: `views/campaign/sms-batch.ejs` (line 48)
+**Change**: Converted from `btn btn-secondary btn-large` to `btn btn-link` to match other sub-pages
+
+## Files Modified
+- `public/css/style.css` - Button sizing fixes
+- `views/campaign/sms-batch.ejs` - Filter UI, back link style
+- `FIXES.md` - Marked completed items and documented configuration issue
 
 ---
 
-# Original Analysis
+# Tenth Set of Fixes - COMPLETED
 
 # Tenth Set of Fixes - Analysis
 

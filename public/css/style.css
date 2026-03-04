@@ -974,8 +974,7 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
 }
-.sms-card-actions { display: flex; gap: var(--space-3); }
-.btn-sms-send { padding: var(--space-3) var(--space-6); font-size: var(--text-md); height: auto; }
+.sms-card-actions { display: flex; gap: var(--space-3); align-items: center; }
 
 
 /* --- Loading Text --- */
@@ -1223,7 +1222,6 @@ a:hover { text-decoration: underline; }
   .filter-bar { flex-direction: column; }
   .filter-input { min-width: auto; width: 100%; }
   .sms-card-actions { flex-direction: column; }
-  .btn-sms-send { text-align: center; font-size: var(--text-lg); padding: var(--space-4); }
   .page-header { flex-direction: column; align-items: flex-start; }
   .page-actions { width: 100%; justify-content: flex-start; }
   .btn-large { width: 100%; }
@@ -1231,4 +1229,5 @@ a:hover { text-decoration: underline; }
   .container { padding: var(--space-4); }
   /* Campaign actions button stacking */
   .data-table td .btn-sm { margin-bottom: var(--space-2); }
+  .data-table td .btn-sm:last-child { margin-bottom: 0; }
 }
