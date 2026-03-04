@@ -4,20 +4,16 @@
 
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="stat-number"><%= stats.total %></div>
-    <div class="stat-label">Total Properties</div>
-  </div>
-  <div class="stat-card">
     <div class="stat-number"><%= stats.pending %></div>
-    <div class="stat-label">Pending Lookup</div>
+    <div class="stat-label">Properties Pending Lookup</div>
   </div>
   <div class="stat-card">
-    <div class="stat-number text-success"><%= stats.found %></div>
-    <div class="stat-label">Found</div>
+    <div class="stat-number" style="color:var(--color-warning-text);"><%= stats.to_be_matched %></div>
+    <div class="stat-label">Clients to be Matched</div>
   </div>
   <div class="stat-card">
-    <div class="stat-number text-danger"><%= stats.not_found %></div>
-    <div class="stat-label">Not Found</div>
+    <div class="stat-number text-success"><%= stats.confirmed %></div>
+    <div class="stat-label">Confirmed Clients</div>
   </div>
 </div>
 

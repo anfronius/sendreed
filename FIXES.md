@@ -110,16 +110,15 @@
 - [x] Same button fix is needed for the Users list on the users page, but considering how small the Wipe Data and Delete buttons look on the page, can you make them the same height (taller) as SMTP button instead of formalizing them to the small button standard?
 - [x] As admin, when I try to add my protonmail with all the correct credentials (the test succeeds and the connection works) when I actually try to save the credentials I get an error saying "Failed to save SMTP settings."
 
-### 9th Set
+### 9th Set (DONE)
 
-- The last set of fixes were largely a failure and did not accomplish many of its stated goals:
-- Why is the Delete Selected Button still smaller than the Import CSV Button on the Client page vertically. 
-- When I click on a filter option that is empty or has only a few client like 'has email' the entries so do not back when you click back on all clients button unntil you refresh the page and repopulate the visible list.
-- The Review button and View Tests button is smaller that the Delete button in the campaign list on the campaigns page.
-- The Wipe Data Button is still larger than the SMTP and Delete button the Users Page.
-- I't won't met me wipe the data of the Real Estate User's profile. It just says "Failed to wipe user data." or delete that user for some reason.
-- Can you make the copy button blue on the lookup page.
-- can you decrease the size of thee CCity Mappings button that shows up when there are missing mappings and make it rounded like all other buttons on the website.
-- The Apply All Confirmed buttn on the Phone and Email matching page STILL isnt updating dynamically when you match a crmls client with a iphone contacct and it is STILL smaller than the Import Another VCard button right next to it.
-- On the under review, when slicking skip the skipped contact should dynamically go back to the no match found list instead of waiting for a refresh. Remember AGAIN everything should work dynamically and no functionality should have to be refreshed if the change is made on that device. 
-- What is the point of the Found and Not Found numbers on the base real estate page? It should have the Total Properties that have been downloaded by the user lifetime into the CRMLS Data upload, the amount of Propertis Pending Lookup, Clients to be Matched (properties which have been successfully looked up), Lost Properties (properties which have been designated "not found" on the realist lookup portion.)
+- [x] When I click on a filter option that is empty or has only a few client like 'has email' the entries so do not back when you click back on all clients button unntil you refresh the page and repopulate the visible list.
+- [x] I't won't met me wipe the data of the Real Estate User's profile. It just says "Failed to wipe user data." or delete that user for some reason.
+- [x] center the City Mappings button underneath the city field
+- [x] The Apply All Confirmed buttn on the Phone and Email matching page STILL isnt updating dynamically when you match a crmls client with a iphone contacct and it is STILL smaller than the Import Another VCard button right next to it. Please make sure all updates and mage functionality happens dynamically and immediately. Users WILL be confused if things require page refreshes.
+- [x] On the under review, when clicking skip, the skipped contact should dynamically go back to the no match found list instead of waiting for a refresh. Remember AGAIN everything should work dynamically and no functionality should have to be refreshed if the change is made on that device.
+- [x] What is the point of the Found and Not Found numbers on the base real estate page? It should have the amount of 'Properties Pending Lookup', 'Clients to be Matched' (properties which have been successfully looked up), and 'Confirmed Clients' that have been matched so far.
+- [x] admin user select bar shouldn't show up on admin only pages like Fields or User and only real estate users should be able to be chosen on the real estate page (if a nonprofit user was previously selected on another page then the 'Acting As:' clears).
+- [x] Digest Email Settings box shouldn't have that random empty top space on anniversaries page, or if it cannot be removed then the bottom should also have it so it doesn't look weird and off center. The same goes for the boxes on the Fields page.
+- [x] bit more space between the numbers artifact that is next to many Titles/Items like 'Today' and 'This Week' on anniversaries page and on other pages with other items.
+- [x] The Fields tab doesn't seem to change which fields I see on the real estate clients page. Can you fix that and make sure everywhere that those fields are used that they respect the changes in the Fields page

@@ -54,9 +54,10 @@
       <tr>
         <th><input type="checkbox" id="select-all-lookup"></th>
         <th>Address</th>
-        <th>City
+        <th style="text-align:center;">
+          <div>City</div>
           <% if (user.role === 'admin') { %>
-            <button id="btn-city-mappings" class="btn btn-sm btn-secondary" style="margin-left:8px;">
+            <button id="btn-city-mappings" class="btn btn-sm btn-secondary" style="margin-top:4px;">
               City Mappings<% if (unmappedCount > 0) { %>
                 <span class="badge-count"><%= unmappedCount %></span>
               <% } %>

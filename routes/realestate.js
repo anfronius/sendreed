@@ -63,15 +63,32 @@ router.get('/', (req, res) => {
     const crmlsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
     const crmlsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
 
-    const stats = db.prepare(`
+    // Get property lookup stats
+    const propertyStats = db.prepare(`
       SELECT
         COUNT(*) as total,
         SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
-        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as to_be_matched
       FROM crmls_properties
       WHERE ${crmlsWhere}
     `).get(...crmlsParams);
+
+    // Get confirmed clients count (contacts with property_address from finalized properties)
+    const contactWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    const contactParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+    const confirmedClients = db.prepare(`
+      SELECT COUNT(*) as count
+      FROM contacts
+      WHERE property_address IS NOT NULL AND property_address != ''
+      AND ${contactWhere}
+    `).get(...contactParams);
+
+    const stats = {
+      total: propertyStats.total,
+      pending: propertyStats.pending,
+      to_be_matched: propertyStats.to_be_matched,
+      confirmed: confirmedClients.count,
+    };
 
     // Upcoming anniversaries (next 7 days)
     var todayStr = new Date().toISOString().slice(0, 10);

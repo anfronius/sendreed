@@ -764,8 +764,15 @@ router.post('/match/:id/skip', requireRole('realestate', 'admin'), (req, res) =>
       return res.status(404).json({ error: 'Match not found.' });
     }
 
+    // Get contact details before deleting the match (for moving to unmatched section)
+    const contact = db.prepare(`
+      SELECT id, first_name, last_name, phone, email, property_address
+      FROM contacts
+      WHERE id = ?
+    `).get(match.contact_id);
+
     db.prepare('DELETE FROM phone_matches WHERE id = ?').run(matchId);
-    res.json({ success: true });
+    res.json({ success: true, contact });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

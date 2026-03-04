@@ -320,6 +320,9 @@ a:hover { text-decoration: underline; }
   box-shadow: var(--shadow-sm);
   margin-bottom: var(--space-6);
 }
+.form-card h2:first-child {
+  margin-top: 0;
+}
 .form-group { margin-bottom: var(--space-4); }
 .form-group label {
   display: block;
@@ -492,6 +495,7 @@ a:hover { text-decoration: underline; }
   border-radius: var(--radius-full);
   vertical-align: baseline;
   min-width: 2rem;
+  margin-left: var(--space-2);
 }
 
 
