@@ -31,36 +31,17 @@
   |---|---|
   | `sqlite.md` | Database naming, queries, transactions, ownership scoping, indexing |
   | `express.md` | Route organization, handler pattern, response formats, pagination |
-  | `frontend.md` | EJS templates, vanilla JS conventions (`var`, `.then()`), CSS patterns |
+  | `frontend.md` | EJS templates, vanilla JS conventions (`var`, `.then()`), CSS patterns | **(OUTDATED)**
   | `security.md` | Auth, CSRF, encryption, XSS/SQLi prevention, input validation |
   | `services.md` | Service layer architecture, email/CSV/vCard/matcher/template/SMS/cron |
   | `docker-deploy.md` | Docker build, environment variables, deployment targets |
   | `testing.md` | Test framework (`node:test`), scope, file structure, conventions |
 
-## Agents (`.claude/agents/`)
-  Specialized agent prompts for delegated tasks. Use these with the Task tool when the work matches:
-
-  | Agent | Purpose | When to use |
-  |---|---|---|
-  | `code-review.md` | Review code against project rules, report by severity | After writing code, before committing; on PR review |
-  | `test-writer.md` | Write unit tests for pure service functions | When adding/changing service logic |
-  | `git-manager.md` | Branch, commit, and PR workflows | All git operations — user wants Claude to handle git |
-  | `code-analyzer.md` | Read and summarize any code scope | Before making changes to unfamiliar code; when another agent needs context |
-
-## Skills (`.claude/skills/`)
-  Project-level skills override global skills of the same name:
-
-  | Skill | Purpose | Invocation |
-  |-------|---------|------------|
-  | `fixes` | Fix FIXES.md issues using SendReed conventions | `/fixes [set number]` |
-  | `db-migrate` | Safe SQLite schema changes | `/db-migrate [description]` |
-  | `test-run` | Run node:test suite | `/test-run [module]` |
-
 ## Workflow Integration
   When performing a multi-step task:
-  1. **Analyze** — use `code-analyzer` agent if the scope is unfamiliar
-  2. **Plan** — save plans to `./docs/plans/` per global preferences
+  1. **Analyze** — use exploration agents to understand codebase and relevant docs
+  2. **Plan** — save use planners as save results to `./docs/plans/` per global preferences
   3. **Implement** — follow the relevant rule files for the layers being touched
-  4. **Test** — run `npm test`; use `test-writer` agent if new tests are needed
-  5. **Review** — use `code-review` agent to check against rules before committing
-  6. **Commit** — use `git-manager` agent conventions (feature branch, conventional commits)
+  4. **Test** — run `npm test`; write tests if none exist
+  5. **Review** — ensure code styles are being enforced and everything looks good
+  6. **Commit** — use conventional commits
