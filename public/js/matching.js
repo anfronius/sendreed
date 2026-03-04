@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var count = parseInt(btn.dataset.count || '0') + delta;
     btn.dataset.count = count;
     btn.textContent = 'Apply All Confirmed (' + count + ')';
-    btn.style.display = count > 0 ? 'inline-block' : 'none';
+    if (count > 0) { btn.classList.remove('hidden'); } else { btn.classList.add('hidden'); }
   }
 
   // ---- Apply All Confirmed (AJAX) ----

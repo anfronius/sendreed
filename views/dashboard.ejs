@@ -68,12 +68,12 @@
 <% if (user.role !== 'admin') { %>
 <h2>Quick Actions</h2>
 <div class="action-links">
-  <a href="/campaign/create" class="btn btn-primary">New Campaign</a>
-  <a href="/contacts" class="btn btn-secondary">View <%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></a>
+  <a href="/campaign/create" class="btn btn-large btn-primary">New Campaign</a>
+  <a href="/contacts" class="btn btn-large btn-secondary">View <%= typeof contactLabel !== 'undefined' ? contactLabel : 'Contacts' %></a>
   <% if (user.role === 'realestate') { %>
-  <a href="/realestate" class="btn btn-secondary">Manage CRMLS Data</a>
+  <a href="/realestate" class="btn btn-large btn-secondary">Manage CRMLS Data</a>
   <% } else { %>
-  <a href="/contacts/import" class="btn btn-upload">Import CSV</a>
+  <a href="/contacts/import" class="btn btn-large btn-upload">Import CSV</a>
   <% } %>
 </div>
 <% } %>

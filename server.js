@@ -66,6 +66,12 @@ app.use(session({
 app.use(flashMiddleware);
 app.use(csrfMiddleware);
 
+// Expose current path for nav active state
+app.use((req, res, next) => {
+  res.locals.currentPath = req.path;
+  next();
+});
+
 // Health check (no auth)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });

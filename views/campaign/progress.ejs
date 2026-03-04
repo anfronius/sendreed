@@ -11,10 +11,10 @@
     <span class="stat-failed" id="stat-failed">0</span> failed
     <span class="stat-total">of <span id="stat-total"><%= campaign.total_count %></span></span>
   </div>
-  <div id="rate-warning" class="flash flash-info" style="display:none">
+  <div id="rate-warning" class="flash flash-info hidden">
     Approaching daily send limit. Campaign may pause automatically.
   </div>
-  <div id="rate-limit-hit" class="flash flash-error" style="display:none">
+  <div id="rate-limit-hit" class="flash flash-error hidden">
     Daily send limit reached. Campaign will resume tomorrow.
   </div>
 </div>
@@ -24,7 +24,7 @@
   <div id="log-entries"></div>
 </div>
 
-<div id="done-actions" style="display:none; margin-top:1rem;">
+<div id="done-actions" class="hidden mt-2">
   <a href="/campaign" class="btn btn-primary">Back to Campaigns</a>
   <a href="/campaign/<%= campaign.id %>/review" class="btn btn-secondary">View Details</a>
 </div>

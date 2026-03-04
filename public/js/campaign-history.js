@@ -41,11 +41,11 @@ document.addEventListener('DOMContentLoaded', function() {
     editScheduled.value = data.scheduled || '';
     modalTitle.textContent = data.id ? 'Edit Template' : 'New Template';
     lastFocusedField = editBody;
-    modal.style.display = 'flex';
+    modal.classList.remove('hidden');
   }
 
   function closeModal() {
-    modal.style.display = 'none';
+    modal.classList.add('hidden');
   }
 
   cancelBtn.addEventListener('click', closeModal);

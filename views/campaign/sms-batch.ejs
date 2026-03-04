@@ -4,7 +4,7 @@
 <p><%= batchData.length %> recipient(s). Tap each "Send Text" button to open your Messages app, then click "Mark Sent" to track progress.</p>
 
 <% if (batchData.length > 0) { %>
-<div class="progress-container" style="margin-bottom: 1rem;">
+<div class="progress-container mb-2">
   <div class="progress-bar-wrapper">
     <div class="progress-bar" id="sms-progress" style="width: <%= campaign.total_count > 0 ? Math.round((campaign.sent_count / campaign.total_count) * 100) : 0 %>%"></div>
   </div>
@@ -44,7 +44,7 @@
   <% } %>
 </div>
 
-<div style="margin-top: 1rem;">
+<div class="mt-2">
   <a href="/campaign" class="btn btn-secondary">Back to Campaigns</a>
 </div>
 

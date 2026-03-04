@@ -3,7 +3,7 @@
 <div class="page-header">
   <h1>Campaigns <span class="count-badge"><%= totalCount %></span></h1>
   <div class="page-actions">
-    <a href="/campaign/create" class="btn btn-primary">New Campaign</a>
+    <a href="/campaign/create" class="btn btn-large btn-primary">New Campaign</a>
   </div>
 </div>
 
@@ -47,7 +47,7 @@
             <a href="/campaign/<%= c.id %>/sms" class="btn btn-sm btn-secondary">View Texts</a>
           <% } %>
           <% if (['sent', 'paused', 'resume_tomorrow'].includes(c.status) && c.failed_count > 0 && c.channel === 'email') { %>
-            <form method="POST" action="/campaign/<%= c.id %>/retry" style="display:contents">
+            <form method="POST" action="/campaign/<%= c.id %>/retry" class="inline-form">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <button type="submit" class="btn btn-sm btn-secondary">Retry Failed</button>
             </form>
@@ -65,7 +65,7 @@
 <%- include('../partials/pagination', { currentPage, totalPages, baseUrl }) %>
 <% } %>
 
-<div class="page-header" style="margin-top: 2rem;">
+<div class="page-header mt-3">
   <h2>Templates <span class="count-badge"><%= templates ? templates.length : 0 %></span></h2>
   <div class="page-actions">
     <button type="button" class="btn btn-primary" id="new-template-btn">New Template</button>
@@ -88,7 +88,7 @@
       <tr data-template-id="<%= t.id %>">
         <td><strong><%= t.name %></strong></td>
         <td><%= t.scheduled_date || '—' %></td>
-        <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; color: #64748b;">
+        <td class="sample-data" style="max-width:300px;">
           <% if (t.subject_template) { %>Subject: <%= t.subject_template %> — <% } %><%= t.body_template.substring(0, 100) %><%= t.body_template.length > 100 ? '...' : '' %>
         </td>
         <td>
@@ -107,7 +107,7 @@
 <% } %>
 
 <!-- Template Edit Modal -->
-<div id="template-edit-modal" class="modal-overlay" style="display:none;">
+<div id="template-edit-modal" class="modal-overlay hidden">
   <div class="modal-content">
     <h3 id="template-modal-title">Edit Template</h3>
     <input type="hidden" id="template-edit-id">
@@ -132,7 +132,7 @@
     <div class="form-group">
       <label for="template-edit-scheduled">Scheduled Date (optional)</label>
       <input type="date" id="template-edit-scheduled">
-      <small style="color:#64748b;">If set, this template will be auto-sent to all contacts on this date.</small>
+      <small class="text-muted">If set, this template will be auto-sent to all contacts on this date.</small>
     </div>
     <div class="form-actions">
       <button class="btn btn-primary" id="template-save-btn">Save</button>
