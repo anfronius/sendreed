@@ -4,7 +4,7 @@
   Unified email/SMS campaign platform serving two clients (nonprofit political outreach via Outlook SMTP, real estate agent via Yahoo SMTP). SMS uses `sms:` deep links (no API). Dockerized, runs on Render or self-hosted WSL2+Caddy.
 
 ## Tech Stack
-  Node.js 20, Express, EJS + vanilla JS (no frameworks), SQLite via better-sqlite3 (WAL), bcryptjs, nodemailer, multer, papaparse, node-cron. **CommonJS modules throughout** (note: the global CLAUDE.md says "prefer ES modules" — this project overrides that; use `require`/`module.exports` everywhere).
+  Node.js 20, Express, EJS + vanilla JS (no frameworks), SQLite via better-sqlite3 (WAL), bcryptjs, nodemailer, multer, papaparse, node-cron. **CommonJS modules throughout** — use `require`/`module.exports` everywhere. See `.claude/rules/commonjs.md` for full conventions.
 
 ## Architecture
   - `server.js` → routes (thin controllers) → services (business logic)
@@ -46,6 +46,15 @@
   | `test-writer.md` | Write unit tests for pure service functions | When adding/changing service logic |
   | `git-manager.md` | Branch, commit, and PR workflows | All git operations — user wants Claude to handle git |
   | `code-analyzer.md` | Read and summarize any code scope | Before making changes to unfamiliar code; when another agent needs context |
+
+## Skills (`.claude/skills/`)
+  Project-level skills override global skills of the same name:
+
+  | Skill | Purpose | Invocation |
+  |-------|---------|------------|
+  | `fixes` | Fix FIXES.md issues using SendReed conventions | `/fixes [set number]` |
+  | `db-migrate` | Safe SQLite schema changes | `/db-migrate [description]` |
+  | `test-run` | Run node:test suite | `/test-run [module]` |
 
 ## Workflow Integration
   When performing a multi-step task:

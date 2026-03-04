@@ -1,30 +1,60 @@
 {
   "permissions": {
     "allow": [
-      "Bash(node server.js)",
-      "Bash(node --watch server.js)",
-      "Bash(npm install:*)",
-      "Bash(npm run:*)",
-      "Bash(npx eslint:*)",
-      "Bash(sqlite3:*)",
-      "Bash(curl http://localhost:*)",
-      "Bash(ls:*)",
-      "Bash(docker compose up:*)",
-      "Bash(docker compose down:*)",
-      "Bash(docker compose logs:*)",
-      "Bash(docker build:*)",
-      "Bash(npm test:*)",
-      "Bash(node --test:*)",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(docker compose:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git branch:*)",
+      "Bash(git checkout:*)",
       "Bash(git checkout -b:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(gh pr:*)"
+      "Bash(git stash:*)",
+      "Bash(git fetch:*)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh issue:*)",
+      "Bash(sqlite3:*)",
+      "Bash(curl:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(cat:*)",
+      "Bash(wc:*)",
+      "Read",
+      "Grep",
+      "Glob"
+    ]
+  },
+  "hooks": {
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -d tests/unit ] && ls tests/unit/*.test.js 1>/dev/null 2>&1; then npm test 2>&1 | tail -30; if [ ${PIPESTATUS[0]} -ne 0 ]; then echo 'Tests are failing. Fix the implementation before continuing.' >&2; exit 2; fi; fi; exit 0",
+            "timeout": 60
+          }
+        ]
+      }
     ],
-    "deny": []
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); FILE=$(echo \"$INPUT\" | jq -r '.tool_input.file_path // \"\"'); if echo \"$FILE\" | grep -qE '^.*\\.env'; then echo 'BLOCKED: Cannot modify .env files in this project.' >&2; exit 2; fi; if echo \"$FILE\" | grep -qE 'db/.*\\.sqlite'; then echo 'BLOCKED: Cannot directly modify SQLite database files.' >&2; exit 2; fi; exit 0",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }
