@@ -45,6 +45,39 @@ document.addEventListener('DOMContentLoaded', function() {
     if (count > 0) { btn.classList.remove('hidden'); } else { btn.classList.add('hidden'); }
   }
 
+  // ---- Helper: move card to Applied section ----
+  function moveToAppliedSection(card) {
+    var appliedSection = document.getElementById('section-applied');
+    if (!appliedSection) return;
+    var appliedList = appliedSection.querySelector('.match-list');
+
+    var clone = card.cloneNode(true);
+    // Replace action buttons with "Confirmed" badge
+    var actions = clone.querySelector('.match-card-actions');
+    if (actions) {
+      actions.innerHTML = '<span class="confidence-badge confidence-high">Confirmed</span>';
+    }
+    // For manual match cards (no actions div), add one
+    if (!actions) {
+      var rightDiv = clone.querySelector('.match-card-right');
+      if (rightDiv) {
+        var actionsDiv = document.createElement('div');
+        actionsDiv.className = 'match-card-actions';
+        actionsDiv.innerHTML = '<span class="confidence-badge confidence-high">Confirmed</span>';
+        rightDiv.after(actionsDiv);
+      }
+    }
+    clone.classList.add('match-card-applied');
+
+    appliedList.appendChild(clone);
+    appliedSection.classList.remove('hidden');
+    appliedSection.style.display = '';
+
+    // Update applied section count badge
+    var badge = appliedSection.querySelector('h2 .count-badge');
+    if (badge) badge.textContent = (parseInt(badge.textContent) || 0) + 1;
+  }
+
   // ---- Helper: fade out and remove a card ----
   function fadeOutCard(card, callback) {
     card.style.transition = 'opacity 0.3s, max-height 0.3s';
@@ -83,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(data) {
         if (data.success) {
           // Remove ALL confirmed/auto-confirmed cards from ALL sections
-          var allConfirmedCards = document.querySelectorAll('.match-card-confirmed, .match-card-applied, #section-confirmed .match-card');
+          var allConfirmedCards = document.querySelectorAll('.match-card-confirmed, .match-card-applied, #section-confirmed .match-card, #section-applied .match-card');
           allConfirmedCards.forEach(function(card) {
             card.remove();
           });
@@ -91,6 +124,10 @@ document.addEventListener('DOMContentLoaded', function() {
           // Hide auto-confirmed section entirely
           var confirmedSection = document.getElementById('section-confirmed');
           if (confirmedSection) confirmedSection.style.display = 'none';
+
+          // Hide applied section entirely
+          var appliedSection = document.getElementById('section-applied');
+          if (appliedSection) appliedSection.style.display = 'none';
 
           // Update matched stat — add the applied count to existing matched
           var matchedStat = document.querySelector('.stat-card .text-success');
@@ -143,6 +180,9 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
+        // Move to applied section before fading from review
+        moveToAppliedSection(card);
+
         // Mark as confirmed and fade out
         card.classList.add('match-card-confirmed');
 
@@ -156,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update Apply All Confirmed button count
         updateApplyButtonCount(1);
 
-        // Fade out the card from view
+        // Fade out the card from review section
         fadeOutCard(card);
       } else {
         btn.disabled = false;
@@ -320,6 +360,9 @@ document.addEventListener('DOMContentLoaded', function() {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.success) {
+        // Move to applied section before fading from unmatched
+        moveToAppliedSection(card);
+
         card.classList.add('match-card-confirmed');
 
         // Update unmatched section count
@@ -332,7 +375,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update Apply All Confirmed button count
         updateApplyButtonCount(1);
 
-        // Fade out card from view
+        // Fade out card from unmatched section
         fadeOutCard(card);
       }
     });

@@ -7,6 +7,45 @@ document.addEventListener('DOMContentLoaded', function() {
     return el ? el.value : '';
   }
 
+  // ---- Dynamic Filtering ----
+  function getCurrentFilter() {
+    var active = document.querySelector('.filter-bar .btn-filter.active');
+    return active ? active.dataset.filter : 'all';
+  }
+
+  function applyFilter(filter) {
+    var rows = table.querySelectorAll('tbody tr[data-property-id]');
+    rows.forEach(function(row) {
+      if (filter === 'all' || row.dataset.status === filter) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+  }
+
+  function hideRowIfFiltered(row) {
+    var filter = getCurrentFilter();
+    if (filter !== 'all' && row.dataset.status !== filter) {
+      row.style.transition = 'opacity 0.3s';
+      row.style.opacity = '0';
+      setTimeout(function() { row.style.display = 'none'; row.style.opacity = ''; }, 300);
+    }
+  }
+
+  // Filter button click handlers
+  var filterButtons = document.querySelectorAll('.filter-bar .btn-filter');
+  filterButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      filterButtons.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      applyFilter(btn.dataset.filter);
+    });
+  });
+
+  // Apply initial filter on page load
+  applyFilter(getCurrentFilter());
+
   // ---- Checkbox selection + bulk actions ----
   var selectAll = document.getElementById('select-all-lookup');
   var bulkNotFoundBtn = document.getElementById('bulk-not-found-btn');
@@ -73,6 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
               var nfBtn = row.querySelector('.not-found-btn');
               if (nfBtn) nfBtn.remove();
               row.querySelector('.lookup-checkbox').checked = false;
+              hideRowIfFiltered(row);
             }
           });
           updateBulkState();
@@ -170,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function() {
       function saveOwnerName() {
         var newValue = input.value.trim();
         var originalValue = input.dataset.originalValue;
-        if (newValue === originalValue || !newValue) return;
+        if (newValue === originalValue) return;
 
         var id = input.dataset.id;
         fetch('/api/realist-lookup/' + id, {
@@ -187,13 +227,20 @@ document.addEventListener('DOMContentLoaded', function() {
             input.dataset.originalValue = newValue;
             input.style.borderColor = '#22c55e';
             setTimeout(function() { input.style.borderColor = ''; }, 1000);
-            // Update row status badge
+            // Update row status badge based on whether name is empty
             var row = input.closest('tr');
             var badge = row.querySelector('.badge');
-            badge.textContent = 'found';
-            badge.className = 'badge lookup-status-found';
-            row.dataset.status = 'found';
+            if (newValue) {
+              badge.textContent = 'found';
+              badge.className = 'badge lookup-status-found';
+              row.dataset.status = 'found';
+            } else {
+              badge.textContent = 'pending';
+              badge.className = 'badge lookup-status-pending';
+              row.dataset.status = 'pending';
+            }
             updateProgress(data.counts);
+            hideRowIfFiltered(row);
           } else {
             input.style.borderColor = '#dc2626';
             setTimeout(function() { input.style.borderColor = ''; }, 1000);
@@ -248,6 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
         undoBtn.textContent = 'Undo';
         btn.replaceWith(undoBtn);
         updateProgress(data.counts);
+        hideRowIfFiltered(row);
       }
     });
   });
@@ -282,6 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
         nfBtn.textContent = 'Not Found';
         btn.replaceWith(nfBtn);
         updateProgress(data.counts);
+        hideRowIfFiltered(row);
       }
     });
   });
@@ -348,15 +397,15 @@ document.addEventListener('DOMContentLoaded', function() {
       if (foundCount > 0) { finalizeBtn.classList.remove('hidden'); } else { finalizeBtn.classList.add('hidden'); }
     }
 
-    // Update filter tab counts
-    var filterLinks = document.querySelectorAll('.filter-bar .btn');
-    filterLinks.forEach(function(link) {
-      var href = link.getAttribute('href') || '';
-      if (href.includes('status=all')) link.textContent = 'All (' + (counts.total || 0) + ')';
-      else if (href.includes('status=pending')) link.textContent = 'Pending (' + (counts.pending || 0) + ')';
-      else if (href.includes('status=found')) link.textContent = 'Found (' + (counts.found || 0) + ')';
-      else if (href.includes('status=not_found')) link.textContent = 'Not Found (' + (counts.not_found || 0) + ')';
-    });
+    // Update filter tab counts via spans
+    var countAll = document.querySelector('.filter-count-all');
+    var countPending = document.querySelector('.filter-count-pending');
+    var countFound = document.querySelector('.filter-count-found');
+    var countNotFound = document.querySelector('.filter-count-not_found');
+    if (countAll) countAll.textContent = counts.total || 0;
+    if (countPending) countPending.textContent = counts.pending || 0;
+    if (countFound) countFound.textContent = counts.found || 0;
+    if (countNotFound) countNotFound.textContent = counts.not_found || 0;
   }
 
   // ---- Finalize Lookup (AJAX) ----

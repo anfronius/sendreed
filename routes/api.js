@@ -312,6 +312,11 @@ router.delete('/templates/:id', requireAuth, (req, res) => {
       return res.status(404).json({ error: 'Template not found.' });
     }
 
+    const campaignCount = db.prepare('SELECT COUNT(*) as c FROM campaigns WHERE template_id = ?').get(templateId).c;
+    if (campaignCount > 0) {
+      return res.status(400).json({ error: 'This template is used by ' + campaignCount + ' campaign(s). Please delete the associated campaigns first.' });
+    }
+
     db.prepare('DELETE FROM templates WHERE id = ?').run(templateId);
     res.json({ success: true });
   } catch (err) {
@@ -475,10 +480,6 @@ router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res)
     const propId = parseInt(req.params.id);
     const { owner_name } = req.body;
 
-    if (!owner_name || !owner_name.trim()) {
-      return res.status(400).json({ error: 'Owner name is required.' });
-    }
-
     const prop = db.prepare('SELECT * FROM crmls_properties WHERE id = ?').get(propId);
     if (!prop) {
       return res.status(404).json({ error: 'Property not found.' });
@@ -487,11 +488,20 @@ router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res)
       return res.status(403).json({ error: 'Not authorized.' });
     }
 
-    db.prepare(
-      `UPDATE crmls_properties
-       SET realist_owner_name = ?, realist_lookup_status = 'found', looked_up_at = datetime('now')
-       WHERE id = ?`
-    ).run(owner_name.trim(), propId);
+    const trimmedName = (owner_name || '').trim();
+    if (trimmedName) {
+      db.prepare(
+        `UPDATE crmls_properties
+         SET realist_owner_name = ?, realist_lookup_status = 'found', looked_up_at = datetime('now')
+         WHERE id = ?`
+      ).run(trimmedName, propId);
+    } else {
+      db.prepare(
+        `UPDATE crmls_properties
+         SET realist_owner_name = NULL, realist_lookup_status = 'pending', looked_up_at = NULL
+         WHERE id = ?`
+      ).run(propId);
+    }
 
     var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
     var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];

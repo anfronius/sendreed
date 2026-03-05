@@ -14,14 +14,14 @@
 
 <!-- Status filter tabs -->
 <div class="filter-bar">
-  <a href="/realestate/lookup?status=all"
-    class="btn btn-filter<%= statusFilter === 'all' ? ' active' : '' %>">All (<%= counts.total %>)</a>
-  <a href="/realestate/lookup?status=pending"
-    class="btn btn-filter<%= statusFilter === 'pending' ? ' active' : '' %>">Pending (<%= counts.pending %>)</a>
-  <a href="/realestate/lookup?status=found"
-    class="btn btn-filter<%= statusFilter === 'found' ? ' active' : '' %>">Found (<%= counts.found %>)</a>
-  <a href="/realestate/lookup?status=not_found"
-    class="btn btn-filter<%= statusFilter === 'not_found' ? ' active' : '' %>">Not Found (<%= counts.not_found %>)</a>
+  <button type="button" data-filter="all"
+    class="btn btn-filter<%= statusFilter === 'all' ? ' active' : '' %>">All (<span class="filter-count-all"><%= counts.total %></span>)</button>
+  <button type="button" data-filter="pending"
+    class="btn btn-filter<%= statusFilter === 'pending' ? ' active' : '' %>">Pending (<span class="filter-count-pending"><%= counts.pending %></span>)</button>
+  <button type="button" data-filter="found"
+    class="btn btn-filter<%= statusFilter === 'found' ? ' active' : '' %>">Found (<span class="filter-count-found"><%= counts.found %></span>)</button>
+  <button type="button" data-filter="not_found"
+    class="btn btn-filter<%= statusFilter === 'not_found' ? ' active' : '' %>">Not Found (<span class="filter-count-not_found"><%= counts.not_found %></span>)</button>
   <span class="text-muted" style="margin-left:auto; font-style:italic;">
     Tip: Tab from name field copies next address
   </span>

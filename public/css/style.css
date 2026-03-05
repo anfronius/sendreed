@@ -675,6 +675,9 @@ a:hover { text-decoration: underline; }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@media (min-width: 1200px) {
+  .modal-content { max-width: 800px; }
+}
 
 
 /* --- Empty State --- */
@@ -1026,6 +1029,7 @@ a:hover { text-decoration: underline; }
 .match-section-green { border-left-color: var(--color-success); }
 .match-section-yellow { border-left-color: var(--color-warning); }
 .match-section-red { border-left-color: var(--color-danger); }
+.match-section-blue { border-left-color: #2563eb; background: #eff6ff; }
 .match-section h2 { margin-bottom: var(--space-1); margin-top: 0; font-size: var(--text-lg); }
 .match-section-desc { font-size: var(--text-sm); color: var(--color-text-muted); margin-bottom: var(--space-3); }
 .match-list { display: flex; flex-direction: column; gap: var(--space-2); }
