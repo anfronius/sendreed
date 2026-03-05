@@ -3,8 +3,9 @@
 <div class="page-header">
   <h1>Realist Lookup <span class="count-badge"><%= totalCount %> properties</span></h1>
   <div class="page-actions">
-    <button class="btn btn-danger hidden" id="bulk-not-found-btn">Not Found (<span id="bulk-nf-count">0</span>)</button>
-    <button class="btn btn-danger hidden" id="bulk-delete-btn">Delete (<span id="bulk-del-count">0</span>)</button>
+    <button class="btn btn-danger bulk-action-btn hidden" id="bulk-not-found-btn">Not Found (<span id="bulk-nf-count">0</span>)</button>
+    <button class="btn btn-secondary bulk-action-btn hidden" id="bulk-undo-btn">Undo (<span id="bulk-undo-count">0</span>)</button>
+    <button class="btn btn-danger bulk-action-btn hidden" id="bulk-delete-btn">Delete (<span id="bulk-del-count">0</span>)</button>
     <button type="button" class="btn btn-large btn-primary<%= counts.found > 0 ? '' : ' hidden' %>" id="finalize-btn"
       data-count="<%= counts.found %>">
       Finalize Lookup (<%= counts.found %>)
@@ -74,22 +75,16 @@
             <%= p.realist_lookup_status === 'not_found' ? 'disabled' : '' %>>
         </td>
         <td>
-          <span class="badge lookup-status-<%= p.realist_lookup_status %>">
-            <%= p.realist_lookup_status %>
-          </span>
+          <span class="badge lookup-status-<%= p.realist_lookup_status %>"><%= p.realist_lookup_status === 'not_found' ? 'Not Found' : p.realist_lookup_status === 'found' ? 'Found' : 'Pending' %></span>
         </td>
         <td class="lookup-actions">
-          <button class="btn btn-sm btn-secondary copy-address-btn" data-address="<%= p.property_address %>">
-            Copy
-          </button>
-          <% if (p.realist_lookup_status === 'not_found') { %>
-            <button class="btn btn-sm btn-secondary undo-not-found-btn" data-id="<%= p.id %>">
-              Undo
-            </button>
+          <% if (p.realist_lookup_status === 'pending') { %>
+            <button class="btn btn-sm btn-secondary copy-address-btn" data-address="<%= p.property_address %>">Copy</button>
+            <button class="btn btn-sm btn-danger not-found-btn" data-id="<%= p.id %>">Not Found</button>
+          <% } else if (p.realist_lookup_status === 'found') { %>
+            <button class="btn btn-sm btn-secondary undo-found-btn" data-id="<%= p.id %>">Undo</button>
           <% } else { %>
-            <button class="btn btn-sm btn-danger not-found-btn" data-id="<%= p.id %>">
-              Not Found
-            </button>
+            <button class="btn btn-sm btn-secondary undo-not-found-btn" data-id="<%= p.id %>">Undo</button>
           <% } %>
         </td>
       </tr>

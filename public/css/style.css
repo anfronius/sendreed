@@ -989,10 +989,14 @@ a:hover { text-decoration: underline; }
 
 
 /* --- Realist Lookup --- */
+.lookup-status-pending,
+.lookup-status-found,
+.lookup-status-not_found { text-transform: none; }
 .lookup-status-pending { background: #f1f5f9; color: var(--color-text-secondary); }
 .lookup-status-found { background: var(--color-success-light); color: var(--color-success-text); }
 .lookup-status-not_found { background: var(--color-danger-light); color: #991b1b; }
 .copy-address-btn { min-width: 55px; }
+.bulk-action-btn { gap: 0; }
 .copy-success { background: var(--color-success) !important; color: #fff !important; }
 .owner-name-input {
   padding: var(--space-2) var(--space-2);
