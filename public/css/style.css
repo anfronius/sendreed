@@ -264,6 +264,7 @@ a:hover { text-decoration: underline; }
 .btn-filter {
   height: 36px;
   padding: 0 var(--space-4);
+  gap: 0;
   font-size: var(--text-sm);
   border-radius: var(--radius-full);
   background: var(--color-surface);
