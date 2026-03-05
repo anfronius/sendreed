@@ -560,6 +560,7 @@ a:hover { text-decoration: underline; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 .badge-email { background: var(--color-info-light); color: var(--color-info-text); }
 .badge-sms { background: #d1fae5; color: #065f46; }

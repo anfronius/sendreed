@@ -75,12 +75,22 @@ document.addEventListener('DOMContentLoaded', function() {
       undoBtn.dataset.id = id;
       undoBtn.textContent = 'Undo';
       actions.appendChild(undoBtn);
+      var nfBtn = document.createElement('button');
+      nfBtn.className = 'btn btn-sm btn-danger not-found-btn';
+      nfBtn.dataset.id = id;
+      nfBtn.textContent = 'Not Found';
+      actions.appendChild(nfBtn);
     } else {
       var undoBtn = document.createElement('button');
       undoBtn.className = 'btn btn-sm btn-secondary undo-not-found-btn';
       undoBtn.dataset.id = id;
       undoBtn.textContent = 'Undo';
       actions.appendChild(undoBtn);
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm btn-danger delete-property-btn';
+      delBtn.dataset.id = id;
+      delBtn.textContent = 'Delete';
+      actions.appendChild(delBtn);
     }
   }
 
@@ -427,6 +437,31 @@ document.addEventListener('DOMContentLoaded', function() {
         setRowActions(row, 'pending', id);
         updateProgress(data.counts);
         hideRowIfFiltered(row);
+      }
+    });
+  });
+
+  // ---- Delete Property Button (on not_found rows) ----
+  table.addEventListener('click', function(e) {
+    var btn = e.target.closest('.delete-property-btn');
+    if (!btn) return;
+
+    var id = parseInt(btn.dataset.id);
+    if (!confirm('Delete this property? This cannot be undone.')) return;
+
+    fetch('/api/realist-lookup/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrf() },
+      body: JSON.stringify({ ids: [id] }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        var row = btn.closest('tr');
+        if (row) row.remove();
+        if (data.counts) updateProgress(data.counts);
+      } else {
+        alert('Error: ' + (data.error || 'Delete failed.'));
       }
     });
   });
