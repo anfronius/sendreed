@@ -3,6 +3,103 @@
 <h1>Dashboard</h1>
 <p>Welcome, <strong><%= user.name %></strong>.</p>
 
+<% if (user.role !== 'admin') { %>
+<div id="onboarding-alert" class="onboarding-alert" data-user-id="<%= user.id %>">
+  <div class="onboarding-alert-body">
+    <span class="onboarding-alert-title">Platform Guide — Read before getting started</span>
+    <span class="onboarding-alert-sub">Click to learn how SendReed works and what your workflow looks like.</span>
+  </div>
+  <span class="onboarding-alert-caret">&#8250;</span>
+</div>
+
+<!-- Onboarding Modal -->
+<div id="onboarding-modal" class="modal-overlay hidden">
+  <div class="modal-content onboarding-modal-content">
+    <div class="onboarding-modal-header">
+      <h3>Platform Guide</h3>
+      <button id="onboarding-close-btn" class="onboarding-modal-close" aria-label="Close">&times;</button>
+    </div>
+
+    <% if (user.role === 'nonprofit') { %>
+    <div class="onboarding-section">
+      <h4>What is SendReed?</h4>
+      <p>SendReed is an outreach platform for managing contacts and sending bulk campaigns to constituents, legislators, or any contact list. Campaigns can be sent via <strong>Email</strong> through your configured Outlook account, or via <strong>SMS</strong> using tap-to-send links generated for each recipient.</p>
+    </div>
+    <hr class="onboarding-divider">
+    <div class="onboarding-section">
+      <h4>Your Workflow</h4>
+      <div class="onboarding-steps">
+        <div class="onboarding-step">
+          <span class="onboarding-step-num">1</span>
+          <span class="onboarding-step-text"><strong>Import contacts</strong> — Upload a CSV file of recipients. SendReed maps your columns to contact fields in a two-step flow.</span>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-step-num">2</span>
+          <span class="onboarding-step-text"><strong>Create templates</strong> — Write reusable message bodies using <code>{{variables}}</code> such as <code>{{first_name}}</code> or <code>{{district}}</code>. Variables are filled in automatically per recipient at send time.</span>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-step-num">3</span>
+          <span class="onboarding-step-text"><strong>Launch a campaign</strong> — Use the four-step campaign wizard to select a channel (Email or SMS), choose a template, select recipients, and preview each message before sending.</span>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-step-num">4</span>
+          <span class="onboarding-step-text"><strong>Send</strong> — Email campaigns send sequentially through your Outlook account. You can set a daily send limit in the campaign builder to stay within provider limits. SMS campaigns generate individual tap-to-send links that open your phone's messaging app pre-filled for each contact.</span>
+        </div>
+      </div>
+    </div>
+    <% } %>
+
+    <% if (user.role === 'realestate') { %>
+    <div class="onboarding-section">
+      <h4>What is SendReed?</h4>
+      <p>SendReed is a client outreach platform built for real estate agents. It connects your CRMLS property data to your personal contact list and enables you to run targeted holiday campaigns — by email or SMS — to your matched clients.</p>
+    </div>
+    <hr class="onboarding-divider">
+    <div class="onboarding-section">
+      <h4>Your Workflow</h4>
+      <div class="onboarding-steps">
+        <div class="onboarding-step">
+          <span class="onboarding-step-num">1</span>
+          <span class="onboarding-step-text"><strong>Import CRMLS data</strong> — Upload a CRMLS export CSV. SendReed stores your property records and queues them for owner lookup.</span>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-step-num">2</span>
+          <span class="onboarding-step-text"><strong>Realist lookup</strong> — For each property, copy the address and look up the owner name in Realist manually. Enter the owner's name back in SendReed to associate it with the property record.</span>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-step-num">3</span>
+          <span class="onboarding-step-text"><strong>Import contacts</strong> — Upload a vCard file exported from your phone or CRM. SendReed parses each contact's name, phone number, and email.</span>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-step-num">4</span>
+          <span class="onboarding-step-text"><strong>Phone matching</strong> — SendReed automatically matches CRMLS property owners to your imported contacts using a multi-pass name-matching algorithm. Confident matches are applied automatically; a matching review menu lets you verify borderline matches and manually resolve the rest.</span>
+        </div>
+        <div class="onboarding-step">
+          <span class="onboarding-step-num">5</span>
+          <span class="onboarding-step-text"><strong>Create campaigns</strong> — Build holiday campaigns using the campaign wizard and send to your matched clients via Email or SMS.</span>
+        </div>
+      </div>
+    </div>
+    <hr class="onboarding-divider">
+    <div class="onboarding-section">
+      <h4>How SMS Works</h4>
+      <p>SendReed does not send SMS messages directly. Instead, it generates an individual tap-to-send link for each client. When you open a link from your phone, your native messaging app opens pre-filled with the contact and the composed message. You send it yourself — keeping outreach personal and avoiding third-party SMS costs.</p>
+    </div>
+    <hr class="onboarding-divider">
+    <div class="onboarding-section">
+      <h4>Automated Anniversary Digests</h4>
+      <p>When clients have property purchase anniversaries coming soon, SendReed automatically sends a summary email to your inbox so you never miss an opportunity to reach out.</p>
+    </div>
+    <% } %>
+
+    <div class="onboarding-modal-footer">
+      <span class="onboarding-modal-note">This guide is always accessible from your dashboard.</span>
+      <button id="onboarding-dismiss-btn" class="btn btn-primary">I Understand</button>
+    </div>
+  </div>
+</div>
+<% } %>
+
 <% if (user.role === 'admin') { %>
   <!-- Admin: Per-user stats table -->
   <h2>Users Overview</h2>
@@ -78,4 +175,4 @@
 </div>
 <% } %>
 
-<%- include('layout-footer', { scripts: [] }) %>
+<%- include('layout-footer', { scripts: ['/js/dashboard-onboarding.js'] }) %>
