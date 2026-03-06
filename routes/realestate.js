@@ -14,10 +14,57 @@ const { checkAnniversaries } = require('../services/cron');
 const router = express.Router();
 router.use(requireRole('realestate', 'admin'));
 
-// Parse Realist owner name format into [{firstName, lastName}] array.
-// Single owner: "LN FN [MI]" e.g. "Smith Joe H" → [{firstName:'Joe', lastName:'Smith'}]
-// Two owners:   "LN FN [MI] & FN [MI]" e.g. "Smith Joe H & Mary K"
-//               → [{firstName:'Joe', lastName:'Smith'}, {firstName:'Mary', lastName:'Smith'}]
+// Returns true for single-letter tokens (middle initials), e.g. "H" or "H."
+function isSingleInitial(token) {
+  return /^[A-Za-z]\.?$/.test(token);
+}
+
+// Combine first name + middle initials into stored first_name value ("Joe H" or "Maria R S")
+function buildStoredFirstName(fn, mis) {
+  if (fn && mis.length > 0) return fn + ' ' + mis.join(' ');
+  if (fn) return fn;
+  if (mis.length > 0) return mis.join(' ');
+  return null;
+}
+
+// Parse full Realist name tokens in "LN... FN [MI...]" format.
+// Right-scans trailing single-char tokens as MIs; remaining last token = FN; rest = compound LN.
+// Examples: ["Smith","Joe","H"] → {firstName:"Joe H", lastName:"Smith"}
+//           ["San","Diego","Alejandro","R","S"] → {firstName:"Alejandro R S", lastName:"San Diego"}
+function parseFullNameTokens(tokens) {
+  if (!tokens || tokens.length === 0) return { firstName: null, lastName: null };
+  var mis = [];
+  while (tokens.length > 1 && isSingleInitial(tokens[tokens.length - 1])) {
+    mis.unshift(tokens.pop());
+  }
+  var lastName, firstName;
+  if (tokens.length >= 2) {
+    firstName = tokens.pop();
+    lastName = tokens.join(' ');
+  } else {
+    lastName = tokens[0] || null;
+    firstName = null;
+  }
+  return { firstName: buildStoredFirstName(firstName, mis), lastName: lastName };
+}
+
+// Parse given-name tokens after "&" — no last name present, inherit sharedLastName.
+// Examples: ["Mary","K"] → {firstName:"Mary K", lastName:sharedLastName}
+function parseGivenNameTokens(tokens, sharedLastName) {
+  if (!tokens || tokens.length === 0) return { firstName: null, lastName: sharedLastName };
+  var mis = [];
+  while (tokens.length > 1 && isSingleInitial(tokens[tokens.length - 1])) {
+    mis.unshift(tokens.pop());
+  }
+  var firstName = tokens.length > 0 ? tokens.join(' ') : null;
+  return { firstName: buildStoredFirstName(firstName, mis), lastName: sharedLastName };
+}
+
+// Parse Realist owner name field into [{firstName, lastName}] array.
+// Handles compound last names and middle initials natively.
+// Single:  "Smith Joe H"          → [{firstName:"Joe H", lastName:"Smith"}]
+// Couple:  "Smith Joe H & Mary K" → [{firstName:"Joe H", lastName:"Smith"},
+//                                    {firstName:"Mary K", lastName:"Smith"}]
 function parseRealistOwnerName(raw) {
   var name = (raw || '').trim();
   if (!name) return [];
@@ -28,22 +75,12 @@ function parseRealistOwnerName(raw) {
   if (ampIdx !== -1) {
     var part1 = name.substring(0, ampIdx).trim();
     var part2 = name.substring(ampIdx + 1).trim();
-
-    var tokens1 = part1.split(/\s+/);
-    var sharedLast = tokens1[0] || null;
-    var first1 = tokens1.length >= 2 ? tokens1[1] : null;
-    results.push({ firstName: first1, lastName: sharedLast });
-
-    var tokens2 = part2.split(/\s+/);
-    var first2 = tokens2.length >= 1 ? tokens2[0] : null;
-    if (first2) {
-      results.push({ firstName: first2, lastName: sharedLast });
-    }
+    var owner1 = parseFullNameTokens(part1.split(/\s+/));
+    results.push(owner1);
+    var owner2 = parseGivenNameTokens(part2.split(/\s+/), owner1.lastName);
+    if (owner2.firstName || owner2.lastName) results.push(owner2);
   } else {
-    var parts = name.split(/\s+/);
-    var lastName = parts[0] || null;
-    var firstName = parts.length >= 2 ? parts[1] : null;
-    results.push({ firstName: firstName, lastName: lastName });
+    results.push(parseFullNameTokens(name.split(/\s+/)));
   }
 
   return results;

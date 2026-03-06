@@ -190,3 +190,6 @@
 - on campaign review page, add a small space between the channel / recipients details and the first message sample card
 - Change the small descriptor that appeaars on blank owner name address objects in realist lookup page, as it doesn't fit the box. Just have what was originally there before but with (s). 
 - AI powered message builder on template
+- Duplicate Address Filter
+
+- Ok so I've realized multiple things now that I have tried doing around 30 CRMLS lookup examples about how the contact name should really function. The issue is that since this is socal, there are people with 4-5 names, for example: 'San Diego Alejandro R S' normally from hispanic descent (maybe have Alejandro as FN, R S as MI(S) and San Diego as LN?), and therefore they break the mold of the basic FN LN system. Can you think of a the best way to expand this to this type of use case? I've decided I want to keep the middle inital as some people may have gone by their middle name instead to the RE user and it could be useful to help those edge case matching in the phone and email matching portion, but I want it in the first name section with a space after FN like 'John H'.
