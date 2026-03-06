@@ -188,3 +188,5 @@
 - As an admin, before clikcing nearly any button that brings me to an main action page like realist lookup, make sure there is a real estate user being acted as first like the phone matching page
 - on the realist lookup page, for some reason on the top space where each field has its title, the 'City' field is aligned to the right of the 'city' title while every other Field has its list aligned to the left side of the field title like Owner Name or Status.
 - on campaign review page, add a small space between the channel / recipients details and the first message sample card
+- Change the small descriptor that appeaars on blank owner name address objects in realist lookup page, as it doesn't fit the box. Just have what was originally there before but with (s). 
+- AI powered message builder on template

@@ -14,6 +14,41 @@ const { checkAnniversaries } = require('../services/cron');
 const router = express.Router();
 router.use(requireRole('realestate', 'admin'));
 
+// Parse Realist owner name format into [{firstName, lastName}] array.
+// Single owner: "LN FN [MI]" e.g. "Smith Joe H" → [{firstName:'Joe', lastName:'Smith'}]
+// Two owners:   "LN FN [MI] & FN [MI]" e.g. "Smith Joe H & Mary K"
+//               → [{firstName:'Joe', lastName:'Smith'}, {firstName:'Mary', lastName:'Smith'}]
+function parseRealistOwnerName(raw) {
+  var name = (raw || '').trim();
+  if (!name) return [];
+
+  var results = [];
+  var ampIdx = name.indexOf('&');
+
+  if (ampIdx !== -1) {
+    var part1 = name.substring(0, ampIdx).trim();
+    var part2 = name.substring(ampIdx + 1).trim();
+
+    var tokens1 = part1.split(/\s+/);
+    var sharedLast = tokens1[0] || null;
+    var first1 = tokens1.length >= 2 ? tokens1[1] : null;
+    results.push({ firstName: first1, lastName: sharedLast });
+
+    var tokens2 = part2.split(/\s+/);
+    var first2 = tokens2.length >= 1 ? tokens2[0] : null;
+    if (first2) {
+      results.push({ firstName: first2, lastName: sharedLast });
+    }
+  } else {
+    var parts = name.split(/\s+/);
+    var lastName = parts[0] || null;
+    var firstName = parts.length >= 2 ? parts[1] : null;
+    results.push({ firstName: firstName, lastName: lastName });
+  }
+
+  return results;
+}
+
 // Configure multer for CSV uploads
 const uploadsDir = path.join(process.env.DATA_DIR || path.join(__dirname, '..'), 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
@@ -347,31 +382,15 @@ router.post('/lookup/finalize', (req, res) => {
           continue;
         }
 
-        // Split by comma to support multiple owners (e.g., "Delap John, Smith Mary")
-        const ownerNames = prop.realist_owner_name.split(',').map(function(n) { return n.trim(); });
+        // Parse Realist format: "LN FN [MI]" or "LN FN [MI] & FN [MI]"
+        var owners = parseRealistOwnerName(prop.realist_owner_name);
 
-        for (const name of ownerNames) {
-          if (!name) continue;
-
-          const parts = name.split(/\s+/);
-
-          // Parse "Last First M" format (e.g., "Delap John M")
-          // First word is last name, second is first name, drop middle initial
-          let lastName, firstName;
-          if (parts.length >= 2) {
-            lastName = parts[0];
-            firstName = parts[1];
-            // Drop middle initial if present (parts[2])
-          } else if (parts.length === 1) {
-            lastName = parts[0];
-            firstName = null;
-          } else {
-            lastName = name;
-            firstName = null;
-          }
+        for (var oi = 0; oi < owners.length; oi++) {
+          var owner = owners[oi];
+          if (!owner.lastName && !owner.firstName) continue;
 
           insertContact.run(
-            userId, firstName, lastName,
+            userId, owner.firstName, owner.lastName,
             prop.property_address, prop.city || null, prop.state || null,
             prop.zip || null, prop.sale_date || null, prop.sale_price || null
           );
