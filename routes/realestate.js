@@ -347,23 +347,78 @@ router.post('/lookup/finalize', (req, res) => {
           continue;
         }
 
-        const name = prop.realist_owner_name.trim();
-        const parts = name.split(/\s+/);
-        const lastName = parts.length > 1 ? parts.pop() : name;
-        const firstName = parts.length > 0 ? parts.join(' ') : null;
+        // Split by comma to support multiple owners (e.g., "Delap John, Smith Mary")
+        const ownerNames = prop.realist_owner_name.split(',').map(function(n) { return n.trim(); });
 
-        insertContact.run(
-          userId, firstName, lastName,
-          prop.property_address, prop.city || null, prop.state || null,
-          prop.zip || null, prop.sale_date || null, prop.sale_price || null
-        );
-        created++;
+        for (const name of ownerNames) {
+          if (!name) continue;
+
+          const parts = name.split(/\s+/);
+
+          // Parse "Last First M" format (e.g., "Delap John M")
+          // First word is last name, second is first name, drop middle initial
+          let lastName, firstName;
+          if (parts.length >= 2) {
+            lastName = parts[0];
+            firstName = parts[1];
+            // Drop middle initial if present (parts[2])
+          } else if (parts.length === 1) {
+            lastName = parts[0];
+            firstName = null;
+          } else {
+            lastName = name;
+            firstName = null;
+          }
+
+          insertContact.run(
+            userId, firstName, lastName,
+            prop.property_address, prop.city || null, prop.state || null,
+            prop.zip || null, prop.sale_date || null, prop.sale_price || null
+          );
+          created++;
+        }
+
         deleteProperty.run(prop.id);
         finalizedIds.push(prop.id);
       }
     });
 
     finalize();
+
+    // After creating contacts, try to match them with any existing imported vCard contacts
+    if (created > 0) {
+      try {
+        const newContacts = db.prepare(
+          "SELECT * FROM contacts WHERE owner_id = ? AND ((phone IS NULL OR phone = '') OR (email IS NULL OR email = '')) AND property_address IS NOT NULL ORDER BY id DESC LIMIT ?"
+        ).all(userId, created);
+
+        const importedContacts = db.prepare(
+          `SELECT ic.* FROM imported_contacts ic
+           JOIN contact_imports ci ON ic.import_id = ci.id
+           WHERE ci.imported_by = ?`
+        ).all(userId);
+
+        if (importedContacts.length > 0 && newContacts.length > 0) {
+          const matchResults = matcher.matchAllByExisting(newContacts, importedContacts);
+
+          const insertMatch = db.prepare(
+            'INSERT OR IGNORE INTO phone_matches (contact_id, imported_contact_id, match_type, confidence_score) VALUES (?, ?, ?, ?)'
+          );
+
+          const storeMatches = db.transaction(() => {
+            for (const result of matchResults) {
+              if (result.matches.length === 0) continue;
+              const bestMatch = result.matches[0];
+              insertMatch.run(result.contact_id, bestMatch.imported_contact_id, 'auto', bestMatch.confidence);
+            }
+          });
+          storeMatches();
+        }
+      } catch (matchErr) {
+        console.error('Post-finalize matching error:', matchErr);
+        // Don't fail the finalize if matching fails
+      }
+    }
 
     // Get updated counts
     const counts = db.prepare(

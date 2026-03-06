@@ -50,8 +50,8 @@
             </button>
           <% } %>
         </th>
-        <th>Close Date</th>
         <th>Close Price</th>
+        <th>Close Date</th>
         <th>Owner Name</th>
         <th>Status</th>
         <th>Actions</th>
@@ -65,13 +65,13 @@
         <td><input type="checkbox" class="lookup-checkbox" value="<%= p.id %>"></td>
         <td class="property-address"><%= p.property_address %></td>
         <td><%= p.city || '' %></td>
-        <td><%= p.sale_date || '' %></td>
         <td><%= p.sale_price ? '$' + Number(p.sale_price).toLocaleString() : '' %></td>
+        <td><%= p.sale_date || '' %></td>
         <td>
           <input type="text" class="owner-name-input"
             data-id="<%= p.id %>"
             value="<%= p.realist_owner_name || '' %>"
-            placeholder="Enter owner name..."
+            placeholder="Last First (comma for multiple)"
             <%= p.realist_lookup_status === 'not_found' ? 'disabled' : '' %>>
         </td>
         <td>
@@ -96,7 +96,7 @@
 </div>
 
 <% if (totalPages > 1) { %>
-<div class="pagination">
+<div class="pagination" id="pagination-controls">
   <% if (currentPage > 1) { %>
     <a href="/realestate/lookup?status=<%= statusFilter %>&page=<%= currentPage - 1 %>" class="btn btn-sm btn-secondary">&laquo; Prev</a>
   <% } %>

@@ -89,6 +89,18 @@ router.get('/', (req, res) => {
       `SELECT * FROM contacts WHERE ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
     ).all(...params, perPage, offset);
 
+    // Calculate years_since_purchase for each contact
+    const today = new Date();
+    contacts.forEach(function(contact) {
+      if (contact.purchase_date) {
+        var purchaseDate = new Date(contact.purchase_date);
+        var years = Math.floor((today - purchaseDate) / (365.25 * 24 * 60 * 60 * 1000));
+        contact.years_since_purchase = years;
+      } else {
+        contact.years_since_purchase = null;
+      }
+    });
+
     // Determine role-specific fields for the view
     const effectiveRole = getEffectiveRole(req, res) || req.session.user.role;
     const tableFields = fieldConfig.getTableFields(effectiveRole);

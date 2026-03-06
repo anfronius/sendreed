@@ -22,6 +22,12 @@ document.addEventListener('DOMContentLoaded', function() {
         row.style.display = 'none';
       }
     });
+
+    // Hide pagination when filtering (not on 'all')
+    var pagination = document.getElementById('pagination-controls');
+    if (pagination) {
+      pagination.style.display = (filter === 'all') ? '' : 'none';
+    }
   }
 
   function hideRowIfFiltered(row) {

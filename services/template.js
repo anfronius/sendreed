@@ -69,11 +69,19 @@ function extractVariables(templateStr) {
 function render(templateStr, contact) {
   if (!templateStr) return '';
   return templateStr.replace(VARIABLE_REGEX, (full, varName) => {
-    if ((varName === 'years_since_purchase' || varName === 'years') && contact.purchase_date) {
-      const purchaseYear = new Date(contact.purchase_date).getFullYear();
-      const currentYear = new Date().getFullYear();
-      const years = currentYear - purchaseYear;
-      return years > 0 ? String(years) : '';
+    // Support both 'years_since_purchase' and legacy 'years' variable name
+    if (varName === 'years' || varName === 'years_since_purchase') {
+      // Use pre-calculated value if available, otherwise calculate from purchase_date
+      if (contact.years_since_purchase != null) {
+        return String(contact.years_since_purchase);
+      }
+      if (contact.purchase_date) {
+        const today = new Date();
+        const purchaseDate = new Date(contact.purchase_date);
+        const years = Math.floor((today - purchaseDate) / (365.25 * 24 * 60 * 60 * 1000));
+        return years > 0 ? String(years) : '';
+      }
+      return '';
     }
     const val = contact[varName];
     return val != null ? String(val) : '';

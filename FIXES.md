@@ -169,9 +169,22 @@
 - [x] The Not Found status on each not found address location is 2 lines long now, when I still want it to only be one singular line.
 - [x] to replace the 'not found' button on the not found items on the list, have a delete button there instead for quick deletion of addresses determined to be not found and useless for future purposes. Make sure however that when clicking delete it gives a warning first.
 
+## 14th Set of Fixes (FINISHED)
+
+- [x] the years since purchase should be automatically filled by how many years its been since the close date on the Clients page. Also can you have the Close Price come before the Close Date on the list, left to right?
+- [x] make sure vcard matching is retroactive no matter whetehr you do the CRMLS import and lookup first or add a vCard first
+- [x] Ability to add multiple possible owners when two buyer names are listed in the Realist buyes section
+- [x] Buyer Names are actually listed Last Name, First name, Middle Initial (sometimes), like 'Delap John M'. Have the names inputted in the realist lookup section automatically map to First and Last Name (drop the middle initial) as contacts as that is how they are written in the normal phone contact form
+- [x] 'Import Another vCard' button should say 'Import Contacts List' instead on the phone matching page and on the main real estate page the button should also say 'Import Contacts List' instead of just 'Import Contacts'
+- [x] The Pagination at the bottom of the realestate realist lookup page needs to update with the actual pages. When I click on a filter with only 1 page after strrting at the default filter with 4 pages, the Page 1 out of 4 and Next page button are still there even when the filter is currently only at one page
+
 ## Future / Stashed Fixes to Not Yet Complete
 
 - Give the Fields page an editable / deletable / addalbe functionality on the Fields themselves for evolving user needs in the future. New fields can be either filled out from csv additions or such and mapped or create from snippets or combinations of other fields (very complicated). Also separate for RE users on the Fields Page fields for clients and for CRMLS addresses/objects (there would be some view that would bring examples of previous inputs to make new output)
 - On the Dashboard page, there should be an alert for new accounts that stays, and inside is a modal that includes a cinsie description of the site and functions, and what their user type workflow looks like.
 - on the Fields page, instead of having two boxes with Non Profit and Real Estate, can you have all the possible Fields as a menu, with each either a button group or segmented control element with NP, RE, or Both as the options that can be clicked, as so reduce screen duplication.
 - Make a SendReed mono logo for Page top
+- Realist address object archive for confirmed found and deleted objects with ability to undo delete or undo confirmation (which deletes associated unpaired contact and returns to an unknown/pending address)
+- As an admin, before clikcing nearly any button that brings me to an main action page like realist lookup, make sure there is a real estate user being acted as first like the phone matching page
+- on the realist lookup page, for some reason on the top space where each field has its title, the 'City' field is aligned to the right of the 'city' title while every other Field has its list aligned to the left side of the field title like Owner Name or Status.
+- on campaign review page, add a small space between the channel / recipients details and the first message sample card

@@ -150,3 +150,201 @@
 - Database queries for counter fixes
 - SMTP test for save functionality
 - Responsive testing for button stacking
+
+---
+
+# 14th Set of Fixes - Analysis
+
+## Overview
+The 14th set contains 6 fixes focused on:
+1. Auto-calculating years since purchase
+2. Reordering Close Price before Close Date
+3. Making vCard matching retroactive
+4. Supporting multiple owners from Realist
+5. Parsing buyer names from "Last, First M" format
+6. Renaming import buttons
+7. Fixing pagination updates with filters
+
+## Fix 1: Years Since Purchase Auto-Calculation + Column Reorder
+
+### Current State
+- `purchase_date` field exists in contacts table (aliased as sale_date in CRMLS)
+- No automatic calculation of years since purchase
+- Display order: Close Date, then Close Price (lines 53-54 in realist-lookup.ejs)
+
+### Required Changes
+1. **Display order** - Swap columns in `/views/realestate/realist-lookup.ejs`:
+   - Move Close Price before Close Date in header (lines 53-54)
+   - Move corresponding data cells (lines 68-69)
+2. **Auto-calculation** - Add computed `years_since_purchase` field:
+   - Calculate from `purchase_date` when displaying contacts
+   - This is a virtual/computed field, not stored in DB
+   - Calculate as: `Math.floor((today - purchase_date) / (365.25 * 24 * 60 * 60 * 1000))`
+
+### Files to Modify
+- `/views/realestate/realist-lookup.ejs` - swap column order
+- `/views/contacts.ejs` - add years_since_purchase display
+- `/routes/contacts.js` - compute years for each contact before rendering
+- `/services/template.js` - ensure `{{years_since_purchase}}` variable works
+
+### Questions
+- Should years_since_purchase show on the realist lookup page too, or only on contacts page?
+- Should it be editable or always computed?
+
+---
+
+## Fix 2: Make vCard Matching Retroactive
+
+### Current State
+- vCard imports create `imported_contacts` records
+- Phone matching creates `phone_matches` table entries
+- Matching happens when visiting `/realestate/phone-matching` page
+- If CRMLS imported first, then vCard, matches are found
+- If vCard imported first, then CRMLS, need to verify matches are still found
+
+### Analysis
+Looking at the matcher logic, I need to verify:
+1. Does `/realestate/phone-matching` query ALL imported_contacts regardless of import date?
+2. Does it match against ALL contacts regardless of creation date?
+
+### Files to Check
+- `/routes/realestate.js` - phone-matching route logic
+- `/services/matcher.js` - matching algorithm
+- Need to verify SQL queries don't filter by date
+
+### Investigation Needed
+Read the phone-matching route and matcher service to understand current behavior.
+
+---
+
+## Fix 3: Multiple Owners Support
+
+### Current State
+- `realist_owner_name` field in `crmls_properties` table is TEXT (single value)
+- Input is single text field in realist-lookup.ejs (line 71-75)
+
+### Required Changes
+This is a significant change requiring:
+1. **Database**: Change to support multiple owners
+   - Option A: Make `realist_owner_name` accept comma-separated values
+   - Option B: Create new `property_owners` junction table
+   - Option C: Use JSON field (less ideal for SQLite)
+2. **UI**: Change input from text to allow multiple entries
+   - Could use comma-separated input with validation
+   - Or multiple input fields
+3. **Contact Creation**: When finalizing lookup, create multiple contacts if multiple owners
+
+### Recommendation
+Use comma-separated values (Option A) as simplest:
+- Accept input like "John Smith, Jane Doe"
+- Split on comma when finalizing
+- Create one contact per owner with same property details
+
+### Files to Modify
+- `/views/realestate/realist-lookup.ejs` - update input placeholder
+- `/routes/api.js` - handle comma-separated names in finalize endpoint
+- `/public/js/realist.js` - UI feedback for multiple names
+
+---
+
+## Fix 4: Parse Buyer Names from "Last, First M" Format
+
+### Current State
+- Names entered in realist lookup are free-form text
+- No automatic parsing of format
+
+### Required Changes
+1. **Auto-parse on input**: When user types "Delap John M" in owner name field:
+   - Detect pattern: `LastName FirstName [MiddleInitial]`
+   - Parse to: first_name="John", last_name="Delap"
+   - Drop middle initial
+2. **Implementation**: Add parsing function in realist.js
+   - Trigger on blur or on Finalize
+   - Pattern: `^([A-Z][a-z]+)\s+([A-Z][a-z]+)(?:\s+[A-Z]\.?)?$`
+
+### Files to Modify
+- `/public/js/realist.js` - add name parsing logic
+- `/routes/api.js` - parse names in finalize-lookup endpoint before creating contacts
+
+### Edge Cases
+- Names with hyphens: "Smith-Jones Mary"
+- Single names: "Madonna"
+- Multiple owners: "Delap John M, Smith Mary A"
+
+---
+
+## Fix 5: Rename Import Buttons
+
+### Current State
+- `/views/realestate/phone-matching.ejs` line 10: "Import Another vCard"
+- `/views/realestate/dashboard.ejs` - need to check button text
+
+### Required Changes
+Simple text replacements:
+1. Phone matching page: "Import Another vCard" → "Import Contacts List"
+2. Real estate dashboard: "Import Contacts" → "Import Contacts List"
+
+### Files to Modify
+- `/views/realestate/phone-matching.ejs` line 10
+- `/views/realestate/dashboard.ejs` (need to find exact location)
+- `/views/realestate/import-vcard.ejs` (check if any labels need updating)
+
+---
+
+## Fix 6: Fix Pagination with Filters
+
+### Current State
+- Pagination at bottom of realist-lookup.ejs (lines 98-108)
+- Shows current page and total pages
+- Links include `status=<%= statusFilter %>` parameter
+- Problem: When filter changes to show fewer results, pagination doesn't update dynamically
+
+### Root Cause
+- Pagination is server-rendered based on initial page load
+- Filters now work client-side (per 13th set fixes)
+- Client-side filtering doesn't update pagination controls
+
+### Solution Options
+1. **Hide pagination when filtering**: If filter !== 'all', hide pagination
+2. **Client-side pagination**: Calculate visible rows and update pagination in JS
+3. **Keep server pagination**: Make filters trigger page reload (reverting 13th set changes)
+
+### Recommendation
+Option 1 (simplest):
+- Add class to pagination div: `<div class="pagination" data-filter-dependent>`
+- In realist.js, hide pagination when filter changes from 'all'
+- Show it again when returning to 'all'
+
+### Files to Modify
+- `/views/realestate/realist-lookup.ejs` - add data attribute to pagination
+- `/public/js/realist.js` - hide/show pagination based on active filter
+
+---
+
+## Implementation Order
+
+1. **Fix 5** (Rename buttons) - Simplest, no dependencies
+2. **Fix 6** (Pagination) - Simple, builds on 13th set work
+3. **Fix 1** (Column reorder + years calculation) - Moderate complexity
+4. **Fix 4** (Name parsing) - Moderate, needed for Fix 3
+5. **Fix 3** (Multiple owners) - Builds on Fix 4
+6. **Fix 2** (Retroactive matching) - Need investigation first
+
+## Testing Requirements
+
+- Test years calculation with various purchase dates (recent, old, null)
+- Test name parsing with edge cases (hyphenated, single word, multiple owners)
+- Test multiple owner input and contact creation
+- Test pagination visibility with different filters
+- Test vCard import order: CRMLS→vCard and vCard→CRMLS
+- Verify button text changes on all affected pages
+
+## Estimated Effort
+- Fix 5: 5 minutes
+- Fix 6: 15 minutes
+- Fix 1: 30 minutes
+- Fix 4: 45 minutes
+- Fix 3: 60 minutes
+- Fix 2: 30-60 minutes (pending investigation)
+
+Total: ~3-4 hours
