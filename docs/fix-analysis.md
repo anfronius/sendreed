@@ -348,3 +348,139 @@ Option 1 (simplest):
 - Fix 2: 30-60 minutes (pending investigation)
 
 Total: ~3-4 hours
+
+---
+
+# 14th Set - Last Issue (Pending Lookup Counter Bug)
+
+## Date: 2026-03-06
+## Branch: feat/13th-set-of-fixes
+
+## Issue Summary
+User reports inconsistent behavior when completing Realist Lookup for 180 properties:
+1. Warning popup shows count of **addresses** being finalized (e.g., 50 addresses)
+2. Actual contacts created is higher due to dual owners (e.g., 65 contacts for married couples)
+3. After completing all lookups, dashboard still shows 6 properties "pending lookup"
+4. User suspects duplication or deduplication error in import
+
+## Root Causes Identified
+
+### 1. Missing `raw_city` Column in Schema (CRITICAL)
+**File**: `/home/reedbuntu/projects/sendreed/db/init.js` (line 104-117)
+- The `crmls_properties` table schema does NOT include a `raw_city` column
+- However, `services/csv.js` (line 170, 203-209) attempts to INSERT into `raw_city`
+- This causes a SQL error on import: "table crmls_properties has no column named raw_city"
+- The import likely succeeds partially before hitting this error
+
+### 2. No Deduplication Logic on CRMLS Import (HIGH PRIORITY)
+**File**: `/home/reedbuntu/projects/sendreed/services/csv.js` (line 159-238)
+- The `importCrmlsProperties` function has NO duplicate checking
+- If the same CSV is imported twice, or the same property exists in two CSVs, duplicates are inserted
+- No UNIQUE constraint on `(property_address, owner_id)` in the schema
+- This explains the "6 pending" after completing all: those are duplicates that were never looked up
+
+### 3. Misleading Finalize Warning Message (MEDIUM PRIORITY)
+**File**: `/home/reedbuntu/projects/sendreed/public/js/realist.js` (line 583-586)
+- Warning shows: "Create [count] contact(s) from found properties?"
+- The count is the number of **properties** (addresses), not contacts
+- When properties have dual owners (e.g., "Smith Joe H & Mary K"), 2 contacts are created per property
+- User sees: "Create 50 contacts?" but actually gets 65+ contacts
+
+### 4. Orphaned Properties After Finalization (ROOT CAUSE)
+**File**: `/home/reedbuntu/projects/sendreed/routes/realestate.js` (line 437)
+- Properties are DELETEd from `crmls_properties` after contact creation
+- If there are duplicates, only the ones that were "found" get deleted
+- Duplicates that were never looked up remain as "pending"
+- This is why user sees 6 remaining after completing all visible properties
+
+## Fixes Required
+
+### Fix 1: Add `raw_city` Column to Schema
+**Priority**: Critical (blocks imports)
+**Location**: `db/init.js`
+**Action**:
+```javascript
+// Add after line 117 (after the main CREATE TABLE)
+// Migration: Add raw_city column if it doesn't exist
+db.exec(`
+  ALTER TABLE crmls_properties ADD COLUMN raw_city TEXT
+`).catch(() => {
+  // Column already exists, ignore error
+});
+```
+
+### Fix 2: Add Deduplication Logic to Import
+**Priority**: High
+**Location**: `services/csv.js` (line 181-233)
+**Action**:
+- Check if `(property_address, owner_id)` already exists before INSERT
+- Add EXISTS check or UNIQUE constraint
+- Report duplicate count to user
+```javascript
+const existsCheck = db.prepare(
+  'SELECT id FROM crmls_properties WHERE property_address = ? AND owner_id = ?'
+);
+
+// In the loop:
+const existing = existsCheck.get(prop.property_address, ownerId);
+if (existing) {
+  skipped++;
+  continue;
+}
+```
+
+### Fix 3: Improve Finalize Warning Message
+**Priority**: Medium (UX improvement)
+**Location**: `public/js/realist.js` (finalize button click)
+**Backend**: `routes/realestate.js` (finalize endpoint)
+**Action**:
+- Backend should pre-count expected contacts by parsing all owner names with `parseRealistOwnerName()`
+- Return `{ addressCount, contactCount }` in finalize response
+- Frontend warning should say: "Create X contact(s) from Y address(es)?"
+
+### Fix 4: Add Bulk Duplicate Cleanup Query (Admin Tool)
+**Priority**: Low (one-time cleanup for existing data)
+**Action**: Admin SQL query to find and remove duplicate properties:
+```sql
+DELETE FROM crmls_properties
+WHERE id NOT IN (
+  SELECT MIN(id) FROM crmls_properties
+  GROUP BY property_address, owner_id
+);
+```
+
+## Implementation Plan
+
+1. **Fix 1 (Migration)**: Add `raw_city` column with ALTER TABLE guarded by try-catch
+2. **Fix 2 (Deduplication)**: Add EXISTS check in `importCrmlsProperties` before each INSERT
+3. **Fix 3 (Warning Message)**: Modify `/realestate/lookup/finalize` to count expected contacts
+4. Update FIXES.md to mark this as resolved
+5. Test with sample CSV import to verify deduplication works
+
+## Testing Strategy
+
+1. **Test duplicate prevention**:
+   - Import same CSV twice
+   - Should show "X duplicates skipped" message
+   - Verify no duplicates in database
+
+2. **Test warning message**:
+   - Create 10 properties with mixed single/dual owners (e.g., 6 single, 4 dual = 14 contacts)
+   - Finalize and verify warning shows "Create 14 contact(s) from 10 address(es)?"
+
+3. **Test orphaned records**:
+   - Complete lookup on all visible properties
+   - Dashboard should show 0 pending (not 6)
+
+4. **Test raw_city column**:
+   - Import CSV with abbreviated city names
+   - Verify import succeeds without SQL errors
+   - Verify city mappings work correctly
+
+## Files to Modify
+
+1. `/home/reedbuntu/projects/sendreed/db/init.js` - Add raw_city column migration
+2. `/home/reedbuntu/projects/sendreed/services/csv.js` - Add duplicate checking
+3. `/home/reedbuntu/projects/sendreed/routes/realestate.js` - Count expected contacts in finalize
+4. `/home/reedbuntu/projects/sendreed/public/js/realist.js` - Update warning message text
+5. `/home/reedbuntu/projects/sendreed/FIXES.md` - Mark issue as resolved

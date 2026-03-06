@@ -290,7 +290,8 @@ router.post('/import-crmls/map', (req, res) => {
     delete req.session.crmlsImport;
 
     let msg = `Imported ${result.inserted} property/properties.`;
-    if (result.skipped > 0) msg += ` Skipped ${result.skipped} row(s).`;
+    if (result.duplicates > 0) msg += ` Skipped ${result.duplicates} duplicate(s).`;
+    if (result.skipped > result.duplicates) msg += ` Skipped ${result.skipped - result.duplicates} invalid row(s).`;
     if (result.errors.length > 0) msg += ` ${result.errors.length} error(s).`;
 
     setFlash(req, result.inserted > 0 ? 'success' : 'info', msg);
@@ -382,6 +383,7 @@ router.post('/lookup/finalize', (req, res) => {
     const ownerParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
     const userId = effectiveOwnerId || req.session.user.id;
     const isAjax = req.headers.accept && req.headers.accept.includes('application/json');
+    const isPreview = req.body.preview === true;
 
     const found = db.prepare(
       `SELECT * FROM crmls_properties WHERE realist_lookup_status = 'found' AND realist_owner_name IS NOT NULL AND ${ownerWhere}`
@@ -391,6 +393,18 @@ router.post('/lookup/finalize', (req, res) => {
       if (isAjax) return res.json({ success: false, error: 'No properties to finalize.' });
       setFlash(req, 'info', 'No properties with found owners to finalize.');
       return res.redirect('/realestate/lookup');
+    }
+
+    // Pre-count expected contacts by parsing owner names
+    let expectedContactCount = 0;
+    for (const prop of found) {
+      const owners = parseRealistOwnerName(prop.realist_owner_name);
+      expectedContactCount += owners.filter(o => o.firstName || o.lastName).length;
+    }
+
+    // If preview mode, just return counts without creating contacts
+    if (isPreview) {
+      return res.json({ success: true, addressCount: found.length, contactCount: expectedContactCount });
     }
 
     const insertContact = db.prepare(
@@ -487,10 +501,10 @@ router.post('/lookup/finalize', (req, res) => {
     ).get(...ownerParams);
 
     if (isAjax) {
-      return res.json({ success: true, created, skipped, finalizedIds, counts });
+      return res.json({ success: true, created, skipped, finalizedIds, counts, addressCount: found.length, contactCount: expectedContactCount });
     }
 
-    let msg = `Created ${created} contact(s) from found properties.`;
+    let msg = `Created ${created} contact(s) from ${found.length} address(es).`;
     if (skipped > 0) msg += ` Skipped ${skipped} duplicate(s).`;
     setFlash(req, 'success', msg);
     res.redirect('/contacts');

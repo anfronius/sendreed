@@ -581,11 +581,11 @@ document.addEventListener('DOMContentLoaded', function() {
   var finalizeBtn = document.getElementById('finalize-btn');
   if (finalizeBtn) {
     finalizeBtn.addEventListener('click', function() {
-      var count = parseInt(finalizeBtn.dataset.count || '0');
-      if (!confirm('Create ' + count + ' contact(s) from found properties?')) return;
+      var addressCount = parseInt(finalizeBtn.dataset.count || '0');
 
+      // First fetch to get expected contact count
       finalizeBtn.disabled = true;
-      finalizeBtn.textContent = 'Finalizing...';
+      finalizeBtn.textContent = 'Calculating...';
 
       fetch('/realestate/lookup/finalize', {
         method: 'POST',
@@ -594,31 +594,63 @@ document.addEventListener('DOMContentLoaded', function() {
           'X-CSRF-Token': getCsrf(),
           'Accept': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ preview: true }),
       })
       .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.success) {
-          // Remove finalized rows from table
-          (data.finalizedIds || []).forEach(function(id) {
-            var row = table.querySelector('tr[data-property-id="' + id + '"]');
-            if (row) row.remove();
-          });
-          updateProgress(data.counts);
-          finalizeBtn.disabled = false;
-          var msg = 'Created ' + data.created + ' contact(s).';
-          if (data.skipped > 0) msg += ' Skipped ' + data.skipped + ' duplicate(s).';
-          alert(msg);
-        } else {
-          alert('Error: ' + (data.error || 'Finalize failed.'));
-          finalizeBtn.disabled = false;
-          finalizeBtn.textContent = 'Finalize Lookup (' + count + ')';
+      .then(function(previewData) {
+        finalizeBtn.disabled = false;
+        finalizeBtn.textContent = 'Finalize Lookup (' + addressCount + ')';
+
+        var contactCount = previewData.contactCount || addressCount;
+        var warning = 'Create ' + contactCount + ' contact(s) from ' + addressCount + ' address(es)?';
+        if (contactCount !== addressCount) {
+          warning += '\n(Some addresses have multiple owners)';
         }
+
+        if (!confirm(warning)) return;
+
+        // Actually finalize
+        finalizeBtn.disabled = true;
+        finalizeBtn.textContent = 'Finalizing...';
+
+        fetch('/realestate/lookup/finalize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrf(),
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({}),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            // Remove finalized rows from table
+            (data.finalizedIds || []).forEach(function(id) {
+              var row = table.querySelector('tr[data-property-id="' + id + '"]');
+              if (row) row.remove();
+            });
+            updateProgress(data.counts);
+            finalizeBtn.disabled = false;
+            var msg = 'Created ' + data.created + ' contact(s) from ' + data.addressCount + ' address(es).';
+            if (data.skipped > 0) msg += ' Skipped ' + data.skipped + ' duplicate(s).';
+            alert(msg);
+          } else {
+            alert('Error: ' + (data.error || 'Finalize failed.'));
+            finalizeBtn.disabled = false;
+            finalizeBtn.textContent = 'Finalize Lookup (' + addressCount + ')';
+          }
+        })
+        .catch(function(err) {
+          alert('Error: ' + err.message);
+          finalizeBtn.disabled = false;
+          finalizeBtn.textContent = 'Finalize Lookup (' + addressCount + ')';
+        });
       })
       .catch(function(err) {
-        alert('Error: ' + err.message);
+        alert('Error calculating contacts: ' + err.message);
         finalizeBtn.disabled = false;
-        finalizeBtn.textContent = 'Finalize Lookup (' + count + ')';
+        finalizeBtn.textContent = 'Finalize Lookup (' + addressCount + ')';
       });
     });
   }
