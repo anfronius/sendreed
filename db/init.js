@@ -181,6 +181,23 @@ function createTables() {
       UNIQUE(user_id)
     );
 
+    CREATE TABLE IF NOT EXISTS property_archive (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      property_address TEXT NOT NULL,
+      city TEXT,
+      state TEXT,
+      zip TEXT,
+      raw_city TEXT,
+      sale_date DATE,
+      sale_price REAL,
+      realist_owner_name TEXT,
+      owner_id INTEGER REFERENCES users(id),
+      csv_upload_id INTEGER REFERENCES csv_uploads(id),
+      contact_ids TEXT,
+      finalized_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      finalized_by INTEGER REFERENCES users(id)
+    );
+
     CREATE TABLE IF NOT EXISTS field_visibility (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       role TEXT NOT NULL CHECK (role IN ('nonprofit', 'realestate')),
@@ -199,6 +216,8 @@ function createTables() {
     CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays(date);
     CREATE INDEX IF NOT EXISTS idx_anniversary_status ON anniversary_log(status, anniversary_date);
     CREATE INDEX IF NOT EXISTS idx_city_mappings_raw ON city_mappings(raw_city);
+    CREATE INDEX IF NOT EXISTS idx_archive_owner ON property_archive(owner_id);
+    CREATE INDEX IF NOT EXISTS idx_archive_finalized ON property_archive(finalized_at);
   `);
 
   // Add raw_city column to crmls_properties if it doesn't exist yet

@@ -10,6 +10,7 @@ const vcard = require('../services/vcard');
 const matcher = require('../services/matcher');
 const fieldConfig = require('../config/field-config');
 const { checkAnniversaries } = require('../services/cron');
+const { logAction } = require('../utils/logger');
 
 const router = express.Router();
 router.use(requireRole('realestate', 'admin'));
@@ -289,6 +290,14 @@ router.post('/import-crmls/map', (req, res) => {
     }
     delete req.session.crmlsImport;
 
+    logAction('crmls_import', {
+      table: 'crmls_properties',
+      inserted: result.inserted,
+      duplicates: result.duplicates,
+      skipped: result.skipped,
+      userId: effectiveOwnerId,
+    });
+
     let msg = `Imported ${result.inserted} property/properties.`;
     if (result.duplicates > 0) msg += ` Skipped ${result.duplicates} duplicate(s).`;
     if (result.skipped > result.duplicates) msg += ` Skipped ${result.skipped - result.duplicates} invalid row(s).`;
@@ -327,24 +336,41 @@ router.get('/lookup', (req, res) => {
       WHERE ${ownerWhere}
     `).get(...ownerParams);
 
-    var conditions = [ownerWhere];
-    const params = [...ownerParams];
-    if (['pending', 'found', 'not_found'].includes(statusFilter)) {
-      conditions.push('realist_lookup_status = ?');
-      params.push(statusFilter);
+    const archivedCount = db.prepare(
+      `SELECT COUNT(*) as c FROM property_archive WHERE ${ownerWhere}`
+    ).get(...ownerParams).c;
+
+    var isArchiveView = statusFilter === 'archived';
+    var properties, totalCount, totalPages;
+
+    if (isArchiveView) {
+      totalCount = archivedCount;
+      totalPages = Math.max(1, Math.ceil(totalCount / perPage));
+      properties = db.prepare(
+        `SELECT *, finalized_at as looked_up_at FROM property_archive WHERE ${ownerWhere}
+         ORDER BY finalized_at DESC
+         LIMIT ? OFFSET ?`
+      ).all(...ownerParams, perPage, offset);
+    } else {
+      var conditions = [ownerWhere];
+      var params = [...ownerParams];
+      if (['pending', 'found', 'not_found'].includes(statusFilter)) {
+        conditions.push('realist_lookup_status = ?');
+        params.push(statusFilter);
+      }
+      var where = conditions.join(' AND ');
+
+      totalCount = db.prepare(
+        `SELECT COUNT(*) as c FROM crmls_properties WHERE ${where}`
+      ).get(...params).c;
+      totalPages = Math.max(1, Math.ceil(totalCount / perPage));
+
+      properties = db.prepare(
+        `SELECT * FROM crmls_properties WHERE ${where}
+         ORDER BY city, zip, property_address
+         LIMIT ? OFFSET ?`
+      ).all(...params, perPage, offset);
     }
-    const where = conditions.join(' AND ');
-
-    const totalCount = db.prepare(
-      `SELECT COUNT(*) as c FROM crmls_properties WHERE ${where}`
-    ).get(...params).c;
-    const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
-
-    const properties = db.prepare(
-      `SELECT * FROM crmls_properties WHERE ${where}
-       ORDER BY city, zip, property_address
-       LIMIT ? OFFSET ?`
-    ).all(...params, perPage, offset);
 
     // Count unmapped cities for admin badge
     var unmappedCount = 0;
@@ -360,12 +386,13 @@ router.get('/lookup', (req, res) => {
     res.render('realestate/realist-lookup', {
       title: 'Realist Lookup',
       properties,
-      counts,
+      counts: Object.assign({}, counts, { archived: archivedCount }),
       statusFilter,
       currentPage: page,
       totalPages,
       totalCount,
       unmappedCount,
+      isArchiveView: isArchiveView,
     });
   } catch (err) {
     console.error('Realist lookup error:', err);
@@ -416,6 +443,12 @@ router.post('/lookup/finalize', (req, res) => {
       'SELECT id FROM contacts WHERE owner_id = ? AND property_address = ?'
     );
 
+    const archiveProperty = db.prepare(
+      `INSERT INTO property_archive (property_address, city, state, zip, raw_city, sale_date, sale_price,
+       realist_owner_name, owner_id, csv_upload_id, contact_ids, finalized_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+
     const deleteProperty = db.prepare('DELETE FROM crmls_properties WHERE id = ?');
 
     let created = 0;
@@ -427,7 +460,13 @@ router.post('/lookup/finalize', (req, res) => {
         const existing = existsCheck.get(userId, prop.property_address);
         if (existing) {
           skipped++;
-          // Still remove from lookup even if duplicate
+          // Archive with existing contact reference before removing
+          archiveProperty.run(
+            prop.property_address, prop.city, prop.state, prop.zip,
+            prop.raw_city || prop.city, prop.sale_date, prop.sale_price,
+            prop.realist_owner_name, userId, prop.csv_upload_id,
+            JSON.stringify([existing.id]), userId
+          );
           deleteProperty.run(prop.id);
           finalizedIds.push(prop.id);
           continue;
@@ -435,18 +474,28 @@ router.post('/lookup/finalize', (req, res) => {
 
         // Parse Realist format: "LN FN [MI]" or "LN FN [MI] & FN [MI]"
         var owners = parseRealistOwnerName(prop.realist_owner_name);
+        var createdContactIds = [];
 
         for (var oi = 0; oi < owners.length; oi++) {
           var owner = owners[oi];
           if (!owner.lastName && !owner.firstName) continue;
 
-          insertContact.run(
+          var insertResult = insertContact.run(
             userId, owner.firstName, owner.lastName,
             prop.property_address, prop.city || null, prop.state || null,
             prop.zip || null, prop.sale_date || null, prop.sale_price || null
           );
+          createdContactIds.push(insertResult.lastInsertRowid);
           created++;
         }
+
+        // Archive the property with created contact IDs
+        archiveProperty.run(
+          prop.property_address, prop.city, prop.state, prop.zip,
+          prop.raw_city || prop.city, prop.sale_date, prop.sale_price,
+          prop.realist_owner_name, userId, prop.csv_upload_id,
+          JSON.stringify(createdContactIds), userId
+        );
 
         deleteProperty.run(prop.id);
         finalizedIds.push(prop.id);
@@ -489,6 +538,14 @@ router.post('/lookup/finalize', (req, res) => {
         // Don't fail the finalize if matching fails
       }
     }
+
+    logAction('property_finalized', {
+      table: 'crmls_properties',
+      propertiesFinalized: found.length,
+      contactsCreated: created,
+      duplicatesSkipped: skipped,
+      userId: userId,
+    });
 
     // Get updated counts
     const counts = db.prepare(
@@ -631,6 +688,15 @@ router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (re
 
     const phonesFound = result.contacts.filter(c => c.phone).length;
     const emailsFound = result.contacts.filter(c => c.email).length;
+
+    logAction('vcard_import', {
+      table: 'imported_contacts',
+      contactsImported: result.contacts.length,
+      phonesFound: phonesFound,
+      emailsFound: emailsFound,
+      autoMatched: autoConfirmed + needsReview,
+      userId: userId,
+    });
 
     setFlash(req, 'success',
       `Imported ${result.contacts.length} contact(s) (${phonesFound} phones, ${emailsFound} emails). ` +
@@ -792,6 +858,14 @@ router.post('/matching/apply', (req, res) => {
     });
 
     applyAll();
+
+    logAction('match_apply', {
+      table: 'contacts',
+      matchesApplied: matches.length,
+      phonesUpdated: phonesUpdated,
+      emailsUpdated: emailsUpdated,
+      userId: userId,
+    });
 
     var message = `Applied ${matches.length} match(es). Updated ${phonesUpdated} phone(s) and ${emailsUpdated} email(s).`;
 

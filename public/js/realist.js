@@ -43,9 +43,17 @@ document.addEventListener('DOMContentLoaded', function() {
   var filterButtons = document.querySelectorAll('.filter-bar .btn-filter');
   filterButtons.forEach(function(btn) {
     btn.addEventListener('click', function() {
+      var filter = btn.dataset.filter;
+      // Archive filter requires a server-side query (different table)
+      var currentUrl = new URL(window.location.href);
+      var currentFilter = currentUrl.searchParams.get('status') || 'all';
+      if (filter === 'archived' || currentFilter === 'archived') {
+        window.location.href = '/realestate/lookup?status=' + filter;
+        return;
+      }
       filterButtons.forEach(function(b) { b.classList.remove('active'); });
       btn.classList.add('active');
-      applyFilter(btn.dataset.filter);
+      applyFilter(filter);
     });
   });
 

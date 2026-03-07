@@ -23,6 +23,8 @@
     class="btn btn-filter<%= statusFilter === 'found' ? ' active' : '' %>">Found (<span class="filter-count-found"><%= counts.found %></span>)</button>
   <button type="button" data-filter="not_found"
     class="btn btn-filter<%= statusFilter === 'not_found' ? ' active' : '' %>">Not Found (<span class="filter-count-not_found"><%= counts.not_found %></span>)</button>
+  <button type="button" data-filter="archived"
+    class="btn btn-filter<%= statusFilter === 'archived' ? ' active' : '' %>">Archive (<span class="filter-count-archived"><%= counts.archived || 0 %></span>)</button>
   <span class="text-muted" style="margin-left:auto; font-style:italic;">
     Tip: Tab from name field copies next address
   </span>
@@ -38,7 +40,7 @@
   <table class="data-table" id="lookup-table">
     <thead>
       <tr>
-        <th><input type="checkbox" id="select-all-lookup"></th>
+        <th><% if (!isArchiveView) { %><input type="checkbox" id="select-all-lookup"><% } %></th>
         <th>Address</th>
         <th style="text-align:center;">
           <div>City</div>
@@ -59,26 +61,36 @@
     </thead>
     <tbody>
       <% properties.forEach(function(p) { %>
-      <tr data-property-id="<%= p.id %>" data-status="<%= p.realist_lookup_status %>"
+      <tr data-property-id="<%= p.id %>" data-status="<%= isArchiveView ? 'archived' : p.realist_lookup_status %>"
           data-address="<%= p.property_address %>" data-city="<%= p.city || '' %>"
           data-state="<%= p.state || 'CA' %>">
-        <td><input type="checkbox" class="lookup-checkbox" value="<%= p.id %>"></td>
+        <td><% if (!isArchiveView) { %><input type="checkbox" class="lookup-checkbox" value="<%= p.id %>"><% } %></td>
         <td class="property-address"><%= p.property_address %></td>
         <td><%= p.city || '' %></td>
         <td><%= p.sale_price ? '$' + Number(p.sale_price).toLocaleString() : '' %></td>
         <td><%= p.sale_date || '' %></td>
         <td>
+          <% if (isArchiveView) { %>
+            <%= p.realist_owner_name || '' %>
+          <% } else { %>
           <input type="text" class="owner-name-input"
             data-id="<%= p.id %>"
             value="<%= p.realist_owner_name || '' %>"
             placeholder="Last First [MI] or Last First & First"
             <%= p.realist_lookup_status === 'not_found' ? 'disabled' : '' %>>
+          <% } %>
         </td>
         <td>
+          <% if (isArchiveView) { %>
+            <span class="badge lookup-status-archived">Archived</span>
+          <% } else { %>
           <span class="badge lookup-status-<%= p.realist_lookup_status %>"><%= p.realist_lookup_status === 'not_found' ? 'Not Found' : p.realist_lookup_status === 'found' ? 'Found' : 'Pending' %></span>
+          <% } %>
         </td>
         <td class="lookup-actions">
-          <% if (p.realist_lookup_status === 'pending') { %>
+          <% if (isArchiveView) { %>
+            <span class="text-muted" style="font-style:italic; font-size:0.85em;">Read-only</span>
+          <% } else if (p.realist_lookup_status === 'pending') { %>
             <button class="btn btn-sm btn-secondary copy-address-btn" data-address="<%= p.property_address %>">Copy</button>
             <button class="btn btn-sm btn-danger not-found-btn" data-id="<%= p.id %>">Not Found</button>
           <% } else if (p.realist_lookup_status === 'found') { %>

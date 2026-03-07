@@ -6,6 +6,7 @@ const { decrypt } = require('../services/crypto');
 const providers = require('../config/providers.json');
 const templateService = require('../services/template');
 const { getDailyCount, getDailyLimit } = require('../services/email');
+const { logAction } = require('../utils/logger');
 
 const router = express.Router();
 
@@ -495,6 +496,13 @@ router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res)
          SET realist_owner_name = ?, realist_lookup_status = 'found', looked_up_at = datetime('now')
          WHERE id = ?`
       ).run(trimmedName, propId);
+      logAction('realist_name_save', {
+        table: 'crmls_properties',
+        propertyId: propId,
+        status: 'found',
+        ownerName: trimmedName,
+        userId: effectiveOwnerId,
+      });
     } else {
       db.prepare(
         `UPDATE crmls_properties
@@ -542,6 +550,13 @@ router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'),
        SET realist_lookup_status = 'not_found', realist_owner_name = NULL, looked_up_at = datetime('now')
        WHERE id = ?`
     ).run(propId);
+
+    logAction('realist_status_change', {
+      table: 'crmls_properties',
+      propertyId: propId,
+      status: 'not_found',
+      userId: effectiveOwnerId,
+    });
 
     var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
     var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
@@ -710,6 +725,12 @@ router.post('/realist-lookup/bulk-delete', requireRole('realestate', 'admin'), (
     });
     bulkDelete();
 
+    logAction('property_deleted', {
+      table: 'crmls_properties',
+      count: ids.length,
+      userId: effectiveOwnerId,
+    });
+
     var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
     var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
     const counts = db.prepare(`
@@ -870,6 +891,13 @@ router.post('/match/:id/confirm', requireRole('realestate', 'admin'), (req, res)
     db.prepare(
       "UPDATE phone_matches SET confirmed_at = datetime('now'), confirmed_by = ? WHERE id = ?"
     ).run(userId, matchId);
+
+    logAction('match_confirm', {
+      table: 'phone_matches',
+      matchId: matchId,
+      contactId: match.contact_id,
+      userId: userId,
+    });
 
     res.json({ success: true });
   } catch (err) {
