@@ -735,6 +735,7 @@ router.get('/matching', (req, res) => {
     const autoConfirmed = db.prepare(`
       SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
              c.property_address as c_address, c.phone as c_phone, c.email as c_email,
+             c.purchase_date as c_purchase_date,
              pm.id as match_id, pm.confidence_score,
              ic.id as imported_id, ic.full_name as ic_name, ic.first_name as ic_first,
              ic.last_name as ic_last, ic.phone as ic_phone, ic.email as ic_email
@@ -752,6 +753,7 @@ router.get('/matching', (req, res) => {
     const needsReview = db.prepare(`
       SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
              c.property_address as c_address, c.phone as c_phone, c.email as c_email,
+             c.purchase_date as c_purchase_date,
              pm.id as match_id, pm.confidence_score,
              ic.id as imported_id, ic.full_name as ic_name, ic.first_name as ic_first,
              ic.last_name as ic_last, ic.phone as ic_phone, ic.email as ic_email
@@ -768,7 +770,8 @@ router.get('/matching', (req, res) => {
     // Unmatched: existing contacts missing phone/email with no match entry
     const unmatched = db.prepare(`
       SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
-             c.property_address as c_address, c.phone as c_phone, c.email as c_email
+             c.property_address as c_address, c.phone as c_phone, c.email as c_email,
+             c.purchase_date as c_purchase_date
       FROM contacts c
       WHERE c.owner_id = ?
         AND ((c.phone IS NULL OR c.phone = '') OR (c.email IS NULL OR c.email = ''))
