@@ -816,6 +816,14 @@ router.post('/import-vcard/dedup', verifyCsrf, (req, res) => {
          ) WHERE imported_by = ?`
       ).run(userId);
 
+      // Remove orphaned phone_matches pointing to deleted imported_contacts
+      var orphanResult = db.prepare(`
+        DELETE FROM phone_matches
+        WHERE contact_id IN (SELECT id FROM contacts WHERE owner_id = ?)
+          AND imported_contact_id NOT IN (SELECT id FROM imported_contacts)
+      `).run(userId);
+      removedMatches += orphanResult.changes;
+
       // Also remove duplicate phone_matches for the same contact_id
       // Keep only the best match (highest confidence, then lowest id) per contact
       var dupeMatchResult = db.prepare(`
@@ -924,7 +932,7 @@ router.get('/matching', (req, res) => {
       ORDER BY pm.confidence_score DESC
     `).all(userId, ...importParams);
 
-    // Unmatched: existing contacts missing phone/email with no match entry
+    // Unmatched: existing contacts missing phone/email with no valid pending match
     const unmatched = db.prepare(`
       SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
              c.property_address as c_address, c.phone as c_phone, c.email as c_email,
@@ -932,7 +940,11 @@ router.get('/matching', (req, res) => {
       FROM contacts c
       WHERE c.owner_id = ?
         AND ((c.phone IS NULL OR c.phone = '') OR (c.email IS NULL OR c.email = ''))
-        AND c.id NOT IN (SELECT contact_id FROM phone_matches)
+        AND c.id NOT IN (
+          SELECT pm.contact_id FROM phone_matches pm
+          JOIN imported_contacts ic ON pm.imported_contact_id = ic.id
+          WHERE pm.confirmed_at IS NULL
+        )
       ORDER BY c.last_name, c.first_name
     `).all(userId);
 

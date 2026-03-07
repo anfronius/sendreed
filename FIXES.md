@@ -198,8 +198,9 @@
 - ability to view conbimed multiple owners to one home view to reduce marriage client mulitplicative
 - archive button on realist lookup needs to be dynamic like other filters
 - pagination on archive page 
-- on the phone matching site for real estate users, walong with the address as a little hint also provide the year of sale to give the client a reasonable idea of whenthis client was last reached.
-- An Ability to get rid of contacts without possibility of phone number matching
+- on the phone matching site for real estate users, along with the address as a little hint also provide the year of sale to give the RE User a reasonable idea of when this client was last reached.
+- An Ability to get hide/push to a bottom "Hidden" section contacts without possibility of phone number matching
 - ability to choose between either push notification via putting site on Iphone home screen or email digest
+- client page filters still not working properly.
 
 - Ok so I've realized multiple things now that I have tried doing around 30 CRMLS lookup examples about how the contact name should really function. The issue is that since this is socal, there are people with 4-5 names, for example: 'San Diego Alejandro R S' normally from hispanic descent (maybe have Alejandro as FN, R S as MI(S) and San Diego as LN?), and therefore they break the mold of the basic FN LN system. Can you think of a the best way to expand this to this type of use case? I've decided I want to keep the middle inital as some people may have gone by their middle name instead to the RE user and it could be useful to help those edge case matching in the phone and email matching portion, but I want it in the first name section with a space after FN like 'John H'.
