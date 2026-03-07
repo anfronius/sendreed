@@ -633,19 +633,44 @@ router.post('/import-vcard/upload', handleVcfUpload, verifyCsrf, (req, res) => {
       return res.redirect('/realestate/import-vcard');
     }
 
+    // Deduplicate: find contacts already imported by this user (across all prior imports)
+    const existingImported = db.prepare(
+      `SELECT ic.full_name, ic.phone, ic.email FROM imported_contacts ic
+       JOIN contact_imports ci ON ic.import_id = ci.id
+       WHERE ci.imported_by = ?`
+    ).all(userId);
+
+    const existingKeys = new Set();
+    for (const ei of existingImported) {
+      existingKeys.add((ei.full_name || '').toLowerCase().trim() + '|' + (ei.phone || '') + '|' + (ei.email || ''));
+    }
+
+    const newContacts = result.contacts.filter(function(c) {
+      var key = (c.full_name || '').toLowerCase().trim() + '|' + (c.phone || '') + '|' + (c.email || '');
+      return !existingKeys.has(key);
+    });
+
+    if (newContacts.length === 0) {
+      var skipped = result.contacts.length;
+      setFlash(req, 'error', 'All ' + skipped + ' contact(s) from this file were already imported. No duplicates added.');
+      return res.redirect('/realestate/import-vcard');
+    }
+
+    var skippedCount = result.contacts.length - newContacts.length;
+
     // Store import record
     const importResult = db.prepare(
       'INSERT INTO contact_imports (filename, import_type, contact_count, imported_by) VALUES (?, ?, ?, ?)'
-    ).run(req.file.originalname, 'vcard', result.contacts.length, userId);
+    ).run(req.file.originalname, 'vcard', newContacts.length, userId);
     const importId = importResult.lastInsertRowid;
 
-    // Insert imported contacts
+    // Insert only new (non-duplicate) imported contacts
     const insertImported = db.prepare(
       'INSERT INTO imported_contacts (import_id, full_name, first_name, last_name, phone, email, raw_data) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
 
     const insertMany = db.transaction(() => {
-      for (const c of result.contacts) {
+      for (const c of newContacts) {
         insertImported.run(
           importId,
           c.full_name || null,
@@ -700,27 +725,109 @@ router.post('/import-vcard/upload', handleVcfUpload, verifyCsrf, (req, res) => {
     });
     storeMatches();
 
-    const phonesFound = result.contacts.filter(c => c.phone).length;
-    const emailsFound = result.contacts.filter(c => c.email).length;
+    const phonesFoundNew = newContacts.filter(c => c.phone).length;
+    const emailsFoundNew = newContacts.filter(c => c.email).length;
 
     logAction('vcard_import', {
       table: 'imported_contacts',
-      contactsImported: result.contacts.length,
-      phonesFound: phonesFound,
-      emailsFound: emailsFound,
+      contactsImported: newContacts.length,
+      skippedDuplicates: skippedCount,
+      phonesFound: phonesFoundNew,
+      emailsFound: emailsFoundNew,
       autoMatched: autoConfirmed + needsReview,
       userId: userId,
     });
 
-    setFlash(req, 'success',
-      `Imported ${result.contacts.length} contact(s) (${phonesFound} phones, ${emailsFound} emails). ` +
-      `Matched to ${autoConfirmed + needsReview} existing contact(s). Needs review: ${needsReview}. Unmatched contacts: ${unmatched}.`
-    );
+    var msg = `Imported ${newContacts.length} contact(s) (${phonesFoundNew} phones, ${emailsFoundNew} emails). ` +
+      `Matched to ${autoConfirmed + needsReview} existing contact(s). Needs review: ${needsReview}. Unmatched contacts: ${unmatched}.`;
+    if (skippedCount > 0) {
+      msg += ` Skipped ${skippedCount} duplicate(s) already imported.`;
+    }
+    setFlash(req, 'success', msg);
     res.redirect('/realestate/matching?import_id=' + importId);
   } catch (err) {
     console.error('vCard upload error:', err);
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     setFlash(req, 'error', 'Failed to import vCard: ' + err.message);
+    res.redirect('/realestate/import-vcard');
+  }
+});
+
+// POST /realestate/import-vcard/dedup — retroactively remove duplicate imported contacts
+router.post('/import-vcard/dedup', verifyCsrf, (req, res) => {
+  try {
+    const db = getDb();
+    const userId = getEffectiveOwnerId(req);
+    if (!userId) {
+      setFlash(req, 'error', 'Please select a user to act as before deduplicating.');
+      return res.redirect('/realestate/import-vcard');
+    }
+
+    // Find all imported contacts for this user, ordered by id (keep earliest)
+    const allImported = db.prepare(
+      `SELECT ic.id, ic.full_name, ic.phone, ic.email, ic.import_id
+       FROM imported_contacts ic
+       JOIN contact_imports ci ON ic.import_id = ci.id
+       WHERE ci.imported_by = ?
+       ORDER BY ic.id ASC`
+    ).all(userId);
+
+    var seen = new Set();
+    var dupeIds = [];
+    for (var i = 0; i < allImported.length; i++) {
+      var row = allImported[i];
+      var key = (row.full_name || '').toLowerCase().trim() + '|' + (row.phone || '') + '|' + (row.email || '');
+      if (seen.has(key)) {
+        dupeIds.push(row.id);
+      } else {
+        seen.add(key);
+      }
+    }
+
+    if (dupeIds.length === 0) {
+      setFlash(req, 'success', 'No duplicates found. Everything looks clean.');
+      return res.redirect('/realestate/import-vcard');
+    }
+
+    // Remove phone_matches pointing to duplicate imported contacts, then remove the duplicates
+    var removedMatches = 0;
+    var removedContacts = 0;
+    var batchSize = 500;
+
+    db.transaction(() => {
+      for (var start = 0; start < dupeIds.length; start += batchSize) {
+        var batch = dupeIds.slice(start, start + batchSize);
+        var placeholders = batch.map(function() { return '?'; }).join(',');
+        removedMatches += db.prepare(
+          'DELETE FROM phone_matches WHERE imported_contact_id IN (' + placeholders + ')'
+        ).run(...batch).changes;
+        removedContacts += db.prepare(
+          'DELETE FROM imported_contacts WHERE id IN (' + placeholders + ')'
+        ).run(...batch).changes;
+      }
+
+      // Update contact_count on affected import records
+      db.prepare(
+        `UPDATE contact_imports SET contact_count = (
+           SELECT COUNT(*) FROM imported_contacts WHERE import_id = contact_imports.id
+         ) WHERE imported_by = ?`
+      ).run(userId);
+    })();
+
+    logAction('vcard_dedup', {
+      table: 'imported_contacts',
+      removedContacts: removedContacts,
+      removedMatches: removedMatches,
+      userId: userId,
+    });
+
+    setFlash(req, 'success',
+      'Removed ' + removedContacts + ' duplicate imported contact(s) and ' + removedMatches + ' associated match(es).'
+    );
+    res.redirect('/realestate/import-vcard');
+  } catch (err) {
+    console.error('Dedup error:', err);
+    setFlash(req, 'error', 'Failed to deduplicate: ' + err.message);
     res.redirect('/realestate/import-vcard');
   }
 });

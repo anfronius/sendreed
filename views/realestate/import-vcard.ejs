@@ -20,6 +20,15 @@
   </form>
 </div>
 
+<div class="form-card mt-2">
+  <h3>Clean Up Duplicates</h3>
+  <p class="text-muted">If the same vCard was imported multiple times, use this to remove duplicate entries. The earliest copy of each contact is kept.</p>
+  <form method="POST" action="/realestate/import-vcard/dedup" onsubmit="return confirm('This will remove duplicate imported contacts. Continue?');">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit" class="btn btn-secondary">Remove Duplicates</button>
+  </form>
+</div>
+
 <div class="mt-2">
   <a href="/realestate" class="btn btn-link">&larr; Back to Real Estate</a>
 </div>
