@@ -51,10 +51,6 @@
         <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
         <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
         <div class="match-contact-detail"><%= m.c_purchase_date ? 'Sale Date: ' + m.c_purchase_date : 'No Sale Date' %></div>
-        <div class="match-contact-detail">
-          <% if (m.c_phone) { %>Phone: <%= m.c_phone %> <% } else { %><em>No phone</em> <% } %>
-          <% if (m.c_email) { %>Email: <%= m.c_email %><% } else { %><em>No email</em><% } %>
-        </div>
       </div>
       <div class="match-card-arrow">←</div>
       <div class="match-card-right">
@@ -93,10 +89,6 @@
         <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
         <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
         <div class="match-contact-detail"><%= m.c_purchase_date ? 'Sale Date: ' + m.c_purchase_date : 'No Sale Date' %></div>
-        <div class="match-contact-detail">
-          <% if (m.c_phone) { %>Phone: <%= m.c_phone %> <% } else { %><em>No phone</em> <% } %>
-          <% if (m.c_email) { %>Email: <%= m.c_email %><% } else { %><em>No email</em><% } %>
-        </div>
       </div>
       <div class="match-card-arrow">?</div>
       <div class="match-card-right">
@@ -129,10 +121,6 @@
         <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
         <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
         <div class="match-contact-detail"><%= m.c_purchase_date ? 'Sale Date: ' + m.c_purchase_date : 'No Sale Date' %></div>
-        <div class="match-contact-detail">
-          <% if (m.c_phone) { %>Phone: <%= m.c_phone %> <% } else { %><em>No phone</em> <% } %>
-          <% if (m.c_email) { %>Email: <%= m.c_email %><% } else { %><em>No email</em><% } %>
-        </div>
       </div>
       <div class="match-card-right" style="flex:1;">
         <div class="manual-match-form">
