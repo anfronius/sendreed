@@ -46,13 +46,11 @@
   <p class="match-section-desc">High-confidence matches (score >= 70). These will be applied when you click "Apply All Confirmed".</p>
   <div class="match-list">
     <% autoConfirmed.forEach(function(m) { %>
-    <% var saleDateParts = m.c_purchase_date ? m.c_purchase_date.split('-') : null; %>
-    <% var saleDateStr = saleDateParts ? ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(saleDateParts[1])-1] + ' ' + parseInt(saleDateParts[2]) + ', ' + saleDateParts[0] : null; %>
     <div class="match-card" data-match-id="<%= m.match_id %>">
       <div class="match-card-left">
         <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
         <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
-        <div class="match-contact-detail"><%= saleDateStr ? 'Sale Date: ' + saleDateStr : 'No Sale Date' %></div>
+        <div class="match-contact-detail"><%= m.c_purchase_date ? 'Sale Date: ' + m.c_purchase_date : 'No Sale Date' %></div>
         <div class="match-contact-detail">
           <% if (m.c_phone) { %>Phone: <%= m.c_phone %> <% } else { %><em>No phone</em> <% } %>
           <% if (m.c_email) { %>Email: <%= m.c_email %><% } else { %><em>No email</em><% } %>
@@ -90,13 +88,11 @@
   <p class="match-section-desc">Lower confidence matches. Review and confirm or skip each one.</p>
   <div class="match-list">
     <% needsReview.forEach(function(m) { %>
-    <% var saleDateParts = m.c_purchase_date ? m.c_purchase_date.split('-') : null; %>
-    <% var saleDateStr = saleDateParts ? ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(saleDateParts[1])-1] + ' ' + parseInt(saleDateParts[2]) + ', ' + saleDateParts[0] : null; %>
     <div class="match-card" data-match-id="<%= m.match_id %>">
       <div class="match-card-left">
         <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
         <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
-        <div class="match-contact-detail"><%= saleDateStr ? 'Sale Date: ' + saleDateStr : 'No Sale Date' %></div>
+        <div class="match-contact-detail"><%= m.c_purchase_date ? 'Sale Date: ' + m.c_purchase_date : 'No Sale Date' %></div>
         <div class="match-contact-detail">
           <% if (m.c_phone) { %>Phone: <%= m.c_phone %> <% } else { %><em>No phone</em> <% } %>
           <% if (m.c_email) { %>Email: <%= m.c_email %><% } else { %><em>No email</em><% } %>
@@ -128,13 +124,11 @@
   <p class="match-section-desc">These contacts are missing phone or email and no vCard match was found. Search for a vCard import to assign manually.</p>
   <div class="match-list">
     <% unmatched.forEach(function(m) { %>
-    <% var saleDateParts = m.c_purchase_date ? m.c_purchase_date.split('-') : null; %>
-    <% var saleDateStr = saleDateParts ? ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(saleDateParts[1])-1] + ' ' + parseInt(saleDateParts[2]) + ', ' + saleDateParts[0] : null; %>
     <div class="match-card" data-contact-id="<%= m.contact_id %>">
       <div class="match-card-left">
         <div class="match-contact-name"><%= [m.c_first, m.c_last].filter(Boolean).join(' ') %></div>
         <% if (m.c_address) { %><div class="match-contact-detail"><%= m.c_address %></div><% } %>
-        <div class="match-contact-detail"><%= saleDateStr ? 'Sale Date: ' + saleDateStr : 'No Sale Date' %></div>
+        <div class="match-contact-detail"><%= m.c_purchase_date ? 'Sale Date: ' + m.c_purchase_date : 'No Sale Date' %></div>
         <div class="match-contact-detail">
           <% if (m.c_phone) { %>Phone: <%= m.c_phone %> <% } else { %><em>No phone</em> <% } %>
           <% if (m.c_email) { %>Email: <%= m.c_email %><% } else { %><em>No email</em><% } %>
