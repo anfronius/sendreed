@@ -579,7 +579,7 @@ router.post('/lookup/finalize', (req, res) => {
 
 const vcfUpload = multer({
   dest: uploadsDir,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB for large contact files
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB for large contact files (thousands of contacts)
   fileFilter: (req, file, cb) => {
     if (file.originalname.endsWith('.vcf') || file.mimetype === 'text/vcard' || file.mimetype === 'text/x-vcard') {
       cb(null, true);
@@ -589,13 +589,27 @@ const vcfUpload = multer({
   },
 });
 
+// Wrapper to catch MulterError (e.g. file too large) and flash a friendly message
+function handleVcfUpload(req, res, next) {
+  vcfUpload.single('vcffile')(req, res, function(err) {
+    if (err) {
+      var msg = err.code === 'LIMIT_FILE_SIZE'
+        ? 'File is too large. Maximum size is 200MB.'
+        : err.message || 'Upload failed.';
+      setFlash(req, 'error', msg);
+      return res.redirect('/realestate/import-vcard');
+    }
+    next();
+  });
+}
+
 // GET /realestate/import-vcard — upload form
 router.get('/import-vcard', (req, res) => {
   res.render('realestate/import-vcard', { title: 'Import vCard', step: 'upload', summary: null });
 });
 
 // POST /realestate/import-vcard/upload — parse VCF, store in DB, run matching
-router.post('/import-vcard/upload', vcfUpload.single('vcffile'), verifyCsrf, (req, res) => {
+router.post('/import-vcard/upload', handleVcfUpload, verifyCsrf, (req, res) => {
   try {
     if (!req.file) {
       setFlash(req, 'error', 'Please select a vCard (.vcf) file.');
