@@ -690,8 +690,11 @@ router.post('/import-vcard/upload', handleVcfUpload, verifyCsrf, (req, res) => {
     ).all(importId);
 
     // Get existing contacts for this user that are missing phone or email
+    // and don't already have a pending match
     const existingContacts = db.prepare(
-      "SELECT * FROM contacts WHERE owner_id = ? AND ((phone IS NULL OR phone = '') OR (email IS NULL OR email = ''))"
+      `SELECT * FROM contacts WHERE owner_id = ?
+       AND ((phone IS NULL OR phone = '') OR (email IS NULL OR email = ''))
+       AND id NOT IN (SELECT contact_id FROM phone_matches WHERE confirmed_at IS NULL)`
     ).all(userId);
 
     // Run matching algorithm — from existing contacts' perspective
@@ -812,6 +815,26 @@ router.post('/import-vcard/dedup', verifyCsrf, (req, res) => {
            SELECT COUNT(*) FROM imported_contacts WHERE import_id = contact_imports.id
          ) WHERE imported_by = ?`
       ).run(userId);
+
+      // Also remove duplicate phone_matches for the same contact_id
+      // Keep only the best match (highest confidence, then lowest id) per contact
+      var dupeMatchResult = db.prepare(`
+        DELETE FROM phone_matches
+        WHERE contact_id IN (SELECT id FROM contacts WHERE owner_id = ?)
+          AND id NOT IN (
+            SELECT (
+              SELECT pm2.id FROM phone_matches pm2
+              WHERE pm2.contact_id = pm_outer.contact_id
+              ORDER BY pm2.confidence_score DESC, pm2.id ASC
+              LIMIT 1
+            )
+            FROM phone_matches pm_outer
+            JOIN contacts c ON pm_outer.contact_id = c.id
+            WHERE c.owner_id = ?
+            GROUP BY pm_outer.contact_id
+          )
+      `).run(userId, userId);
+      removedMatches += dupeMatchResult.changes;
     })();
 
     logAction('vcard_dedup', {
@@ -852,6 +875,7 @@ router.get('/matching', (req, res) => {
     }
 
     // Contact-centric queries: existing contacts are the primary entity
+    // Use subquery to pick only the best (highest confidence) match per contact
     // Auto-matched: high confidence, not yet applied
     const autoConfirmed = db.prepare(`
       SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
@@ -867,6 +891,12 @@ router.get('/matching', (req, res) => {
       WHERE c.owner_id = ? ${importFilter}
         AND pm.confidence_score >= 70
         AND pm.confirmed_at IS NULL
+        AND pm.id = (
+          SELECT pm2.id FROM phone_matches pm2
+          WHERE pm2.contact_id = pm.contact_id AND pm2.confirmed_at IS NULL
+          ORDER BY pm2.confidence_score DESC, pm2.id ASC
+          LIMIT 1
+        )
       ORDER BY pm.confidence_score DESC
     `).all(userId, ...importParams);
 
@@ -885,6 +915,12 @@ router.get('/matching', (req, res) => {
       WHERE c.owner_id = ? ${importFilter}
         AND pm.confidence_score < 70
         AND pm.confirmed_at IS NULL
+        AND pm.id = (
+          SELECT pm2.id FROM phone_matches pm2
+          WHERE pm2.contact_id = pm.contact_id AND pm2.confirmed_at IS NULL
+          ORDER BY pm2.confidence_score DESC, pm2.id ASC
+          LIMIT 1
+        )
       ORDER BY pm.confidence_score DESC
     `).all(userId, ...importParams);
 
