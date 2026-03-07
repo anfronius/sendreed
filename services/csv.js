@@ -171,12 +171,19 @@ function importCrmlsProperties(rows, mapping, ownerId) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
 
+  // Check for duplicates before inserting
+  const existsCheck = db.prepare(
+    'SELECT id FROM crmls_properties WHERE property_address = ? AND owner_id = ?'
+  );
+
   const CRMLS_FIELDS = ['property_address', 'street_number', 'street_name', 'city', 'state', 'zip', 'sale_date', 'sale_price'];
 
   // Load saved city mappings for this import
   var cityMappings = {};
   db.prepare('SELECT raw_city, mapped_city FROM city_mappings').all()
     .forEach(function(row) { cityMappings[row.raw_city.toUpperCase()] = row.mapped_city; });
+
+  let duplicates = 0;
 
   const insertMany = db.transaction((rows) => {
     for (let i = 0; i < rows.length; i++) {
@@ -195,6 +202,14 @@ function importCrmlsProperties(rows, mapping, ownerId) {
         }
 
         if (!prop.property_address) {
+          skipped++;
+          continue;
+        }
+
+        // Check for duplicate (same address + owner)
+        const existing = existsCheck.get(prop.property_address, ownerId);
+        if (existing) {
+          duplicates++;
           skipped++;
           continue;
         }
@@ -234,7 +249,7 @@ function importCrmlsProperties(rows, mapping, ownerId) {
 
   insertMany(rows);
 
-  return { inserted, skipped, errors, uploadId: uploadResult.lastInsertRowid };
+  return { inserted, skipped, duplicates, errors, uploadId: uploadResult.lastInsertRowid };
 }
 
 const CRMLS_COLUMN_ALIASES = {

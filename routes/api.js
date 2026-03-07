@@ -6,6 +6,7 @@ const { decrypt } = require('../services/crypto');
 const providers = require('../config/providers.json');
 const templateService = require('../services/template');
 const { getDailyCount, getDailyLimit } = require('../services/email');
+const { logAction } = require('../utils/logger');
 
 const router = express.Router();
 
@@ -312,6 +313,11 @@ router.delete('/templates/:id', requireAuth, (req, res) => {
       return res.status(404).json({ error: 'Template not found.' });
     }
 
+    const campaignCount = db.prepare('SELECT COUNT(*) as c FROM campaigns WHERE template_id = ?').get(templateId).c;
+    if (campaignCount > 0) {
+      return res.status(400).json({ error: 'This template is used by ' + campaignCount + ' campaign(s). Please delete the associated campaigns first.' });
+    }
+
     db.prepare('DELETE FROM templates WHERE id = ?').run(templateId);
     res.json({ success: true });
   } catch (err) {
@@ -475,10 +481,6 @@ router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res)
     const propId = parseInt(req.params.id);
     const { owner_name } = req.body;
 
-    if (!owner_name || !owner_name.trim()) {
-      return res.status(400).json({ error: 'Owner name is required.' });
-    }
-
     const prop = db.prepare('SELECT * FROM crmls_properties WHERE id = ?').get(propId);
     if (!prop) {
       return res.status(404).json({ error: 'Property not found.' });
@@ -487,11 +489,27 @@ router.put('/realist-lookup/:id', requireRole('realestate', 'admin'), (req, res)
       return res.status(403).json({ error: 'Not authorized.' });
     }
 
-    db.prepare(
-      `UPDATE crmls_properties
-       SET realist_owner_name = ?, realist_lookup_status = 'found', looked_up_at = datetime('now')
-       WHERE id = ?`
-    ).run(owner_name.trim(), propId);
+    const trimmedName = (owner_name || '').trim();
+    if (trimmedName) {
+      db.prepare(
+        `UPDATE crmls_properties
+         SET realist_owner_name = ?, realist_lookup_status = 'found', looked_up_at = datetime('now')
+         WHERE id = ?`
+      ).run(trimmedName, propId);
+      logAction('realist_name_save', {
+        table: 'crmls_properties',
+        propertyId: propId,
+        status: 'found',
+        ownerName: trimmedName,
+        userId: effectiveOwnerId,
+      });
+    } else {
+      db.prepare(
+        `UPDATE crmls_properties
+         SET realist_owner_name = NULL, realist_lookup_status = 'pending', looked_up_at = NULL
+         WHERE id = ?`
+      ).run(propId);
+    }
 
     var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
     var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
@@ -533,6 +551,13 @@ router.post('/realist-lookup/:id/not-found', requireRole('realestate', 'admin'),
        WHERE id = ?`
     ).run(propId);
 
+    logAction('realist_status_change', {
+      table: 'crmls_properties',
+      propertyId: propId,
+      status: 'not_found',
+      userId: effectiveOwnerId,
+    });
+
     var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
     var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
     const counts = db.prepare(`
@@ -567,6 +592,42 @@ router.post('/realist-lookup/:id/undo-not-found', requireRole('realestate', 'adm
 
     db.prepare(
       "UPDATE crmls_properties SET realist_lookup_status = 'pending', looked_up_at = NULL WHERE id = ?"
+    ).run(propId);
+
+    var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+    const counts = db.prepare(`
+      SELECT
+        COUNT(*) as total,
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
+        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+      FROM crmls_properties
+      WHERE ${countsWhere}
+    `).get(...countsParams);
+
+    res.json({ success: true, counts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/realist-lookup/:id/undo-found — reverse found back to pending, clear owner name
+router.post('/realist-lookup/:id/undo-found', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    const propId = parseInt(req.params.id);
+
+    const prop = db.prepare('SELECT * FROM crmls_properties WHERE id = ?').get(propId);
+    if (!prop) return res.status(404).json({ error: 'Property not found.' });
+    if (!(isAdmin && !effectiveOwnerId) && prop.owner_id !== effectiveOwnerId) {
+      return res.status(403).json({ error: 'Not authorized.' });
+    }
+
+    db.prepare(
+      "UPDATE crmls_properties SET realist_lookup_status = 'pending', realist_owner_name = NULL, looked_up_at = NULL WHERE id = ?"
     ).run(propId);
 
     var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
@@ -663,6 +724,59 @@ router.post('/realist-lookup/bulk-delete', requireRole('realestate', 'admin'), (
       }
     });
     bulkDelete();
+
+    logAction('property_deleted', {
+      table: 'crmls_properties',
+      count: ids.length,
+      userId: effectiveOwnerId,
+    });
+
+    var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
+    var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
+    const counts = db.prepare(`
+      SELECT COUNT(*) as total,
+        SUM(CASE WHEN realist_lookup_status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN realist_lookup_status = 'found' THEN 1 ELSE 0 END) as found,
+        SUM(CASE WHEN realist_lookup_status = 'not_found' THEN 1 ELSE 0 END) as not_found
+      FROM crmls_properties
+      WHERE ${countsWhere}
+    `).get(...countsParams);
+
+    res.json({ success: true, counts });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/realist-lookup/bulk-undo — undo found/not_found back to pending
+router.post('/realist-lookup/bulk-undo', requireRole('realestate', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const isAdmin = req.session.user.role === 'admin';
+    const effectiveOwnerId = getEffectiveOwnerId(req);
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'No property IDs provided.' });
+    }
+
+    if (!(isAdmin && !effectiveOwnerId)) {
+      for (const id of ids) {
+        var prop = db.prepare('SELECT owner_id FROM crmls_properties WHERE id = ?').get(parseInt(id));
+        if (!prop || prop.owner_id !== effectiveOwnerId) {
+          return res.status(403).json({ error: 'Not authorized to modify one or more properties.' });
+        }
+      }
+    }
+
+    const updateStmt = db.prepare(
+      "UPDATE crmls_properties SET realist_lookup_status = 'pending', realist_owner_name = NULL, looked_up_at = NULL WHERE id = ?"
+    );
+    const bulkUpdate = db.transaction(() => {
+      for (const id of ids) {
+        updateStmt.run(parseInt(id));
+      }
+    });
+    bulkUpdate();
 
     var countsWhere = (isAdmin && !effectiveOwnerId) ? '1=1' : 'owner_id = ?';
     var countsParams = (isAdmin && !effectiveOwnerId) ? [] : [effectiveOwnerId];
@@ -777,6 +891,13 @@ router.post('/match/:id/confirm', requireRole('realestate', 'admin'), (req, res)
     db.prepare(
       "UPDATE phone_matches SET confirmed_at = datetime('now'), confirmed_by = ? WHERE id = ?"
     ).run(userId, matchId);
+
+    logAction('match_confirm', {
+      table: 'phone_matches',
+      matchId: matchId,
+      contactId: match.contact_id,
+      userId: userId,
+    });
 
     res.json({ success: true });
   } catch (err) {

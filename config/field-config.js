@@ -7,7 +7,7 @@
 var ALL_CONTACT_FIELDS = [
   'first_name', 'last_name', 'email', 'phone', 'organization', 'title',
   'district', 'city', 'state', 'zip', 'property_address', 'purchase_date',
-  'purchase_price', 'notes',
+  'purchase_price', 'years_since_purchase', 'notes',
 ];
 
 var ROLE_FIELDS = {
@@ -15,7 +15,7 @@ var ROLE_FIELDS = {
     contacts: ['first_name', 'last_name', 'email', 'phone', 'organization', 'title', 'district', 'city', 'state', 'zip', 'notes'],
   },
   realestate: {
-    contacts: ['first_name', 'last_name', 'email', 'phone', 'property_address', 'purchase_date', 'purchase_price', 'city', 'state', 'zip', 'notes'],
+    contacts: ['first_name', 'last_name', 'email', 'phone', 'property_address', 'purchase_date', 'purchase_price', 'years_since_purchase', 'city', 'state', 'zip', 'notes'],
   },
 };
 
@@ -33,6 +33,7 @@ var LABEL_MAP = {
   property_address: 'Property Address',
   purchase_date: 'Close Date',
   purchase_price: 'Close Price',
+  years_since_purchase: 'Years Since Purchase',
   notes: 'Notes',
 };
 

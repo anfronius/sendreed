@@ -7,11 +7,114 @@ document.addEventListener('DOMContentLoaded', function() {
     return el ? el.value : '';
   }
 
+  // ---- Dynamic Filtering ----
+  function getCurrentFilter() {
+    var active = document.querySelector('.filter-bar .btn-filter.active');
+    return active ? active.dataset.filter : 'all';
+  }
+
+  function applyFilter(filter) {
+    var rows = table.querySelectorAll('tbody tr[data-property-id]');
+    rows.forEach(function(row) {
+      if (filter === 'all' || row.dataset.status === filter) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    // Hide pagination when filtering (not on 'all')
+    var pagination = document.getElementById('pagination-controls');
+    if (pagination) {
+      pagination.style.display = (filter === 'all') ? '' : 'none';
+    }
+  }
+
+  function hideRowIfFiltered(row) {
+    var filter = getCurrentFilter();
+    if (filter !== 'all' && row.dataset.status !== filter) {
+      row.style.transition = 'opacity 0.3s';
+      row.style.opacity = '0';
+      setTimeout(function() { row.style.display = 'none'; row.style.opacity = ''; }, 300);
+    }
+  }
+
+  // Filter button click handlers
+  var filterButtons = document.querySelectorAll('.filter-bar .btn-filter');
+  filterButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var filter = btn.dataset.filter;
+      // Archive filter requires a server-side query (different table)
+      var currentUrl = new URL(window.location.href);
+      var currentFilter = currentUrl.searchParams.get('status') || 'all';
+      if (filter === 'archived' || currentFilter === 'archived') {
+        window.location.href = '/realestate/lookup?status=' + filter;
+        return;
+      }
+      filterButtons.forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      applyFilter(filter);
+    });
+  });
+
+  // Apply initial filter on page load
+  applyFilter(getCurrentFilter());
+
+  // ---- Status label helper ----
+  function statusLabel(status) {
+    if (status === 'not_found') return 'Not Found';
+    if (status === 'found') return 'Found';
+    return 'Pending';
+  }
+
+  // ---- Helper to set row actions for a given status ----
+  function setRowActions(row, status, id) {
+    var actions = row.querySelector('.lookup-actions');
+    if (!actions) return;
+    actions.innerHTML = '';
+    if (status === 'pending') {
+      var copyBtn = document.createElement('button');
+      copyBtn.className = 'btn btn-sm btn-secondary copy-address-btn';
+      copyBtn.dataset.address = row.dataset.address || '';
+      copyBtn.textContent = 'Copy';
+      actions.appendChild(copyBtn);
+      var nfBtn = document.createElement('button');
+      nfBtn.className = 'btn btn-sm btn-danger not-found-btn';
+      nfBtn.dataset.id = id;
+      nfBtn.textContent = 'Not Found';
+      actions.appendChild(nfBtn);
+    } else if (status === 'found') {
+      var undoBtn = document.createElement('button');
+      undoBtn.className = 'btn btn-sm btn-secondary undo-found-btn';
+      undoBtn.dataset.id = id;
+      undoBtn.textContent = 'Undo';
+      actions.appendChild(undoBtn);
+      var nfBtn = document.createElement('button');
+      nfBtn.className = 'btn btn-sm btn-danger not-found-btn';
+      nfBtn.dataset.id = id;
+      nfBtn.textContent = 'Not Found';
+      actions.appendChild(nfBtn);
+    } else {
+      var undoBtn = document.createElement('button');
+      undoBtn.className = 'btn btn-sm btn-secondary undo-not-found-btn';
+      undoBtn.dataset.id = id;
+      undoBtn.textContent = 'Undo';
+      actions.appendChild(undoBtn);
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm btn-danger delete-property-btn';
+      delBtn.dataset.id = id;
+      delBtn.textContent = 'Delete';
+      actions.appendChild(delBtn);
+    }
+  }
+
   // ---- Checkbox selection + bulk actions ----
   var selectAll = document.getElementById('select-all-lookup');
   var bulkNotFoundBtn = document.getElementById('bulk-not-found-btn');
+  var bulkUndoBtn = document.getElementById('bulk-undo-btn');
   var bulkDeleteBtn = document.getElementById('bulk-delete-btn');
   var bulkNfCount = document.getElementById('bulk-nf-count');
+  var bulkUndoCount = document.getElementById('bulk-undo-count');
   var bulkDelCount = document.getElementById('bulk-del-count');
 
   function getCheckedIds() {
@@ -19,17 +122,31 @@ document.addEventListener('DOMContentLoaded', function() {
     return Array.from(checked).map(function(cb) { return parseInt(cb.value); });
   }
 
+  function getCheckedStatusCounts() {
+    var checked = table.querySelectorAll('.lookup-checkbox:checked');
+    var canMarkNotFound = 0;
+    var canUndo = 0;
+    var total = checked.length;
+    checked.forEach(function(cb) {
+      var row = cb.closest('tr');
+      var status = row.dataset.status;
+      if (status === 'pending' || status === 'found') canMarkNotFound++;
+      if (status === 'not_found' || status === 'found') canUndo++;
+    });
+    return { total: total, canMarkNotFound: canMarkNotFound, canUndo: canUndo };
+  }
+
+  function toggleBulkBtn(btn, countEl, count) {
+    if (!btn) return;
+    if (count > 0) { btn.classList.remove('hidden'); } else { btn.classList.add('hidden'); }
+    if (countEl) countEl.textContent = count;
+  }
+
   function updateBulkState() {
-    var ids = getCheckedIds();
-    var count = ids.length;
-    if (bulkNotFoundBtn) {
-      if (count > 0) { bulkNotFoundBtn.classList.remove('hidden'); } else { bulkNotFoundBtn.classList.add('hidden'); }
-      bulkNfCount.textContent = count;
-    }
-    if (bulkDeleteBtn) {
-      if (count > 0) { bulkDeleteBtn.classList.remove('hidden'); } else { bulkDeleteBtn.classList.add('hidden'); }
-      bulkDelCount.textContent = count;
-    }
+    var sc = getCheckedStatusCounts();
+    toggleBulkBtn(bulkNotFoundBtn, bulkNfCount, sc.canMarkNotFound);
+    toggleBulkBtn(bulkUndoBtn, bulkUndoCount, sc.canUndo);
+    toggleBulkBtn(bulkDeleteBtn, bulkDelCount, sc.total);
   }
 
   if (selectAll) {
@@ -48,31 +165,39 @@ document.addEventListener('DOMContentLoaded', function() {
 
   if (bulkNotFoundBtn) {
     bulkNotFoundBtn.addEventListener('click', function() {
-      var ids = getCheckedIds();
-      if (ids.length === 0) return;
-      if (!confirm('Mark ' + ids.length + ' property/properties as Not Found?')) return;
+      // Only send IDs that can be marked not found (pending or found)
+      var applicableIds = [];
+      table.querySelectorAll('.lookup-checkbox:checked').forEach(function(cb) {
+        var row = cb.closest('tr');
+        var status = row.dataset.status;
+        if (status === 'pending' || status === 'found') {
+          applicableIds.push(parseInt(cb.value));
+        }
+      });
+      if (applicableIds.length === 0) return;
+      if (!confirm('Mark ' + applicableIds.length + ' property/properties as Not Found?')) return;
 
       fetch('/api/realist-lookup/bulk-not-found', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrf() },
-        body: JSON.stringify({ ids: ids }),
+        body: JSON.stringify({ ids: applicableIds }),
       })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.success) {
-          ids.forEach(function(id) {
+          applicableIds.forEach(function(id) {
             var row = table.querySelector('tr[data-property-id="' + id + '"]');
             if (row) {
               var badge = row.querySelector('.badge');
-              badge.textContent = 'not_found';
+              badge.textContent = statusLabel('not_found');
               badge.className = 'badge lookup-status-not_found';
               row.dataset.status = 'not_found';
               var nameInput = row.querySelector('.owner-name-input');
               nameInput.disabled = true;
               nameInput.value = '';
-              var nfBtn = row.querySelector('.not-found-btn');
-              if (nfBtn) nfBtn.remove();
+              setRowActions(row, 'not_found', id);
               row.querySelector('.lookup-checkbox').checked = false;
+              hideRowIfFiltered(row);
             }
           });
           updateBulkState();
@@ -100,6 +225,52 @@ document.addEventListener('DOMContentLoaded', function() {
           ids.forEach(function(id) {
             var row = table.querySelector('tr[data-property-id="' + id + '"]');
             if (row) row.remove();
+          });
+          updateBulkState();
+          if (selectAll) selectAll.checked = false;
+          if (data.counts) updateProgress(data.counts);
+        }
+      });
+    });
+  }
+
+  // ---- Bulk Undo ----
+  if (bulkUndoBtn) {
+    bulkUndoBtn.addEventListener('click', function() {
+      // Only send IDs that can be undone (found or not_found)
+      var applicableIds = [];
+      table.querySelectorAll('.lookup-checkbox:checked').forEach(function(cb) {
+        var row = cb.closest('tr');
+        var status = row.dataset.status;
+        if (status === 'found' || status === 'not_found') {
+          applicableIds.push(parseInt(cb.value));
+        }
+      });
+      if (applicableIds.length === 0) return;
+      if (!confirm('Undo ' + applicableIds.length + ' property/properties back to Pending?')) return;
+
+      fetch('/api/realist-lookup/bulk-undo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrf() },
+        body: JSON.stringify({ ids: applicableIds }),
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          applicableIds.forEach(function(id) {
+            var row = table.querySelector('tr[data-property-id="' + id + '"]');
+            if (row) {
+              var badge = row.querySelector('.badge');
+              badge.textContent = statusLabel('pending');
+              badge.className = 'badge lookup-status-pending';
+              row.dataset.status = 'pending';
+              var nameInput = row.querySelector('.owner-name-input');
+              nameInput.disabled = false;
+              nameInput.value = '';
+              setRowActions(row, 'pending', id);
+              row.querySelector('.lookup-checkbox').checked = false;
+              hideRowIfFiltered(row);
+            }
           });
           updateBulkState();
           if (selectAll) selectAll.checked = false;
@@ -170,7 +341,7 @@ document.addEventListener('DOMContentLoaded', function() {
       function saveOwnerName() {
         var newValue = input.value.trim();
         var originalValue = input.dataset.originalValue;
-        if (newValue === originalValue || !newValue) return;
+        if (newValue === originalValue) return;
 
         var id = input.dataset.id;
         fetch('/api/realist-lookup/' + id, {
@@ -187,13 +358,19 @@ document.addEventListener('DOMContentLoaded', function() {
             input.dataset.originalValue = newValue;
             input.style.borderColor = '#22c55e';
             setTimeout(function() { input.style.borderColor = ''; }, 1000);
-            // Update row status badge
+            // Update row status badge and actions based on whether name is empty
             var row = input.closest('tr');
             var badge = row.querySelector('.badge');
-            badge.textContent = 'found';
-            badge.className = 'badge lookup-status-found';
-            row.dataset.status = 'found';
+            var newStatus = newValue ? 'found' : 'pending';
+            var oldStatus = row.dataset.status;
+            badge.textContent = statusLabel(newStatus);
+            badge.className = 'badge lookup-status-' + newStatus;
+            row.dataset.status = newStatus;
+            if (newStatus !== oldStatus) {
+              setRowActions(row, newStatus, input.dataset.id);
+            }
             updateProgress(data.counts);
+            hideRowIfFiltered(row);
           } else {
             input.style.borderColor = '#dc2626';
             setTimeout(function() { input.style.borderColor = ''; }, 1000);
@@ -235,19 +412,15 @@ document.addEventListener('DOMContentLoaded', function() {
       if (data.success) {
         var row = btn.closest('tr');
         var badge = row.querySelector('.badge');
-        badge.textContent = 'not_found';
+        badge.textContent = statusLabel('not_found');
         badge.className = 'badge lookup-status-not_found';
         row.dataset.status = 'not_found';
         var nameInput = row.querySelector('.owner-name-input');
         nameInput.disabled = true;
         nameInput.value = '';
-        // Replace Not Found button with Undo button
-        var undoBtn = document.createElement('button');
-        undoBtn.className = 'btn btn-sm btn-secondary undo-not-found-btn';
-        undoBtn.dataset.id = id;
-        undoBtn.textContent = 'Undo';
-        btn.replaceWith(undoBtn);
+        setRowActions(row, 'not_found', id);
         updateProgress(data.counts);
+        hideRowIfFiltered(row);
       }
     });
   });
@@ -270,18 +443,71 @@ document.addEventListener('DOMContentLoaded', function() {
       if (data.success) {
         var row = btn.closest('tr');
         var badge = row.querySelector('.badge');
-        badge.textContent = 'pending';
+        badge.textContent = statusLabel('pending');
         badge.className = 'badge lookup-status-pending';
         row.dataset.status = 'pending';
         var nameInput = row.querySelector('.owner-name-input');
         nameInput.disabled = false;
-        // Replace Undo button with Not Found button
-        var nfBtn = document.createElement('button');
-        nfBtn.className = 'btn btn-sm btn-danger not-found-btn';
-        nfBtn.dataset.id = id;
-        nfBtn.textContent = 'Not Found';
-        btn.replaceWith(nfBtn);
+        setRowActions(row, 'pending', id);
         updateProgress(data.counts);
+        hideRowIfFiltered(row);
+      }
+    });
+  });
+
+  // ---- Delete Property Button (on not_found rows) ----
+  table.addEventListener('click', function(e) {
+    var btn = e.target.closest('.delete-property-btn');
+    if (!btn) return;
+
+    var id = parseInt(btn.dataset.id);
+    if (!confirm('Delete this property? This cannot be undone.')) return;
+
+    fetch('/api/realist-lookup/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrf() },
+      body: JSON.stringify({ ids: [id] }),
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        var row = btn.closest('tr');
+        if (row) row.remove();
+        if (data.counts) updateProgress(data.counts);
+      } else {
+        alert('Error: ' + (data.error || 'Delete failed.'));
+      }
+    });
+  });
+
+  // ---- Undo Found Button ----
+  table.addEventListener('click', function(e) {
+    var btn = e.target.closest('.undo-found-btn');
+    if (!btn) return;
+
+    var id = btn.dataset.id;
+    fetch('/api/realist-lookup/' + id + '/undo-found', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': getCsrf(),
+      },
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.success) {
+        var row = btn.closest('tr');
+        var badge = row.querySelector('.badge');
+        badge.textContent = statusLabel('pending');
+        badge.className = 'badge lookup-status-pending';
+        row.dataset.status = 'pending';
+        var nameInput = row.querySelector('.owner-name-input');
+        nameInput.disabled = false;
+        nameInput.value = '';
+        nameInput.dataset.originalValue = '';
+        setRowActions(row, 'pending', id);
+        updateProgress(data.counts);
+        hideRowIfFiltered(row);
       }
     });
   });
@@ -348,26 +574,26 @@ document.addEventListener('DOMContentLoaded', function() {
       if (foundCount > 0) { finalizeBtn.classList.remove('hidden'); } else { finalizeBtn.classList.add('hidden'); }
     }
 
-    // Update filter tab counts
-    var filterLinks = document.querySelectorAll('.filter-bar .btn');
-    filterLinks.forEach(function(link) {
-      var href = link.getAttribute('href') || '';
-      if (href.includes('status=all')) link.textContent = 'All (' + (counts.total || 0) + ')';
-      else if (href.includes('status=pending')) link.textContent = 'Pending (' + (counts.pending || 0) + ')';
-      else if (href.includes('status=found')) link.textContent = 'Found (' + (counts.found || 0) + ')';
-      else if (href.includes('status=not_found')) link.textContent = 'Not Found (' + (counts.not_found || 0) + ')';
-    });
+    // Update filter tab counts via spans
+    var countAll = document.querySelector('.filter-count-all');
+    var countPending = document.querySelector('.filter-count-pending');
+    var countFound = document.querySelector('.filter-count-found');
+    var countNotFound = document.querySelector('.filter-count-not_found');
+    if (countAll) countAll.textContent = counts.total || 0;
+    if (countPending) countPending.textContent = counts.pending || 0;
+    if (countFound) countFound.textContent = counts.found || 0;
+    if (countNotFound) countNotFound.textContent = counts.not_found || 0;
   }
 
   // ---- Finalize Lookup (AJAX) ----
   var finalizeBtn = document.getElementById('finalize-btn');
   if (finalizeBtn) {
     finalizeBtn.addEventListener('click', function() {
-      var count = parseInt(finalizeBtn.dataset.count || '0');
-      if (!confirm('Create ' + count + ' contact(s) from found properties?')) return;
+      var addressCount = parseInt(finalizeBtn.dataset.count || '0');
 
+      // First fetch to get expected contact count
       finalizeBtn.disabled = true;
-      finalizeBtn.textContent = 'Finalizing...';
+      finalizeBtn.textContent = 'Calculating...';
 
       fetch('/realestate/lookup/finalize', {
         method: 'POST',
@@ -376,31 +602,63 @@ document.addEventListener('DOMContentLoaded', function() {
           'X-CSRF-Token': getCsrf(),
           'Accept': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ preview: true }),
       })
       .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.success) {
-          // Remove finalized rows from table
-          (data.finalizedIds || []).forEach(function(id) {
-            var row = table.querySelector('tr[data-property-id="' + id + '"]');
-            if (row) row.remove();
-          });
-          updateProgress(data.counts);
-          finalizeBtn.disabled = false;
-          var msg = 'Created ' + data.created + ' contact(s).';
-          if (data.skipped > 0) msg += ' Skipped ' + data.skipped + ' duplicate(s).';
-          alert(msg);
-        } else {
-          alert('Error: ' + (data.error || 'Finalize failed.'));
-          finalizeBtn.disabled = false;
-          finalizeBtn.textContent = 'Finalize Lookup (' + count + ')';
+      .then(function(previewData) {
+        finalizeBtn.disabled = false;
+        finalizeBtn.textContent = 'Finalize Lookup (' + addressCount + ')';
+
+        var contactCount = previewData.contactCount || addressCount;
+        var warning = 'Create ' + contactCount + ' contact(s) from ' + addressCount + ' address(es)?';
+        if (contactCount !== addressCount) {
+          warning += '\n(Some addresses have multiple owners)';
         }
+
+        if (!confirm(warning)) return;
+
+        // Actually finalize
+        finalizeBtn.disabled = true;
+        finalizeBtn.textContent = 'Finalizing...';
+
+        fetch('/realestate/lookup/finalize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': getCsrf(),
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({}),
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.success) {
+            // Remove finalized rows from table
+            (data.finalizedIds || []).forEach(function(id) {
+              var row = table.querySelector('tr[data-property-id="' + id + '"]');
+              if (row) row.remove();
+            });
+            updateProgress(data.counts);
+            finalizeBtn.disabled = false;
+            var msg = 'Created ' + data.created + ' contact(s) from ' + data.addressCount + ' address(es).';
+            if (data.skipped > 0) msg += ' Skipped ' + data.skipped + ' duplicate(s).';
+            alert(msg);
+          } else {
+            alert('Error: ' + (data.error || 'Finalize failed.'));
+            finalizeBtn.disabled = false;
+            finalizeBtn.textContent = 'Finalize Lookup (' + addressCount + ')';
+          }
+        })
+        .catch(function(err) {
+          alert('Error: ' + err.message);
+          finalizeBtn.disabled = false;
+          finalizeBtn.textContent = 'Finalize Lookup (' + addressCount + ')';
+        });
       })
       .catch(function(err) {
-        alert('Error: ' + err.message);
+        alert('Error calculating contacts: ' + err.message);
         finalizeBtn.disabled = false;
-        finalizeBtn.textContent = 'Finalize Lookup (' + count + ')';
+        finalizeBtn.textContent = 'Finalize Lookup (' + addressCount + ')';
       });
     });
   }
@@ -441,7 +699,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Unmapped cities section
         if (data.unmapped && data.unmapped.length > 0) {
-          html += '<h3 style="margin-top:0;">Unmapped City Values</h3>';
+          html += '<h3 style="margin-top:0;margin-bottom:var(--space-3);">Unmapped City Values</h3>';
           html += '<table class="data-table"><thead><tr>' +
             '<th>Raw City Value</th><th>Sample Address</th><th>Correct City Name</th><th></th>' +
             '</tr></thead><tbody>';
@@ -459,7 +717,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Mapped cities section
         if (data.mapped && data.mapped.length > 0) {
-          html += '<h3 style="margin-top:var(--space-6);">Mapped City Values</h3>';
+          html += '<h3 style="margin-top:var(--space-6);margin-bottom:var(--space-3);">Mapped City Values</h3>';
           html += '<table class="data-table"><thead><tr>' +
             '<th>Raw Value</th><th>Mapped To</th><th></th>' +
             '</tr></thead><tbody>';
