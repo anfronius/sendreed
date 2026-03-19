@@ -934,7 +934,30 @@ router.get('/matching', (req, res) => {
       ORDER BY pm.confidence_score DESC
     `).all(userId, ...importParams);
 
-    // Unmatched: existing contacts missing phone/email with no valid pending match
+    // Confirmed but not yet applied: user confirmed or manually matched
+    const confirmed = db.prepare(`
+      SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
+             c.property_address as c_address, c.phone as c_phone, c.email as c_email,
+             c.purchase_date as c_purchase_date,
+             pm.id as match_id, pm.confidence_score,
+             ic.id as imported_id, ic.full_name as ic_name, ic.first_name as ic_first,
+             ic.last_name as ic_last, ic.phone as ic_phone, ic.email as ic_email
+      FROM phone_matches pm
+      JOIN contacts c ON pm.contact_id = c.id
+      JOIN imported_contacts ic ON pm.imported_contact_id = ic.id
+      JOIN contact_imports ci ON ic.import_id = ci.id
+      WHERE c.owner_id = ? ${importFilter}
+        AND pm.confirmed_at IS NOT NULL
+        AND pm.id = (
+          SELECT pm2.id FROM phone_matches pm2
+          WHERE pm2.contact_id = pm.contact_id AND pm2.confirmed_at IS NOT NULL
+          ORDER BY pm2.confidence_score DESC, pm2.id ASC
+          LIMIT 1
+        )
+      ORDER BY pm.confirmed_at DESC
+    `).all(userId, ...importParams);
+
+    // Unmatched: existing contacts missing phone/email with no match in phone_matches
     const unmatched = db.prepare(`
       SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
              c.property_address as c_address, c.phone as c_phone, c.email as c_email,
@@ -944,8 +967,6 @@ router.get('/matching', (req, res) => {
         AND ((c.phone IS NULL OR c.phone = '') OR (c.email IS NULL OR c.email = ''))
         AND c.id NOT IN (
           SELECT pm.contact_id FROM phone_matches pm
-          JOIN imported_contacts ic ON pm.imported_contact_id = ic.id
-          WHERE pm.confirmed_at IS NULL
         )
       ORDER BY c.last_name, c.first_name
     `).all(userId);
@@ -961,14 +982,16 @@ router.get('/matching', (req, res) => {
     const counts = {
       matched: matchedCount,
       autoConfirmed: autoConfirmed.length,
+      confirmed: confirmed.length,
       review: needsReview.length,
       unmatched: unmatched.length,
-      total: autoConfirmed.length + needsReview.length + unmatched.length,
+      total: autoConfirmed.length + confirmed.length + needsReview.length + unmatched.length,
     };
 
     res.render('realestate/phone-matching', {
       title: 'Phone & Email Matching',
       autoConfirmed,
+      confirmed,
       needsReview,
       unmatched,
       counts,

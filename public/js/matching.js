@@ -217,6 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var matchId = btn.dataset.matchId;
     var card = btn.closest('.match-card');
     var wasInReview = card.closest('#section-review') !== null;
+    var wasInApplied = card.closest('#section-applied') !== null;
 
     btn.disabled = true;
 
@@ -244,8 +245,8 @@ document.addEventListener('DOMContentLoaded', function() {
           if (reviewEl) reviewEl.textContent = Math.max(0, (parseInt(reviewEl.textContent) || 0) - 1);
         }
 
-        // If skipped from "Needs Review", move to "No Match Found" section
-        if (wasInReview && data.contact) {
+        // If skipped from "Needs Review" or "Confirmed", move to "No Match Found" section
+        if ((wasInReview || wasInApplied) && data.contact) {
           // Update No Match stat
           var noMatchEl = getStatEl('No Match');
           if (noMatchEl) noMatchEl.textContent = (parseInt(noMatchEl.textContent) || 0) + 1;
