@@ -988,7 +988,7 @@ router.get('/matching', (req, res) => {
       confirmed: confirmed.length,
       review: needsReview.length,
       unmatched: unmatched.length,
-      total: autoConfirmed.length + confirmed.length + needsReview.length + unmatched.length,
+      total: matchedCount + autoConfirmed.length + confirmed.length + needsReview.length + unmatched.length,
     };
 
     res.render('realestate/phone-matching', {
