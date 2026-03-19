@@ -1,9 +1,10 @@
 /**
- * Four-pass name matching algorithm for matching imported vCard contacts
+ * Five-pass name matching algorithm for matching imported vCard contacts
  * against existing contacts in the database.
  */
 
 const SUFFIXES = /\b(jr\.?|sr\.?|ii|iii|iv|v|esq\.?|phd|md)\b/gi;
+const CATEGORY_PREFIXES = /^(client|agent|ld|lender|referral|seller|buyer|friend|cousin|wa[rm]|loan\s*depot|estate\s*planning|better|electrician|plumber)\s*[-:]\s*/i;
 
 /**
  * Compute Levenshtein edit distance between two strings.
@@ -36,12 +37,13 @@ function levenshteinDistance(a, b) {
 }
 
 /**
- * Normalize a name: lowercase, strip suffixes, strip middle names, collapse whitespace.
+ * Normalize a name: lowercase, strip category prefixes, strip suffixes, collapse whitespace.
  */
 function normalizeName(name) {
   if (!name) return '';
   return name
     .toLowerCase()
+    .replace(CATEGORY_PREFIXES, '')
     .replace(SUFFIXES, '')
     .replace(/[.,]/g, '')
     .replace(/\s+/g, ' ')
@@ -65,15 +67,29 @@ function stripMiddleNames(name) {
 }
 
 /**
- * Match a single imported contact against all existing contacts using 4 passes.
+ * Strip single-letter tokens (middle initials) from a name.
+ * "michael v aguirre" → "michael aguirre"
+ */
+function stripInitials(name) {
+  if (!name) return '';
+  var parts = name.split(/\s+/);
+  var filtered = parts.filter(function(p) {
+    return p.length > 1 || !/^[a-z]$/i.test(p);
+  });
+  return filtered.length > 0 ? filtered.join(' ') : name;
+}
+
+/**
+ * Match a single imported contact against all existing contacts using 5 passes.
  * Returns array of matches sorted by confidence (highest first).
  */
 function findMatches(importedContact, existingContacts) {
   const importedFull = buildFullName(importedContact) || importedContact.full_name || '';
   const importedNorm = normalizeName(importedFull);
-  const importedStripped = stripMiddleNames(importedNorm);
+  const importedNoInitials = stripInitials(importedNorm);
+  const importedStripped = stripInitials(stripMiddleNames(importedNorm));
+  const importedFirst = normalizeName(importedContact.first_name || '');
   const importedLast = normalizeName(importedContact.last_name || '');
-  const importedFirstInitial = importedNorm.charAt(0);
 
   const matches = [];
   const matchedIds = new Set();
@@ -81,16 +97,20 @@ function findMatches(importedContact, existingContacts) {
   for (const contact of existingContacts) {
     const contactFull = buildFullName(contact);
     const contactNorm = normalizeName(contactFull);
+    const contactNoInitials = stripInitials(contactNorm);
+    const contactStripped = stripInitials(stripMiddleNames(contactNorm));
+    const contactFirst = normalizeName(contact.first_name || '');
+    const contactLast = normalizeName(contact.last_name || '');
 
-    // Pass 1: Exact match (case-insensitive)
-    if (importedNorm && contactNorm && importedNorm === contactNorm) {
+    // Pass 1: Exact match after stripping initials (100%)
+    // "michael v aguirre" vs "michael aguirre" both become "michael aguirre"
+    if (importedNoInitials && contactNoInitials && importedNoInitials === contactNoInitials) {
       matches.push({ contact_id: contact.id, confidence: 100, match_type: 'exact' });
       matchedIds.add(contact.id);
       continue;
     }
 
-    // Pass 2: Normalized (strip middle names and suffixes)
-    const contactStripped = stripMiddleNames(contactNorm);
+    // Pass 2: Strip middle names + initials (90%)
     if (importedStripped && contactStripped && importedStripped === contactStripped) {
       if (!matchedIds.has(contact.id)) {
         matches.push({ contact_id: contact.id, confidence: 90, match_type: 'normalized' });
@@ -99,10 +119,15 @@ function findMatches(importedContact, existingContacts) {
       }
     }
 
-    // Pass 3: Last name + first initial
-    const contactLast = normalizeName(contact.last_name || '');
-    const contactFirstInitial = contactNorm.charAt(0);
-    if (importedLast && contactLast &&
+    // Pass 3: Last name exact + first initial (70%)
+    // Only applies when at least one side has a short first name (actual initial),
+    // not when both sides have full first names that happen to share the same letter
+    var importedFirstClean = stripInitials(importedFirst) || stripInitials(importedNorm).split(/\s+/)[0] || '';
+    var contactFirstClean = stripInitials(contactFirst) || stripInitials(contactNorm).split(/\s+/)[0] || '';
+    var importedFirstInitial = importedFirstClean.charAt(0);
+    var contactFirstInitial = contactFirstClean.charAt(0);
+    var oneIsShort = importedFirstClean.length <= 2 || contactFirstClean.length <= 2;
+    if (oneIsShort && importedLast && contactLast &&
         importedLast === contactLast &&
         importedFirstInitial && contactFirstInitial &&
         importedFirstInitial === contactFirstInitial) {
@@ -113,19 +138,35 @@ function findMatches(importedContact, existingContacts) {
       }
     }
 
-    // Pass 4: Fuzzy (Levenshtein distance ≤ 3)
+    // Pass 4: Last name exact + fuzzy first name (50-60%)
+    // Only fuzzes first names — prevents "Julio Gomez" matching "Justin Gomez"
+    if (importedLast && contactLast && importedLast === contactLast) {
+      var importedFirstClean = stripInitials(importedFirst) || stripInitials(importedNorm).split(/\s+/)[0] || '';
+      var contactFirstClean = stripInitials(contactFirst) || stripInitials(contactNorm).split(/\s+/)[0] || '';
+      if (importedFirstClean && contactFirstClean) {
+        var firstDist = levenshteinDistance(importedFirstClean, contactFirstClean);
+        if (firstDist > 0 && firstDist <= 2 && !matchedIds.has(contact.id)) {
+          var confidence = firstDist === 1 ? 60 : 50;
+          matches.push({ contact_id: contact.id, confidence: confidence, match_type: 'fuzzy_first' });
+          matchedIds.add(contact.id);
+          continue;
+        }
+      }
+    }
+
+    // Pass 5: Full name fuzzy (40%) — tightened: dist ≤ 2, min length 8
     if (importedStripped && contactStripped) {
-      const dist = levenshteinDistance(importedStripped, contactStripped);
-      if (dist > 0 && dist <= 3 && !matchedIds.has(contact.id)) {
-        const confidence = dist === 1 ? 60 : dist === 2 ? 50 : 40;
-        matches.push({ contact_id: contact.id, confidence, match_type: 'fuzzy' });
+      var minLen = Math.min(importedStripped.length, contactStripped.length);
+      var dist = levenshteinDistance(importedStripped, contactStripped);
+      if (dist > 0 && dist <= 2 && minLen >= 8 && !matchedIds.has(contact.id)) {
+        matches.push({ contact_id: contact.id, confidence: 40, match_type: 'fuzzy' });
         matchedIds.add(contact.id);
       }
     }
   }
 
   // Sort by confidence descending
-  matches.sort((a, b) => b.confidence - a.confidence);
+  matches.sort(function(a, b) { return b.confidence - a.confidence; });
   return matches;
 }
 
@@ -178,4 +219,4 @@ function matchAllByExisting(existingContacts, importedContacts) {
   return results;
 }
 
-module.exports = { matchAll, matchAllByExisting, findMatches, levenshteinDistance, normalizeName };
+module.exports = { matchAll, matchAllByExisting, findMatches, levenshteinDistance, normalizeName, stripInitials };

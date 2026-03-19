@@ -158,12 +158,13 @@ router.get('/', (req, res) => {
       AND ${contactWhere}
     `).get(...contactParams);
 
-    // Confirmed clients: have property_address AND at least phone or email
+    // Confirmed clients: have property_address AND at least phone or email from vcard
     const confirmedClients = db.prepare(`
       SELECT COUNT(*) as count
       FROM contacts
       WHERE property_address IS NOT NULL AND property_address != ''
-      AND ((phone IS NOT NULL AND phone != '') OR (email IS NOT NULL AND email != ''))
+      AND ((phone IS NOT NULL AND phone != '' AND phone_source = 'vcard')
+           OR (email IS NOT NULL AND email != '' AND email_source = 'vcard'))
       AND ${contactWhere}
     `).get(...contactParams);
 
@@ -702,7 +703,7 @@ router.post('/import-vcard/upload', handleVcfUpload, verifyCsrf, (req, res) => {
 
     // Store matches in phone_matches table
     const insertMatch = db.prepare(
-      'INSERT INTO phone_matches (contact_id, imported_contact_id, match_type, confidence_score) VALUES (?, ?, ?, ?)'
+      'INSERT OR IGNORE INTO phone_matches (contact_id, imported_contact_id, match_type, confidence_score) VALUES (?, ?, ?, ?)'
     );
 
     let autoConfirmed = 0;
@@ -744,9 +745,10 @@ router.post('/import-vcard/upload', handleVcfUpload, verifyCsrf, (req, res) => {
     var msg = `Imported ${newContacts.length} contact(s) (${phonesFoundNew} phones, ${emailsFoundNew} emails). ` +
       `Matched to ${autoConfirmed + needsReview} existing contact(s). Needs review: ${needsReview}. Unmatched contacts: ${unmatched}.`;
     if (skippedCount > 0) {
-      msg += ` Skipped ${skippedCount} duplicate(s) already imported.`;
+      setFlash(req, 'warning', 'Skipped ' + skippedCount + ' duplicate(s) already imported. ' + msg);
+    } else {
+      setFlash(req, 'success', msg);
     }
-    setFlash(req, 'success', msg);
     res.redirect('/realestate/matching?import_id=' + importId);
   } catch (err) {
     console.error('vCard upload error:', err);
@@ -948,13 +950,12 @@ router.get('/matching', (req, res) => {
       ORDER BY c.last_name, c.first_name
     `).all(userId);
 
-    // Count contacts that have been matched (have both phone and email from vcard)
+    // Count contacts that have been matched (have phone or email from vcard)
     const matchedCount = db.prepare(`
       SELECT COUNT(*) as c FROM contacts
       WHERE owner_id = ?
-        AND phone IS NOT NULL AND phone != ''
-        AND email IS NOT NULL AND email != ''
-        AND (phone_source = 'vcard' OR email_source = 'vcard')
+        AND ((phone IS NOT NULL AND phone != '' AND phone_source = 'vcard')
+             OR (email IS NOT NULL AND email != '' AND email_source = 'vcard'))
     `).get(userId).c;
 
     const counts = {
@@ -989,7 +990,7 @@ router.post('/matching/apply', (req, res) => {
       return res.redirect('/realestate/matching');
     }
 
-    // Get all confirmed matches (auto with confidence >= 70 OR manually confirmed)
+    // Get best match per contact (deduplicated — one per contact_id)
     const matches = db.prepare(`
       SELECT pm.id, pm.contact_id, pm.imported_contact_id,
              ic.phone as imported_phone, ic.email as imported_email
@@ -999,8 +1000,18 @@ router.post('/matching/apply', (req, res) => {
       JOIN contacts c ON pm.contact_id = c.id
       WHERE ci.imported_by = ?
         AND (pm.confirmed_at IS NOT NULL OR pm.confidence_score >= 70)
+        AND pm.id = (
+          SELECT pm2.id FROM phone_matches pm2
+          JOIN imported_contacts ic2 ON pm2.imported_contact_id = ic2.id
+          JOIN contact_imports ci2 ON ic2.import_id = ci2.id
+          WHERE ci2.imported_by = ?
+            AND pm2.contact_id = pm.contact_id
+            AND (pm2.confirmed_at IS NOT NULL OR pm2.confidence_score >= 70)
+          ORDER BY pm2.confidence_score DESC, pm2.id ASC
+          LIMIT 1
+        )
       ORDER BY pm.id
-    `).all(userId);
+    `).all(userId, userId);
 
     let phonesUpdated = 0;
     let emailsUpdated = 0;
@@ -1024,8 +1035,8 @@ router.post('/matching/apply', (req, res) => {
           emailsUpdated++;
         }
 
-        // Delete match record — permanently removes from matching page
-        db.prepare('DELETE FROM phone_matches WHERE id = ?').run(match.id);
+        // Delete ALL match records for this contact — cleans up duplicates too
+        db.prepare('DELETE FROM phone_matches WHERE contact_id = ?').run(match.contact_id);
       }
     });
 

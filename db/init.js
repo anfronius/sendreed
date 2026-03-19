@@ -164,6 +164,9 @@ function createTables() {
       confirmed_at DATETIME
     );
 
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_phone_matches_contact_imported
+      ON phone_matches(contact_id, imported_contact_id);
+
     CREATE TABLE IF NOT EXISTS city_mappings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       raw_city TEXT UNIQUE NOT NULL,
