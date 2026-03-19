@@ -958,6 +958,7 @@ router.get('/matching', (req, res) => {
     `).all(userId, ...importParams);
 
     // Unmatched: existing contacts missing phone/email with no match in phone_matches
+    // Exclude contacts that already have vCard-sourced data (previously applied matches)
     const unmatched = db.prepare(`
       SELECT c.id as contact_id, c.first_name as c_first, c.last_name as c_last,
              c.property_address as c_address, c.phone as c_phone, c.email as c_email,
@@ -965,6 +966,8 @@ router.get('/matching', (req, res) => {
       FROM contacts c
       WHERE c.owner_id = ?
         AND ((c.phone IS NULL OR c.phone = '') OR (c.email IS NULL OR c.email = ''))
+        AND c.phone_source IS NOT 'vcard'
+        AND c.email_source IS NOT 'vcard'
         AND c.id NOT IN (
           SELECT pm.contact_id FROM phone_matches pm
         )
@@ -1178,10 +1181,12 @@ router.post('/matching/rerun', verifyCsrf, (req, res) => {
       return res.redirect('/realestate/matching');
     }
 
-    // Get existing contacts missing phone or email
+    // Get existing contacts missing phone or email (exclude already vCard-matched)
     const existingContacts = db.prepare(
       `SELECT * FROM contacts WHERE owner_id = ?
-       AND ((phone IS NULL OR phone = '') OR (email IS NULL OR email = ''))`
+       AND ((phone IS NULL OR phone = '') OR (email IS NULL OR email = ''))
+       AND phone_source IS NOT 'vcard'
+       AND email_source IS NOT 'vcard'`
     ).all(userId);
 
     if (existingContacts.length === 0) {
@@ -1248,6 +1253,120 @@ router.post('/matching/rerun', verifyCsrf, (req, res) => {
     res.redirect('/realestate/matching');
   }
 });
+
+// POST /realestate/contacts/dedup — remove duplicate contacts, keep latest purchase
+router.post('/contacts/dedup', verifyCsrf, (req, res) => {
+  try {
+    const db = getDb();
+    const userId = getEffectiveOwnerId(req);
+    if (!userId) {
+      setFlash(req, 'error', 'Please select a user to act as before deduplicating.');
+      return res.redirect('/realestate');
+    }
+
+    // Find duplicate groups by normalized name
+    const dupeGroups = db.prepare(`
+      SELECT LOWER(TRIM(first_name)) as norm_first, LOWER(TRIM(last_name)) as norm_last,
+             GROUP_CONCAT(id) as ids
+      FROM contacts
+      WHERE owner_id = ?
+      GROUP BY norm_first, norm_last
+      HAVING COUNT(*) > 1
+    `).all(userId);
+
+    if (dupeGroups.length === 0) {
+      setFlash(req, 'success', 'No duplicate contacts found.');
+      return res.redirect('/realestate');
+    }
+
+    var totalRemoved = 0;
+
+    const dedupAll = db.transaction(() => {
+      for (var group of dupeGroups) {
+        var ids = group.ids.split(',').map(Number);
+
+        // Get all contacts in this group, pick the keeper:
+        // prefer latest purchase_date, then one with phone/email, then lowest id
+        var contacts = db.prepare(
+          'SELECT id, purchase_date, phone, email FROM contacts WHERE id IN (' +
+          ids.map(function() { return '?'; }).join(',') + ')'
+        ).all(...ids);
+
+        contacts.sort(function(a, b) {
+          // Parse purchase_date as MM/DD/YY for comparison
+          var dateA = a.purchase_date ? parsePurchaseDate(a.purchase_date) : 0;
+          var dateB = b.purchase_date ? parsePurchaseDate(b.purchase_date) : 0;
+          if (dateB !== dateA) return dateB - dateA; // latest first
+          // Prefer one with contact data
+          var hasDataA = (a.phone ? 1 : 0) + (a.email ? 1 : 0);
+          var hasDataB = (b.phone ? 1 : 0) + (b.email ? 1 : 0);
+          if (hasDataB !== hasDataA) return hasDataB - hasDataA;
+          return a.id - b.id; // lowest id as tiebreaker
+        });
+
+        var keepId = contacts[0].id;
+        var removeIds = contacts.slice(1).map(function(c) { return c.id; });
+
+        // Clean up phone_matches pointing to duplicates
+        db.prepare(
+          'DELETE FROM phone_matches WHERE contact_id IN (' +
+          removeIds.map(function() { return '?'; }).join(',') + ')'
+        ).run(...removeIds);
+
+        // Clean up anniversary_log for duplicates
+        db.prepare(
+          'DELETE FROM anniversary_log WHERE contact_id IN (' +
+          removeIds.map(function() { return '?'; }).join(',') + ')'
+        ).run(...removeIds);
+
+        // Clean up campaign_recipients for duplicates
+        db.prepare(
+          'DELETE FROM campaign_recipients WHERE contact_id IN (' +
+          removeIds.map(function() { return '?'; }).join(',') + ')'
+        ).run(...removeIds);
+
+        // Delete the duplicate contacts
+        db.prepare(
+          'DELETE FROM contacts WHERE id IN (' +
+          removeIds.map(function() { return '?'; }).join(',') + ')'
+        ).run(...removeIds);
+
+        totalRemoved += removeIds.length;
+      }
+    });
+
+    dedupAll();
+
+    logAction('contact_dedup', {
+      table: 'contacts',
+      groupsProcessed: dupeGroups.length,
+      contactsRemoved: totalRemoved,
+      userId: userId,
+    });
+
+    setFlash(req, 'success', 'Deduplicated contacts: removed ' + totalRemoved +
+      ' duplicate(s) across ' + dupeGroups.length + ' name group(s).');
+    res.redirect('/realestate');
+  } catch (err) {
+    console.error('Contact dedup error:', err);
+    setFlash(req, 'error', 'Failed to deduplicate contacts: ' + err.message);
+    res.redirect('/realestate');
+  }
+});
+
+// Helper: parse MM/DD/YY purchase date to a comparable number
+function parsePurchaseDate(dateStr) {
+  if (!dateStr) return 0;
+  var parts = dateStr.split('/');
+  if (parts.length !== 3) return 0;
+  var month = parseInt(parts[0], 10);
+  var day = parseInt(parts[1], 10);
+  var year = parseInt(parts[2], 10);
+  // Handle 2-digit years: 00-49 → 2000s, 50-99 → 1900s
+  if (year < 50) year += 2000;
+  else if (year < 100) year += 1900;
+  return year * 10000 + month * 100 + day;
+}
 
 // ========== Anniversaries ==========
 

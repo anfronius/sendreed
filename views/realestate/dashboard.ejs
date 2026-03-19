@@ -54,7 +54,13 @@
   <a href="/realestate/import-vcard" class="btn btn-large btn-upload">Import Contacts List</a>
   <a href="/realestate/lookup" class="btn btn-large btn-secondary">Realist Lookup</a>
   <a href="/realestate/matching" class="btn btn-large btn-secondary">Phone Matching</a>
-
+  <form method="POST" action="/realestate/contacts/dedup" style="display:inline;">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button type="submit" class="btn btn-large btn-secondary"
+      onclick="return confirm('This will remove duplicate contacts, keeping the one with the latest purchase date. Continue?');">
+      Deduplicate Clients
+    </button>
+  </form>
 </div>
 
 <%- include('../layout-footer', { scripts: [] }) %>
