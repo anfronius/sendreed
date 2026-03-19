@@ -1035,6 +1035,16 @@ router.post('/matching/apply', (req, res) => {
           emailsUpdated++;
         }
 
+        // Archive before deleting — preserves history for undo
+        db.prepare(`
+          INSERT INTO phone_matches_archive
+            (original_match_id, contact_id, imported_contact_id, match_type,
+             confidence_score, confirmed_by, confirmed_at, archived_reason)
+          SELECT id, contact_id, imported_contact_id, match_type,
+                 confidence_score, confirmed_by, confirmed_at, 'applied'
+          FROM phone_matches WHERE contact_id = ?
+        `).run(match.contact_id);
+
         // Delete ALL match records for this contact — cleans up duplicates too
         db.prepare('DELETE FROM phone_matches WHERE contact_id = ?').run(match.contact_id);
       }
@@ -1065,6 +1075,153 @@ router.post('/matching/apply', (req, res) => {
       return res.status(500).json({ error: err.message });
     }
     setFlash(req, 'error', 'Failed to apply matches: ' + err.message);
+    res.redirect('/realestate/matching');
+  }
+});
+
+// POST /realestate/matching/reset — undo all matches and revert vcard-sourced data
+router.post('/matching/reset', verifyCsrf, (req, res) => {
+  try {
+    const db = getDb();
+    const userId = getEffectiveOwnerId(req);
+    if (!userId) {
+      setFlash(req, 'error', 'Please select a user to act as before resetting matches.');
+      return res.redirect('/realestate/matching');
+    }
+
+    const resetAll = db.transaction(() => {
+      // Archive existing matches before deleting
+      db.prepare(`
+        INSERT INTO phone_matches_archive
+          (original_match_id, contact_id, imported_contact_id, match_type,
+           confidence_score, confirmed_by, confirmed_at, archived_reason)
+        SELECT pm.id, pm.contact_id, pm.imported_contact_id, pm.match_type,
+               pm.confidence_score, pm.confirmed_by, pm.confirmed_at, 'user_reset'
+        FROM phone_matches pm
+        JOIN contacts c ON pm.contact_id = c.id
+        WHERE c.owner_id = ?
+      `).run(userId);
+
+      // Revert vcard-sourced phone data
+      var phonesReverted = db.prepare(`
+        UPDATE contacts SET phone = NULL, phone_source = NULL
+        WHERE owner_id = ? AND phone_source = 'vcard'
+      `).run(userId).changes;
+
+      // Revert vcard-sourced email data
+      var emailsReverted = db.prepare(`
+        UPDATE contacts SET email = NULL, email_source = NULL
+        WHERE owner_id = ? AND email_source = 'vcard'
+      `).run(userId).changes;
+
+      // Delete all phone_matches for this user
+      var matchesDeleted = db.prepare(`
+        DELETE FROM phone_matches WHERE contact_id IN (
+          SELECT id FROM contacts WHERE owner_id = ?
+        )
+      `).run(userId).changes;
+
+      return { phonesReverted, emailsReverted, matchesDeleted };
+    });
+
+    var result = resetAll();
+
+    logAction('match_reset', {
+      table: 'phone_matches',
+      phonesReverted: result.phonesReverted,
+      emailsReverted: result.emailsReverted,
+      matchesDeleted: result.matchesDeleted,
+      userId: userId,
+    });
+
+    setFlash(req, 'success', 'Reset matching: reverted ' + result.phonesReverted +
+      ' phone(s) and ' + result.emailsReverted + ' email(s), cleared ' +
+      result.matchesDeleted + ' match(es).');
+    res.redirect('/realestate/matching');
+  } catch (err) {
+    console.error('Reset matches error:', err);
+    setFlash(req, 'error', 'Failed to reset matches: ' + err.message);
+    res.redirect('/realestate/matching');
+  }
+});
+
+// POST /realestate/matching/rerun — re-run matching algorithm without re-importing vCards
+router.post('/matching/rerun', verifyCsrf, (req, res) => {
+  try {
+    const db = getDb();
+    const userId = getEffectiveOwnerId(req);
+    if (!userId) {
+      setFlash(req, 'error', 'Please select a user to act as before re-running matches.');
+      return res.redirect('/realestate/matching');
+    }
+
+    // Get existing contacts missing phone or email
+    const existingContacts = db.prepare(
+      `SELECT * FROM contacts WHERE owner_id = ?
+       AND ((phone IS NULL OR phone = '') OR (email IS NULL OR email = ''))`
+    ).all(userId);
+
+    if (existingContacts.length === 0) {
+      setFlash(req, 'success', 'All contacts already have phone and email data.');
+      return res.redirect('/realestate/matching');
+    }
+
+    // Get all imported contacts for this user
+    const importedContacts = db.prepare(
+      `SELECT ic.* FROM imported_contacts ic
+       JOIN contact_imports ci ON ic.import_id = ci.id
+       WHERE ci.imported_by = ?`
+    ).all(userId);
+
+    if (importedContacts.length === 0) {
+      setFlash(req, 'error', 'No imported contacts found. Import a vCard file first.');
+      return res.redirect('/realestate/matching');
+    }
+
+    // Run matching algorithm
+    const matchResults = matcher.matchAllByExisting(existingContacts, importedContacts);
+
+    // Store matches (INSERT OR IGNORE to avoid duplicates)
+    const insertMatch = db.prepare(
+      'INSERT OR IGNORE INTO phone_matches (contact_id, imported_contact_id, match_type, confidence_score) VALUES (?, ?, ?, ?)'
+    );
+
+    var autoConfirmed = 0;
+    var needsReview = 0;
+    var unmatched = 0;
+
+    const storeMatches = db.transaction(() => {
+      for (const result of matchResults) {
+        if (result.matches.length === 0) {
+          unmatched++;
+          continue;
+        }
+
+        const bestMatch = result.matches[0];
+        insertMatch.run(result.contact_id, bestMatch.imported_contact_id, 'auto', bestMatch.confidence);
+        if (bestMatch.confidence >= 70) {
+          autoConfirmed++;
+        } else {
+          needsReview++;
+        }
+      }
+    });
+    storeMatches();
+
+    logAction('match_rerun', {
+      table: 'phone_matches',
+      autoConfirmed: autoConfirmed,
+      needsReview: needsReview,
+      unmatched: unmatched,
+      userId: userId,
+    });
+
+    setFlash(req, 'success', 'Re-ran matching: ' + autoConfirmed + ' auto-confirmed, ' +
+      needsReview + ' needs review, ' + unmatched + ' unmatched.');
+    res.redirect('/realestate/matching');
+  } catch (err) {
+    console.error('Re-run matching error:', err);
+    setFlash(req, 'error', 'Failed to re-run matching: ' + err.message);
     res.redirect('/realestate/matching');
   }
 });

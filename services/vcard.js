@@ -132,14 +132,19 @@ function parseVCardBlock(lines) {
     contact.full_name = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
   }
 
-  // Derive first/last from FN if N missing
-  if (contact.full_name && !contact.first_name && !contact.last_name) {
-    const parts = contact.full_name.trim().split(/\s+/);
-    if (parts.length > 1) {
-      contact.last_name = parts.pop();
-      contact.first_name = parts.join(' ');
-    } else {
-      contact.last_name = parts[0];
+  // Derive first/last from full_name or first_name when last_name is missing
+  // Handles iPhone vCards where N:;Full Name;;; puts everything in first_name
+  if (!contact.last_name && (contact.full_name || contact.first_name)) {
+    var nameToSplit = contact.full_name || contact.first_name;
+    var splitParts = nameToSplit.trim().split(/\s+/);
+    if (splitParts.length > 1) {
+      contact.last_name = splitParts.pop();
+      contact.first_name = splitParts.join(' ');
+      if (!contact.full_name) {
+        contact.full_name = nameToSplit;
+      }
+    } else if (!contact.first_name) {
+      contact.last_name = splitParts[0];
     }
   }
 

@@ -167,6 +167,19 @@ function createTables() {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_phone_matches_contact_imported
       ON phone_matches(contact_id, imported_contact_id);
 
+    CREATE TABLE IF NOT EXISTS phone_matches_archive (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      original_match_id INTEGER,
+      contact_id INTEGER NOT NULL,
+      imported_contact_id INTEGER NOT NULL,
+      match_type TEXT,
+      confidence_score INTEGER,
+      confirmed_by INTEGER,
+      confirmed_at DATETIME,
+      archived_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      archived_reason TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS city_mappings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       raw_city TEXT UNIQUE NOT NULL,

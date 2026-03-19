@@ -7,6 +7,15 @@
       data-count="<%= counts.autoConfirmed %>">
       Apply All Confirmed (<%= counts.autoConfirmed %>)
     </button>
+    <form method="POST" action="/realestate/matching/rerun" style="display:inline;">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-large btn-secondary">Re-run Matching</button>
+    </form>
+    <form method="POST" action="/realestate/matching/reset" style="display:inline;"
+      onsubmit="return confirm('This will undo ALL applied matches and revert vCard-sourced phone/email data. Are you sure?');">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="btn btn-large btn-danger">Reset All Matches</button>
+    </form>
     <a href="/realestate/import-vcard" class="btn btn-large btn-upload">Import Contacts List</a>
   </div>
 </div>
