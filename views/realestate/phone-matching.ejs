@@ -12,7 +12,7 @@
       <button type="submit" class="btn btn-large btn-secondary">Re-run Matching</button>
     </form>
     <form method="POST" action="/realestate/matching/reset" style="display:inline;"
-      onsubmit="return confirm('This will undo ALL applied matches and revert vCard-sourced phone/email data. Are you sure?');">
+      onsubmit="return confirm('This will undo ALL applied matches and clear any phone/email data that came from matching. Are you sure?');">
       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
       <button type="submit" class="btn btn-large btn-danger">Reset All Matches</button>
     </form>
@@ -44,7 +44,7 @@
 
 <% if (counts.total === 0) { %>
   <div class="empty-state">
-    <p>No contacts need phone/email data. <a href="/realestate/import-vcard">Import a vCard file</a> to match contacts.</p>
+    <p>No contacts need phone/email data. <a href="/realestate/import-vcard">Import a contacts list</a> to start matching.</p>
   </div>
 <% } else { %>
 
@@ -52,7 +52,7 @@
 <% if (autoConfirmed.length > 0) { %>
 <div class="match-section match-section-green" id="section-confirmed">
   <h2>Auto-Matched <span class="count-badge"><%= autoConfirmed.length %></span></h2>
-  <p class="match-section-desc">High-confidence matches (score >= 70). These will be applied when you click "Apply All Confirmed".</p>
+  <p class="match-section-desc">These names closely match your imported contacts list. They'll be applied when you click "Apply All Confirmed".</p>
   <div class="match-list">
     <% autoConfirmed.forEach(function(m) { %>
     <div class="match-card" data-match-id="<%= m.match_id %>">
@@ -112,7 +112,7 @@
 <% if (needsReview.length > 0) { %>
 <div class="match-section match-section-yellow" id="section-review">
   <h2>Needs Review <span class="count-badge"><%= needsReview.length %></span></h2>
-  <p class="match-section-desc">Lower confidence matches. Review and confirm or skip each one.</p>
+  <p class="match-section-desc">These are possible matches but the names aren't an exact fit. Review each one and confirm or skip.</p>
   <div class="match-list">
     <% needsReview.forEach(function(m) { %>
     <div class="match-card" data-match-id="<%= m.match_id %>">
@@ -140,11 +140,11 @@
 </div>
 <% } %>
 
-<!-- Section 3: Unmatched (existing contacts with no vCard match) -->
+<!-- Section 3: Unmatched (no matching contact found in imports) -->
 <% if (unmatched.length > 0) { %>
 <div class="match-section match-section-red" id="section-unmatched">
   <h2>No Match Found <span class="count-badge"><%= unmatched.length %></span></h2>
-  <p class="match-section-desc">These contacts are missing phone or email and no vCard match was found. Search for a vCard import to assign manually.</p>
+  <p class="match-section-desc">These clients are missing phone or email and no match was found in your imported contacts. You can search and assign one manually.</p>
   <div class="match-list">
     <% unmatched.forEach(function(m) { %>
     <div class="match-card" data-contact-id="<%= m.contact_id %>">
@@ -155,7 +155,7 @@
       </div>
       <div class="match-card-right" style="flex:1;">
         <div class="manual-match-form">
-          <input type="text" class="contact-search-input" placeholder="Search vCard imports by name..."
+          <input type="text" class="contact-search-input" placeholder="Search imported contacts by name..."
             data-contact-id="<%= m.contact_id %>">
           <div class="contact-search-results" data-contact-id="<%= m.contact_id %>"></div>
         </div>
